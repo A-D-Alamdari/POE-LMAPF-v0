@@ -176,6 +176,13 @@ class LNS2Solver(BaseSolverWrapper):
                 end_to_end_wall_ms=0.0,
             )
 
+        # Rewrite duplicate-goal agents to ``goal == start`` so the
+        # Jiaoyang-Li LNS2 binary does not abort with the rc=255
+        # "target conflict" error.  See ``docs/solver_error_diagnosis.md``.
+        planned_agents, goal_overrides = self._filter_one_shot_instance(
+            agents, assignments, active_agents,
+        )
+
         tmpdir = tempfile.mkdtemp(prefix="lns2_")
         try:
             map_path = os.path.join(tmpdir, "map.map")
@@ -185,7 +192,8 @@ class LNS2Solver(BaseSolverWrapper):
             map_filename = os.path.basename(map_path)
             self._write_map_file(env, map_path)
             agent_order = self._write_scenario_file(
-                env, agents, assignments, active_agents, scen_path, map_filename,
+                env, agents, assignments, planned_agents, scen_path,
+                map_filename, goal_overrides=goal_overrides,
             )
             cmd = [
                 self.binary_path,
@@ -313,14 +321,21 @@ class LNS2Solver(BaseSolverWrapper):
             active_agents: List[int],
             path: str,
             map_filename: str = "map.map",
+            goal_overrides: Optional[Dict[int, Cell]] = None,
     ) -> List[int]:
+        """Write the MovingAI .scen file.  ``goal_overrides`` pins
+        specific agents' scenario goals (see
+        ``BaseSolverWrapper._filter_one_shot_instance``)."""
         agent_order = []
+        overrides = goal_overrides or {}
         with open(path, 'w') as f:
             f.write("version 1\n")
             for aid in active_agents:
                 agent = agents[aid]
                 start = agent.pos
-                if agent.goal is not None:
+                if aid in overrides:
+                    goal = overrides[aid]
+                elif agent.goal is not None:
                     goal = agent.goal
                 elif aid in assignments:
                     goal = assignments[aid].goal

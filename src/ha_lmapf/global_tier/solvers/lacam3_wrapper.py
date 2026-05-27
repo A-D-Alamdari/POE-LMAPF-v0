@@ -181,6 +181,13 @@ class LaCAM3Solver(BaseSolverWrapper):
                 end_to_end_wall_ms=0.0,
             )
 
+        # Rewrite duplicate-goal agents to ``goal == start`` so the
+        # Kei18 LaCAM3 binary sees a one-shot MAPF instance with
+        # distinct goal cells.  See ``docs/solver_error_diagnosis.md``.
+        planned_agents, goal_overrides = self._filter_one_shot_instance(
+            agents, assignments, active_agents,
+        )
+
         tmpdir = tempfile.mkdtemp(prefix="lacam3_")
         try:
             map_path = os.path.join(tmpdir, "map.map")
@@ -189,7 +196,8 @@ class LaCAM3Solver(BaseSolverWrapper):
             map_filename = os.path.basename(map_path)
             self._write_map_file(env, map_path)
             agent_order = self._write_scenario_file(
-                env, agents, assignments, active_agents, scen_path, map_filename,
+                env, agents, assignments, planned_agents, scen_path,
+                map_filename, goal_overrides=goal_overrides,
             )
             cmd = [
                 self.binary_path,
@@ -312,6 +320,7 @@ class LaCAM3Solver(BaseSolverWrapper):
             active_agents: List[int],
             path: str,
             map_filename: str = "map.map",
+            goal_overrides: Optional[Dict[int, Cell]] = None,
     ) -> List[int]:
         """
         Write MovingAI .scen format scenario file.
@@ -321,10 +330,16 @@ class LaCAM3Solver(BaseSolverWrapper):
 
         Note: The map_name field must match the actual map filename used in the -m argument.
 
+        ``goal_overrides`` pins specific agents' scenario goal cells
+        (used by ``_filter_one_shot_instance`` to rewrite duplicate
+        goals as ``goal == start``).  Agents without an override use
+        the agent.goal / assignment.goal lookup chain.
+
         Returns:
             List of agent IDs in the order they appear in the scenario file
         """
         agent_order = []
+        overrides = goal_overrides or {}
 
         with open(path, 'w') as f:
             f.write("version 1\n")
@@ -334,7 +349,9 @@ class LaCAM3Solver(BaseSolverWrapper):
                 start = agent.pos  # (row, col)
 
                 # Determine goal
-                if agent.goal is not None:
+                if aid in overrides:
+                    goal = overrides[aid]
+                elif agent.goal is not None:
                     goal = agent.goal
                 elif aid in assignments:
                     goal = assignments[aid].goal
