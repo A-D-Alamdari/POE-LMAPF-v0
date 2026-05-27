@@ -473,6 +473,26 @@ class Metrics:
     # computed at analysis time — numerator and denominator now count
     # the same event.
     n_multiagent_allocation_rounds: int = 0
+    # Tier-1 -> Tier-2 guidance handoff instrumentation
+    # (``SimConfig.debug_guidance_trace``).  Three raw counters and two
+    # derived ratios so downstream tooling can read either form.
+    #   guidance_eligible_ticks: agent-ticks where the agent had an
+    #     active task (goal != None and pos != goal) -- the only ticks
+    #     where guidance is expected.
+    #   guidance_covered_ticks: subset of eligible ticks where the
+    #     current PlanBundle held a non-empty TimedPath for that agent.
+    #   guidance_followed_ticks: subset of covered ticks where the
+    #     agent's post-physics position equals the cell the bundle
+    #     prescribed for ``step + 1``.
+    # Ratios are zero on runs with the flag off (no counters incremented)
+    # which is fine -- downstream tooling treats zero/zero as "not
+    # measured" rather than a real value.  See
+    # ``docs/tier_handoff_diagnosis.md``.
+    guidance_eligible_ticks: int = 0
+    guidance_covered_ticks: int = 0
+    guidance_followed_ticks: int = 0
+    guidance_coverage: float = 0.0
+    guidance_follow_rate: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize metrics to a dictionary."""
@@ -688,6 +708,14 @@ class SimConfig:
     #                   PIBT2-FR baseline (paper Section 5.5) and to
     #                   make RHCR truly exogenous-blind end-to-end.
     controller_kind: Literal["default", "global_only"] = "default"
+    # When True the simulator instruments the Tier-1 -> Tier-2 handoff
+    # per (agent, tick): whether a global guidance path was available
+    # and whether the executed action matched it.  Adds two dict
+    # lookups + a comparison per agent per tick (negligible at sweep
+    # scale, but off by default).  Used by
+    # ``scripts/debug_tier_handoff.py`` and the §5.4 / §5.5 sanity
+    # checks; see ``docs/tier_handoff_diagnosis.md``.
+    debug_guidance_trace: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize config to a dictionary."""

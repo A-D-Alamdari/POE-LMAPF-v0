@@ -89,6 +89,21 @@ class MetricsTracker:
         self._violations_agent_timeline: List[int] = []
         self._violations_exogenous_timeline: List[int] = []
 
+        # Tier-1 → Tier-2 guidance handoff instrumentation.  Counted only
+        # when ``SimConfig.debug_guidance_trace`` is True; the simulator
+        # calls :meth:`add_guidance_observation` once per (agent, tick)
+        # for every agent that had an active task on that tick.
+        # ``guidance_coverage = covered / eligible`` is the fraction of
+        # agent-ticks where the rolling-horizon planner had a non-empty
+        # path for the agent at decision time.
+        # ``guidance_follow_rate = followed / covered`` is the fraction
+        # of those covered agent-ticks where the agent's post-physics
+        # position equals the cell the bundle prescribed.  See
+        # ``docs/tier_handoff_diagnosis.md``.
+        self._guidance_eligible_ticks: int = 0
+        self._guidance_covered_ticks: int = 0
+        self._guidance_followed_ticks: int = 0
+
         # Paper §5.6 — global no-progress streak tracking.  The simulator
         # calls ``record_global_no_progress_tick(stalled)`` once per tick
         # AFTER the per-agent deadlock loop with stalled=True iff every
@@ -215,6 +230,30 @@ class MetricsTracker:
         to ``Metrics.solver_errors``.
         """
         self._solver_errors += int(count)
+
+    def add_guidance_observation(
+            self, *, eligible: bool, covered: bool, followed: bool,
+    ) -> None:
+        """Record one (agent, tick) guidance observation.
+
+        ``eligible`` is True iff the agent had an active task this tick
+        (i.e. ``agent.goal is not None`` and ``agent.pos != agent.goal``)
+        -- the only ticks where the rolling-horizon planner is expected
+        to provide guidance.  ``covered`` is True iff the current
+        PlanBundle held a non-empty path for that agent at decision
+        time.  ``followed`` is True iff the agent's post-physics
+        position equals the cell the bundle prescribed for ``step+1``.
+
+        Counters are 0/0 (i.e. NaN ratios) for runs where
+        ``SimConfig.debug_guidance_trace`` is False -- the simulator
+        is the only caller and gates on the flag.
+        """
+        if eligible:
+            self._guidance_eligible_ticks += 1
+        if covered:
+            self._guidance_covered_ticks += 1
+        if followed:
+            self._guidance_followed_ticks += 1
 
     def add_solver_fallback_reuse(self, count: int = 1) -> None:
         """Count a failed-solve replan that recovered by re-anchoring
@@ -539,4 +578,15 @@ class MetricsTracker:
             # the tracker's internal per-tick buffers.
             violations_agent_timeline=list(self._violations_agent_timeline),
             violations_exogenous_timeline=list(self._violations_exogenous_timeline),
+            guidance_eligible_ticks=int(self._guidance_eligible_ticks),
+            guidance_covered_ticks=int(self._guidance_covered_ticks),
+            guidance_followed_ticks=int(self._guidance_followed_ticks),
+            guidance_coverage=(
+                float(self._guidance_covered_ticks) / float(self._guidance_eligible_ticks)
+                if self._guidance_eligible_ticks > 0 else 0.0
+            ),
+            guidance_follow_rate=(
+                float(self._guidance_followed_ticks) / float(self._guidance_covered_ticks)
+                if self._guidance_covered_ticks > 0 else 0.0
+            ),
         )

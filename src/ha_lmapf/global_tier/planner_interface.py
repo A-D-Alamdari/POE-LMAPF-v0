@@ -1,14 +1,62 @@
 from __future__ import annotations
 
+import math
 import os
-from typing import Dict
+from typing import Any, Dict
 
 from ha_lmapf.core.interfaces import GlobalPlanner
-from ha_lmapf.core.types import AgentState, PlanBundle, Task, TimedPath
+from ha_lmapf.core.types import AgentState, PlanBundle, SolverResult, Task, TimedPath
 
 from ha_lmapf.global_tier.solvers.cbsh2_wrapper import CBSH2Solver
 from ha_lmapf.global_tier.solvers.lacam_official_wrapper import LaCAMOfficialSolver
 from ha_lmapf.global_tier.solvers.lacam_official_real_time import RealTimeLaCAMSolver
+
+
+class AllWaitGlobalPlanner:
+    """Debug-only Tier-1 planner that always returns an all-WAIT
+    bundle.  Used by ``scripts/debug_tier_handoff.py`` to bound the
+    contribution of the global tier in throughput comparisons -- if a
+    real solver does not move the throughput needle vs this planner,
+    the experiment is measuring something other than the global plan
+    quality.  See ``docs/tier_handoff_diagnosis.md``.
+    """
+
+    MIGRATION_DEPTH = "full"
+
+    def plan_with_metadata(
+            self,
+            env: Any,
+            agents: Dict[int, AgentState],
+            assignments: Dict[int, Task],
+            step: int,
+            horizon: int,
+            rng: Any,
+            **_: Any,
+    ) -> SolverResult:
+        paths: Dict[int, TimedPath] = {
+            aid: _wait_path(a.pos, step, horizon)
+            for aid, a in agents.items()
+        }
+        return SolverResult(
+            plan=PlanBundle(paths=paths, created_step=step, horizon=horizon),
+            status="complete",
+            solver_wall_ms=0.0,
+            end_to_end_wall_ms=0.0,
+        )
+
+    def plan(
+            self,
+            env: Any,
+            agents: Dict[int, AgentState],
+            assignments: Dict[int, Task],
+            step: int,
+            horizon: int,
+            rng: Any,
+            **_: Any,
+    ) -> PlanBundle:
+        return self.plan_with_metadata(
+            env, agents, assignments, step, horizon, rng,
+        ).plan
 
 
 class GlobalPlannerFactory:
@@ -116,6 +164,11 @@ class GlobalPlannerFactory:
         # Real-Time LaCAM — persistent DFS with rerooting (pure Python)
         if name in {"rt_lacam", "lacam_rt", "real_time_lacam"}:
             return RealTimeLaCAMSolver(**kwargs)
+
+        # Debug-only: all-WAIT Tier-1.  Used by the tier-handoff
+        # diagnostic to bound the contribution of the global plan.
+        if name in {"all_wait", "all-wait", "wait_planner", "null_global"}:
+            return AllWaitGlobalPlanner()
 
         raise ValueError(
             f"Unknown global solver '{name}'. "

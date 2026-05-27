@@ -209,6 +209,14 @@ class Simulator:
         # final ``Metrics.deadlock_count = len(_deadlocked_agents)``.
         self._deadlock_streak: Dict[int, int] = {}
         self._prev_task_id: Dict[int, Optional[str]] = {}
+        # Per-tick snapshot of each agent's goal as the global planner
+        # saw it, used by the guidance-handoff instrumentation.  The
+        # simulator may mutate ``agent.goal`` between decision time and
+        # the eligibility check (Phase-1 pickup completes -> goal
+        # rewrites to task.goal); the snapshot gives us the
+        # decision-time view that matches the bundle the controllers
+        # consulted.  Empty when ``debug_guidance_trace`` is False.
+        self._prev_goal_for_guidance: Dict[int, Optional[Cell]] = {}
         self._deadlocked_agents: Set[int] = set()
         self._deadlock_streak_threshold: int = int(
             getattr(config, "deadlock_streak_threshold", 100)
@@ -1404,6 +1412,27 @@ class Simulator:
         actions: Dict[int, StepAction] = {}
         prev_pos: Dict[int, Cell] = {aid: self.agents[aid].pos for aid in self.agents.keys()}
 
+        # Tier-1 -> Tier-2 guidance handoff snapshot.  Captured BEFORE
+        # the decide loop because ``AgentController.decide_action`` may
+        # call ``clear_path`` on its own agent's bundle entry (e.g.
+        # after a local replan), which would erase the planner's
+        # original prescription and make the post-physics comparison
+        # meaningless.  Gated on ``debug_guidance_trace`` so the
+        # default sweep is unaffected.  See
+        # ``docs/tier_handoff_diagnosis.md``.
+        guidance_trace: Dict[int, Optional[Cell]] = {}
+        if bool(getattr(self.config, "debug_guidance_trace", False)):
+            plans_now = self._plans
+            for aid in self.agents.keys():
+                if plans_now is None:
+                    guidance_trace[aid] = None
+                    continue
+                path = plans_now.paths.get(aid)
+                if path is None or not path.cells:
+                    guidance_trace[aid] = None
+                else:
+                    guidance_trace[aid] = path(self.step + 1)
+
         for aid in sorted(self.agents.keys()):
             act = self.controllers[aid].decide_action(self, observations[aid], rng=self.rng)
             actions[aid] = act
@@ -1522,6 +1551,39 @@ class Simulator:
         # 7b. Apply validated actions
         for aid in sorted_aids:
             self.agents[aid] = apply_agent_action(self.env, self.agents[aid], actions[aid])
+
+        # Tier-1 -> Tier-2 guidance handoff post-physics evaluation.
+        # An agent is "eligible" iff it had an active task at decision
+        # time (goal != None, pos != goal); "covered" iff the bundle's
+        # ``step+1`` prescription existed; "followed" iff the agent's
+        # post-physics position equals that prescription.  At-goal /
+        # idle agents are excluded from the denominator -- they are
+        # not expected to receive guidance.  See
+        # ``docs/tier_handoff_diagnosis.md``.
+        if guidance_trace:
+            for aid in sorted_aids:
+                a = self.agents[aid]
+                prev_a_goal = self._prev_goal_for_guidance.get(aid)
+                # Use the goal that the agent had at decision time --
+                # not after the physics phase, which may have advanced
+                # the agent to its task.start and rewritten goal.  The
+                # bundle was built for that decision-time goal.
+                decision_goal = prev_a_goal if prev_a_goal is not None else a.goal
+                eligible = (
+                    decision_goal is not None
+                    and prev_pos[aid] != decision_goal
+                )
+                prescribed = guidance_trace.get(aid)
+                covered = (prescribed is not None) and eligible
+                followed = bool(covered and prescribed == a.pos)
+                self.metrics.add_guidance_observation(
+                    eligible=eligible, covered=covered, followed=followed,
+                )
+        # Refresh the per-agent goal snapshot used by the next tick's
+        # eligibility check (kept defensive against task pickup
+        # rewrites that happen later in step_once).
+        for aid, a in self.agents.items():
+            self._prev_goal_for_guidance[aid] = a.goal
 
         # 7c. Paper §5.7 deadlock detection: per-agent no-movement streak.
         # Pure observation — no decision-side effects.  Streak increments
