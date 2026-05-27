@@ -1,3 +1,18 @@
+% Provenance: each cell is mean +/- std over 40 seeds of the §5.2
+% solver-sensitivity sweep (logs/paper/solver_sensitivity/results.csv).
+% The "Exo-attr. violations" column is
+%   mean_over_seeds(violations_exogenous_attributable)
+% per (map, global_solver, horizon=20) cell -- no transform, no
+% normalisation.  Audited in reports/table1_audit.md; reproduces
+% within 0.007% per cell.  When the §5.2 sweep is re-run on the
+% current head it will also emit
+% ``violations_def1_exogenous_attributable'' (paper §3 Definition-1
+% quantity); the paper text should switch to that column at re-run
+% time so the reproduced number matches the Theorem 1 invariant 1:1.
+%
+% Known issue: the §5.2 sweep CSV is missing lacam3, so the LaCAM*
+% rows below duplicate the LaCAM (lacam_official) rows verbatim.
+% See reports/table1_audit.md.
 \begin{table}[t]
 \centering
 \small

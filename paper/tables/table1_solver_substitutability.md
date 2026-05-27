@@ -1,5 +1,21 @@
 # Paper Table 1 — Tier-1 Solver Substitutability ($H = 20$)
 
+Provenance: each cell is the per-cell mean ± std over 40 seeds of the
+§5.2 solver-sensitivity sweep, source CSV
+`logs/paper/solver_sensitivity/results.csv`.  The "Exo-attr. violations"
+column is `mean_over_seeds(violations_exogenous_attributable)` -- no
+transform, no normalisation -- per `(map, global_solver, horizon=20)`
+cell.  Audited in `reports/table1_audit.md`; reproduces within 0.007%
+per cell.  When the §5.2 sweep is re-run on the current head it will
+also emit `violations_def1_exogenous_attributable` (paper §3
+Definition-1 quantity introduced by the Definition-1 prompt); at that
+point the paper text should switch to the def1 column so the reproduced
+number matches the Theorem 1 invariant 1:1.
+
+**Known issue (LaCAM\* row):** the §5.2 sweep CSV is missing `lacam3`,
+so the LaCAM\* row below duplicates the LaCAM (`lacam_official`) row
+verbatim.  See `reports/table1_audit.md` § "Known issue".
+
 ## random-64-64-10
 
 | Solver | Throughput | Agent-attr. violations | Exo-attr. violations | Mean planning time (ms) |
