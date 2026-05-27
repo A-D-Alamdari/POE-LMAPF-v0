@@ -44,6 +44,16 @@ REQUIRED_CLAIM_FIELDS = (
 ALLOWED_SECTIONS = {"5.2", "5.3", "5.4", "5.5"}
 ALLOWED_DIRECTIONS = {"higher", "lower", "neither"}
 
+# Degenerate-run guard (P2 follow-up).  Mirrors the threshold the
+# experiment runner uses; per-row check below trips on any of:
+#   * explicit ``run_valid`` field present and falsey,
+#   * explicit ``solver_fail_fraction`` exceeding the threshold,
+#   * computed ``(solver_errors + solver_timeouts) / max(1, global_replans)``
+#     exceeding the threshold when the explicit field is missing
+#     (covers legacy per-run CSVs from before P2),
+#   * ``global_replans`` present and zero (Tier-1 never ran).
+DEFAULT_VALIDITY_THRESHOLD = 0.05
+
 
 # ---------------------------------------------------------------------------
 # IO helpers
@@ -69,6 +79,95 @@ def load_results(path: Path) -> List[Dict[str, Any]]:
         for raw in csv.DictReader(f):
             rows.append({k: _coerce(v) for k, v in raw.items()})
     return rows
+
+
+def _truthy_run_valid(value: Any) -> bool:
+    """Coerce a ``run_valid`` cell to a boolean.  CSV round-trips
+    Python bools as the strings ``True`` / ``False``; numerics also
+    appear as 1 / 0.  Treat anything else (None, empty, unknown
+    string) as ``True`` so missing-column CSVs are not classified as
+    invalid -- the explicit checks downstream still trip on the real
+    failure signal (computed solver_fail_fraction)."""
+    if value is None or value == "":
+        return True
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    s = str(value).strip().lower()
+    if s in ("false", "0", "no"):
+        return False
+    return True
+
+
+def classify_row_validity(
+    row: Dict[str, Any], threshold: float,
+) -> Optional[str]:
+    """Return ``None`` if the row passes the degenerate-run guard,
+    otherwise a short reason string suitable for the Invalid section.
+
+    The check is conservative: a CSV that lacks the P2 columns
+    (``run_valid`` / ``solver_fail_fraction``) is still inspected by
+    computing the failure fraction from ``solver_errors``,
+    ``solver_timeouts``, and ``global_replans`` -- the fields that
+    have been in the per-run CSV since well before P2.  That is what
+    catches the existing ``solver_errors_mean = 100`` rows the
+    acceptance scenario in the task spec calls out."""
+    rv = row.get("run_valid")
+    if rv is not None and rv != "" and not _truthy_run_valid(rv):
+        return f"run_valid={rv!r}"
+
+    sf = row.get("solver_fail_fraction")
+    if sf is not None and sf != "":
+        try:
+            sf_f = float(sf)
+            if sf_f > threshold:
+                return (f"solver_fail_fraction={sf_f:.4f} > "
+                        f"threshold={threshold}")
+        except (TypeError, ValueError):
+            pass
+    else:
+        # No explicit field -- compute from raw counters.
+        try:
+            se = int(float(row.get("solver_errors") or 0))
+            st = int(float(row.get("solver_timeouts") or 0))
+            gr = int(float(row.get("global_replans") or 0))
+            denom = max(1, gr)
+            sf_computed = (se + st) / float(denom)
+            if sf_computed > threshold:
+                return (
+                    f"computed solver_fail_fraction={sf_computed:.4f} > "
+                    f"threshold={threshold} "
+                    f"(solver_errors={se}, solver_timeouts={st}, "
+                    f"global_replans={gr})"
+                )
+        except (TypeError, ValueError):
+            pass
+
+    gr = row.get("global_replans")
+    if gr is not None and gr != "":
+        try:
+            if int(float(gr)) <= 0:
+                return f"global_replans={gr} (Tier-1 never ran)"
+        except (TypeError, ValueError):
+            pass
+
+    return None
+
+
+def partition_validity(
+    rows: Sequence[Dict[str, Any]], threshold: float,
+) -> Tuple[List[Dict[str, Any]], List[Tuple[Dict[str, Any], str]]]:
+    """Split rows into (valid, [(invalid_row, reason), ...])."""
+    valid: List[Dict[str, Any]] = []
+    invalid: List[Tuple[Dict[str, Any], str]] = []
+    for r in rows:
+        reason = classify_row_validity(r, threshold)
+        if reason is None:
+            valid.append(r)
+        else:
+            invalid.append((r, reason))
+    return valid, invalid
 
 
 def annotate_map_stem(rows: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -404,7 +503,12 @@ def aggregate(rows: Sequence[Dict[str, Any]], claim: Dict[str, Any]) -> Any:
 
 @dataclass
 class Verdict:
-    status: str            # Confirmed | Refuted | Now stronger | Now weaker | Skipped
+    # ``Invalid`` is reserved for claims whose supporting rows failed
+    # the degenerate-run guard (see ``classify_row_validity``).  When
+    # any matching invalid rows exist the claim is not evaluated --
+    # we refuse to emit a Confirmed verdict on top of a tainted
+    # input -- and the harness exits non-zero.
+    status: str            # Confirmed | Refuted | Now stronger | Now weaker | Skipped | Invalid
     actual: Any
     expected: Any
     paper_text: str
@@ -647,7 +751,10 @@ def _fmt_expected(expected: Any) -> str:
     return str(expected)
 
 
-def render_report(verdicts: Sequence[Tuple[Dict[str, Any], Verdict]]) -> str:
+def render_report(
+    verdicts: Sequence[Tuple[Dict[str, Any], Verdict]],
+    validity: Optional[ValidityReport] = None,
+) -> str:
     by_status: Dict[str, List[Verdict]] = {}
     for claim, v in verdicts:
         v.section = claim.get("section", "?")
@@ -655,15 +762,53 @@ def render_report(verdicts: Sequence[Tuple[Dict[str, Any], Verdict]]) -> str:
         by_status.setdefault(v.status, []).append(v)
 
     chunks: List[str] = ["# Paper claim validation report\n"]
+    # Top-line input-row summary (P2 follow-up).  Always emitted so
+    # the reader can see at a glance whether the underlying CSVs
+    # passed the degenerate-run guard before reading any verdicts.
+    if validity is not None:
+        chunks.append(
+            f"**Input rows**: N={validity.total_rows} "
+            f"(valid {validity.valid_rows}, invalid {validity.n_invalid})\n"
+        )
     summary = " · ".join(
         f"**{k}**: {len(by_status.get(k, []))}"
-        for k in ("Confirmed", "Refuted", "Now stronger", "Now weaker", "Skipped")
+        for k in ("Confirmed", "Refuted", "Now stronger", "Now weaker",
+                  "Skipped", "Invalid")
     )
     chunks.append(summary + "\n")
-    for status in ("Refuted", "Now weaker", "Now stronger", "Confirmed", "Skipped"):
+    # Invalid block FIRST, before any positive verdicts, so a reader
+    # cannot scroll past tainted rows on the way to "Confirmed".
+    if validity is not None and validity.invalid_rows:
+        chunks.append(_md_invalid_section(validity))
+        chunks.append("")
+    # Refuted before Confirmed for the same scroll-attention reason.
+    for status in ("Invalid", "Refuted", "Now weaker", "Now stronger",
+                   "Confirmed", "Skipped"):
         chunks.append(_md_section(status, by_status.get(status, [])))
         chunks.append("")
     return "\n".join(chunks)
+
+
+def _md_invalid_section(validity: ValidityReport) -> str:
+    """Render the per-row invalid-input section.  Each invalid row
+    is identified by ``(source, claim_id_fields, reason)``; we list
+    up to the first 50 to keep the report bounded, with a footer
+    summarising the rest."""
+    head = (f"## Invalid input rows ({validity.n_invalid} of "
+            f"{validity.total_rows})\n"
+            f"\nRows below failed the degenerate-run guard "
+            f"(run_valid / solver_fail_fraction / global_replans). "
+            f"They are excluded from claim evaluation; the harness "
+            f"exits non-zero.\n")
+    lines = [head, "| # | source | run_id | reason |", "|---|---|---|---|"]
+    cap = 50
+    for i, (source, row, reason) in enumerate(validity.invalid_rows[:cap], 1):
+        rid = str(row.get("run_id", ""))[:12]
+        lines.append(f"| {i} | {source} | {rid} | {reason} |")
+    extra = max(0, validity.n_invalid - cap)
+    if extra:
+        lines.append(f"\n_(... and {extra} more not shown)_")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -760,13 +905,40 @@ def _load_all_under_root(results_root: Path) -> List[Dict[str, Any]]:
     return out
 
 
+@dataclass
+class ValidityReport:
+    """Per-source / aggregate degenerate-run guard summary.
+
+    ``total_rows`` etc. are *unique-row* counts: even if multiple
+    claims reference the same source, the source's rows are tallied
+    once.  ``invalid_rows`` carries enough identifying state to
+    surface in the Invalid section of the markdown report.
+    """
+    total_rows: int = 0
+    valid_rows: int = 0
+    invalid_rows: List[Tuple[str, Dict[str, Any], str]] = field(default_factory=list)
+
+    @property
+    def n_invalid(self) -> int:
+        return len(self.invalid_rows)
+
+
 def run_validation(
     claims_yaml: Path,
     results_root: Path,
     section_filter: str = "all",
-) -> Tuple[List[Tuple[Dict[str, Any], Verdict]], List[Dict[str, Any]]]:
-    """Returns ``(verdicts, structural_claims)`` where structural claims
-    are picked out separately for table-level rendering."""
+    validity_threshold: float = DEFAULT_VALIDITY_THRESHOLD,
+) -> Tuple[List[Tuple[Dict[str, Any], Verdict]], List[Dict[str, Any]], ValidityReport]:
+    """Returns ``(verdicts, structural_claims, validity_report)``.
+
+    The validity report aggregates the degenerate-run guard over
+    every input row touched by any claim; the caller (``main``)
+    uses ``validity_report.n_invalid`` to gate the process exit
+    code and the report header line.
+
+    Structural claims are picked out separately for table-level
+    rendering.
+    """
     spec = yaml.safe_load(claims_yaml.read_text())
     claims = spec.get("claims", [])
     problems = validate_schema(claims)
@@ -777,6 +949,36 @@ def run_validation(
 
     verdicts: List[Tuple[Dict[str, Any], Verdict]] = []
     structural: List[Dict[str, Any]] = []
+    validity = ValidityReport()
+
+    # Per-source cache so each results.csv is loaded + partitioned
+    # exactly once even when many claims share a source, AND so the
+    # validity tally counts each on-disk row once.
+    source_cache: Dict[str, Tuple[List[Dict[str, Any]],
+                                   List[Tuple[Dict[str, Any], str]]]] = {}
+
+    def _load_partitioned(source: str) -> Optional[Tuple[List[Dict[str, Any]],
+                                                          List[Tuple[Dict[str, Any], str]]]]:
+        if source in source_cache:
+            return source_cache[source]
+        if source == "all":
+            raw = annotate_map_stem(_load_all_under_root(results_root))
+        else:
+            results_path = _resolve_results(results_root, source)
+            if results_path is None:
+                return None
+            raw = annotate_map_stem(load_results(results_path))
+        valid, invalid = partition_validity(raw, validity_threshold)
+        # Aggregate into the run-level validity report (once per
+        # source).  ``invalid_rows`` carries (source, row, reason)
+        # so the report knows which sweep each offender came from.
+        validity.total_rows += len(raw)
+        validity.valid_rows += len(valid)
+        for r, reason in invalid:
+            validity.invalid_rows.append((source, r, reason))
+        source_cache[source] = (valid, invalid)
+        return valid, invalid
+
     for c in claims:
         if section_filter != "all" and c.get("section") != section_filter:
             continue
@@ -785,24 +987,49 @@ def run_validation(
             continue
 
         source = c.get("source")
-        if source == "all":
-            rows = annotate_map_stem(_load_all_under_root(results_root))
-        else:
-            results_path = _resolve_results(results_root, source)
-            if results_path is None:
-                v = Verdict(
-                    status="Skipped",
-                    actual=None,
-                    expected=c.get("expected", {}).get("value"),
-                    paper_text=c["paper_text"],
-                    reason=f"results.csv not found under {results_root / source!r}",
-                )
-                verdicts.append((c, v))
-                continue
-            rows = annotate_map_stem(load_results(results_path))
+        loaded = _load_partitioned(source)
+        if loaded is None:
+            v = Verdict(
+                status="Skipped",
+                actual=None,
+                expected=c.get("expected", {}).get("value"),
+                paper_text=c["paper_text"],
+                reason=f"results.csv not found under {results_root / source!r}",
+            )
+            verdicts.append((c, v))
+            continue
+        valid_rows, invalid_rows = loaded
+
+        # If any invalid rows match the claim's base filter, refuse
+        # to compute a verdict on top of a tainted input -- the
+        # spec is explicit: "refuse to print any Confirmed verdict
+        # if the supporting rows include invalid runs."  Other
+        # invalid rows in the same CSV that fall outside this
+        # claim's filter do NOT poison this verdict.
+        claim_filter = c.get("filter", {}) or {}
+        invalid_for_this_claim = [
+            (r, reason) for r, reason in invalid_rows
+            if _row_passes(r, claim_filter)
+        ]
+        if invalid_for_this_claim:
+            sample = invalid_for_this_claim[0][1]
+            v = Verdict(
+                status="Invalid",
+                actual=None,
+                expected=c.get("expected", {}).get("value"),
+                paper_text=c["paper_text"],
+                reason=(
+                    f"{len(invalid_for_this_claim)} of "
+                    f"{len(invalid_for_this_claim) + sum(1 for r in valid_rows if _row_passes(r, claim_filter))} "
+                    f"supporting row(s) failed the degenerate-run guard; "
+                    f"example: {sample}"
+                ),
+            )
+            verdicts.append((c, v))
+            continue
 
         try:
-            v = evaluate(c, rows)
+            v = evaluate(c, valid_rows)
         except Exception as exc:  # noqa: BLE001
             logger.warning("claim %s evaluation failed: %s", c.get("claim_id"), exc)
             v = Verdict(
@@ -811,7 +1038,7 @@ def run_validation(
                 paper_text=c["paper_text"], reason=f"error: {exc}",
             )
         verdicts.append((c, v))
-    return verdicts, structural
+    return verdicts, structural, validity
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -829,17 +1056,35 @@ def main(argv: Optional[List[str]] = None) -> int:
                         "(default: alongside --out)")
     p.add_argument("--section", default="all",
                    choices=("all", "5.2", "5.3", "5.4", "5.5"))
+    p.add_argument("--validity-threshold", type=float,
+                   default=DEFAULT_VALIDITY_THRESHOLD,
+                   help=("Per-row degenerate-run guard threshold "
+                         "(solver_fail_fraction). "
+                         f"Default {DEFAULT_VALIDITY_THRESHOLD}."))
     p.add_argument("--log-level", default="INFO")
     args = p.parse_args(argv)
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO),
                         format="%(levelname)s %(name)s | %(message)s")
 
-    verdicts, structural = run_validation(
-        args.claims, args.results_root, args.section)
-    report = render_report(verdicts)
+    verdicts, structural, validity = run_validation(
+        args.claims, args.results_root, args.section,
+        validity_threshold=float(args.validity_threshold),
+    )
+    report = render_report(verdicts, validity)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(report, encoding="utf-8")
     logger.info("wrote %s", args.out)
+    logger.info(
+        "input rows: N=%d valid=%d invalid=%d",
+        validity.total_rows, validity.valid_rows, validity.n_invalid,
+    )
+    if validity.invalid_rows:
+        logger.error(
+            "%d input row(s) failed the degenerate-run guard; "
+            "exiting non-zero so the validator is not interpreted as "
+            "Confirmed on tainted data.  See the Invalid section in %s.",
+            validity.n_invalid, args.out,
+        )
 
     # Tables.
     tex_path = args.tables_out or args.out.with_name(
@@ -863,6 +1108,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
     tex_path.write_text("\n\n".join(chunks) + "\n", encoding="utf-8")
     logger.info("wrote %s", tex_path)
+    # P2 follow-up: exit non-zero if ANY input row failed the
+    # degenerate-run guard.  This is the gate that distinguishes
+    # "no Confirmed verdict was issued on a tainted CSV" from
+    # "validator ran clean".  Exit code 3 is reserved for the
+    # validity gate so it is distinguishable from a generic
+    # SystemExit (1) or argparse failure (2).
+    if validity.invalid_rows:
+        return 3
     return 0
 
 
