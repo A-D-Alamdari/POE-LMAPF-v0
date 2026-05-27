@@ -82,6 +82,27 @@ logger = logging.getLogger("paper_harness")
 
 
 # ---------------------------------------------------------------------------
+# Run-validity gating (paper §5 audit trail)
+# ---------------------------------------------------------------------------
+#
+# Background.  When a Tier-1 solver degenerates (binary missing,
+# persistent timeouts, persistent errors) the wrapper still returns a
+# "result" -- typically an all-WAIT plan -- and the simulator dutifully
+# steps through 2000 ticks producing rows that *look* successful.  The
+# checked-in CSV
+# ``results/paper/scaling/scaling_agents_fov3_safe1_random-64-64-10.csv``
+# shows three solvers with ``solver_errors_mean = 100.0`` (every one of
+# 100 global replans failed) at 250 agents, yet the runs were written
+# to disk as if valid.  The instrumentation below makes that condition
+# loud: every per-run row carries ``solver_fail_fraction`` and the
+# boolean ``run_valid``; degenerate rows are siphoned to a sibling
+# ``*_INVALID.csv``; and a per-(solver,map) summary aborts the sweep
+# when any cell exceeds ``INVALID_CELL_FRACTION_LIMIT``.
+DEFAULT_VALIDITY_THRESHOLD = 0.05
+DEFAULT_INVALID_CELL_FRACTION_LIMIT = 0.20
+
+
+# ---------------------------------------------------------------------------
 # Manifest expansion
 # ---------------------------------------------------------------------------
 
@@ -349,6 +370,58 @@ def run_one(row: Dict[str, Any]) -> Dict[str, Any]:
             row["run_id"][:12], exc, traceback.format_exc(),
         )
     record["wall_clock_s"] = round(time.perf_counter() - t0, 4)
+
+    # Per-run validity gate.  ``solver_fail_fraction`` is the share of
+    # global replans for which the Tier-1 solver returned a timeout or
+    # an error; the run is "valid" iff that share is at or below the
+    # threshold.  ``global_replans == 0`` means the simulator never
+    # invoked the Tier-1 solver -- treat as 0/1 = 0.0 (vacuously valid)
+    # via ``max(1, global_replans)``.
+    threshold = float(row.get("_validity_threshold", DEFAULT_VALIDITY_THRESHOLD))
+    try:
+        global_replans = int(record.get("global_replans") or 0)
+    except (TypeError, ValueError):
+        global_replans = 0
+    try:
+        solver_errors = int(record.get("solver_errors") or 0)
+    except (TypeError, ValueError):
+        solver_errors = 0
+    try:
+        solver_timeouts = int(record.get("solver_timeouts") or 0)
+    except (TypeError, ValueError):
+        solver_timeouts = 0
+    fail_fraction = float(solver_errors + solver_timeouts) / float(max(1, global_replans))
+    run_valid = (record.get("status") == "ok") and (fail_fraction <= threshold)
+    record["solver_fail_fraction"] = round(fail_fraction, 6)
+    record["run_valid"] = bool(run_valid)
+    record["validity_threshold"] = threshold
+    # Mirror the canonical solver_fallback_reuses field under the
+    # spec's preferred audit-trail name without dropping the original.
+    if "solver_fallback_reuses" in record and "fallback_reuse_count" not in record:
+        record["fallback_reuse_count"] = record["solver_fallback_reuses"]
+
+    if not run_valid:
+        # Surface the offending cell so the failure is visible in any
+        # log stream.  Read identifying fields from ``record`` rather
+        # than ``run_cfg`` so post-dispatch ``applied_*`` overrides
+        # show through.
+        solver = (
+            record.get("applied_global_solver")
+            or record.get("global_solver")
+            or "<unknown>"
+        )
+        map_path = record.get("map_path", "<unknown>")
+        num_agents = record.get("num_agents", "<unknown>")
+        seed = record.get("seed", record.get("config", {}).get("seed") if isinstance(record.get("config"), dict) else "<unknown>")
+        logger.error(
+            "INVALID run: solver=%s map=%s num_agents=%s seed=%s "
+            "solver_fail_fraction=%.4f (threshold=%.2f) "
+            "global_replans=%d solver_errors=%d solver_timeouts=%d status=%s",
+            solver, map_path, num_agents, seed,
+            fail_fraction, threshold,
+            global_replans, solver_errors, solver_timeouts,
+            record.get("status"),
+        )
     return record
 
 
@@ -384,6 +457,49 @@ def _read_existing_run_ids(results_path: Path) -> set:
     return out
 
 
+def _row_is_valid(row: Dict[str, Any]) -> bool:
+    """Read the boolean ``run_valid`` column from a row (which may be a
+    Python bool, a string from a freshly-read CSV, or missing)."""
+    val = row.get("run_valid")
+    if isinstance(val, bool):
+        return val
+    if val is None or val == "":
+        # Missing column => legacy row from before instrumentation;
+        # treat as valid so existing CSVs are not retroactively
+        # invalidated.
+        return True
+    s = str(val).strip().lower()
+    return s in ("true", "1", "yes")
+
+
+def _split_valid_invalid(
+    rows: List[Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Partition rows into (valid, invalid) by the ``run_valid`` flag."""
+    valid: List[Dict[str, Any]] = []
+    invalid: List[Dict[str, Any]] = []
+    for r in rows:
+        (valid if _row_is_valid(r) else invalid).append(r)
+    return valid, invalid
+
+
+def _append_rows_split(
+    results_path: Path,
+    invalid_path: Path,
+    rows: List[Dict[str, Any]],
+) -> None:
+    """Sort ``rows`` by ``run_valid`` and append each half to the
+    appropriate CSV via :func:`_append_rows`.  Valid rows land in the
+    main ``results.csv`` so downstream aggregation skips the
+    instrumentation column entirely; invalid rows land in
+    ``results_INVALID.csv`` for debugging and are NOT deleted."""
+    valid, invalid = _split_valid_invalid(rows)
+    if valid:
+        _append_rows(results_path, valid)
+    if invalid:
+        _append_rows(invalid_path, invalid)
+
+
 def _append_rows(results_path: Path, rows: List[Dict[str, Any]]) -> None:
     """Append ``rows`` to ``results.csv``, replacing the file
     atomically.  Adds any new columns introduced by ``rows`` to the
@@ -407,6 +523,94 @@ def _append_rows(results_path: Path, rows: List[Dict[str, Any]]) -> None:
 # ---------------------------------------------------------------------------
 # Driver
 # ---------------------------------------------------------------------------
+
+
+def _read_csv_rows(path: Path) -> List[Dict[str, Any]]:
+    """Read all rows from a CSV file, returning [] if it does not exist."""
+    if not path.exists():
+        return []
+    with path.open("r", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def _summary_key(row: Dict[str, Any]) -> Tuple[str, str]:
+    """Return the (solver, map) bucket for the run-validity summary.
+    Prefer post-dispatch ``applied_global_solver`` so method-override
+    sweeps (e.g. ``method=lacam_blind``) report against the solver
+    that actually ran rather than the YAML's raw cell."""
+    solver = (
+        row.get("applied_global_solver")
+        or row.get("global_solver")
+        or "<unknown>"
+    )
+    map_path = row.get("map_path") or "<unknown>"
+    return (str(solver), str(map_path))
+
+
+def write_run_validity_summary(
+    results_path: Path,
+    invalid_path: Path,
+    summary_path: Path,
+    cell_fraction_limit: float,
+) -> Tuple[List[Dict[str, Any]], List[Tuple[str, str]]]:
+    """Aggregate (solver, map) run counts across both result CSVs and
+    write ``run_validity_summary.csv``.  Returns ``(summary_rows,
+    failing_cells)`` where ``failing_cells`` lists cells with invalid
+    fraction strictly greater than ``cell_fraction_limit``.
+
+    Always writes the summary file (with a header row only) so the
+    artifact exists even for empty sweeps -- downstream tooling can
+    rely on its presence."""
+    all_rows = _read_csv_rows(results_path) + _read_csv_rows(invalid_path)
+    # Aggregate by (solver, map).
+    buckets: Dict[Tuple[str, str], Dict[str, int]] = {}
+    for r in all_rows:
+        key = _summary_key(r)
+        b = buckets.setdefault(
+            key, {"valid": 0, "invalid": 0, "errored": 0, "total": 0},
+        )
+        b["total"] += 1
+        if _row_is_valid(r):
+            b["valid"] += 1
+        else:
+            b["invalid"] += 1
+        if str(r.get("status", "")).lower() not in ("ok", ""):
+            b["errored"] += 1
+
+    summary_rows: List[Dict[str, Any]] = []
+    failing_cells: List[Tuple[str, str]] = []
+    for (solver, map_path), b in sorted(buckets.items()):
+        total = b["total"]
+        invalid_fraction = (b["invalid"] / total) if total > 0 else 0.0
+        row = {
+            "global_solver":    solver,
+            "map_path":         map_path,
+            "total_runs":       total,
+            "valid_runs":       b["valid"],
+            "invalid_runs":     b["invalid"],
+            "errored_runs":     b["errored"],
+            "invalid_fraction": round(invalid_fraction, 6),
+            "cell_fraction_limit": cell_fraction_limit,
+            "cell_exceeds_limit":  invalid_fraction > cell_fraction_limit,
+        }
+        summary_rows.append(row)
+        if invalid_fraction > cell_fraction_limit:
+            failing_cells.append((solver, map_path))
+
+    fieldnames = [
+        "global_solver", "map_path", "total_runs",
+        "valid_runs", "invalid_runs", "errored_runs",
+        "invalid_fraction", "cell_fraction_limit", "cell_exceeds_limit",
+    ]
+    import io
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
+    w.writeheader()
+    for r in summary_rows:
+        w.writerow({k: r.get(k, "") for k in fieldnames})
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    _atomic_write_text(summary_path, buf.getvalue())
+    return summary_rows, failing_cells
 
 
 def _filter_by_shard(rows: List[Dict[str, Any]], shard: Optional[Tuple[int, int]]) -> List[Dict[str, Any]]:
@@ -433,6 +637,16 @@ def main(argv: Optional[List[str]] = None) -> int:
                    help="Skip runs whose run_id already appears with status=ok.")
     p.add_argument("--limit", type=int, default=None,
                    help="Run at most this many configs (for smoke / debugging).")
+    p.add_argument("--validity-threshold", type=float,
+                   default=DEFAULT_VALIDITY_THRESHOLD,
+                   help=("Per-run solver_fail_fraction above which the run is "
+                         "marked invalid and siphoned to results_INVALID.csv. "
+                         f"Default: {DEFAULT_VALIDITY_THRESHOLD}."))
+    p.add_argument("--invalid-cell-fraction-limit", type=float,
+                   default=DEFAULT_INVALID_CELL_FRACTION_LIMIT,
+                   help=("Exit non-zero if any (solver, map) cell has a "
+                         "strictly greater invalid-run fraction than this. "
+                         f"Default: {DEFAULT_INVALID_CELL_FRACTION_LIMIT}."))
     p.add_argument("--log-level", type=str, default="INFO")
     args = p.parse_args(argv)
 
@@ -447,12 +661,30 @@ def main(argv: Optional[List[str]] = None) -> int:
     rows = expand_manifest(spec)
     logger.info("manifest expanded: %d runs (config=%s)", len(rows), args.config.name)
 
+    # Validity threshold: an explicit CLI flag wins; otherwise the
+    # spec's ``validity_threshold`` key takes effect; otherwise the
+    # module default.  A spec key is useful for pinning the threshold
+    # alongside the rest of the sweep so reruns share the contract.
+    if args.validity_threshold != DEFAULT_VALIDITY_THRESHOLD:
+        validity_threshold = float(args.validity_threshold)
+    elif "validity_threshold" in spec:
+        validity_threshold = float(spec["validity_threshold"])
+    else:
+        validity_threshold = float(args.validity_threshold)
+    invalid_cell_limit = float(args.invalid_cell_fraction_limit)
+    logger.info(
+        "run-validity gate: solver_fail_fraction <= %.4f per run; "
+        "(solver, map) cell limit %.2f%% invalid",
+        validity_threshold, invalid_cell_limit * 100.0,
+    )
+
     # Inject sidecar-JSON directory for per-tick timelines (paper §5.8).
     # Workers consult ``row["_sidecar_dir"]`` to write
     # ``<dir>/<run_id>.json`` when timelines are non-empty.
     sidecar_dir = args.out / "timelines"
     for row in rows:
         row["_sidecar_dir"] = str(sidecar_dir)
+        row["_validity_threshold"] = validity_threshold
 
     # Fast-fail before any compute is spent: enforce paper-specified
     # ``steps`` per section.
@@ -500,6 +732,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                         json.dumps(_canonical(row["config"]), sort_keys=True)])
 
     results_path = args.out / "results.csv"
+    invalid_path = args.out / "results_INVALID.csv"
+    summary_path = args.out / "run_validity_summary.csv"
     if args.resume:
         done = _read_existing_run_ids(results_path)
         rows = [r for r in rows if r["run_id"] not in done]
@@ -512,6 +746,19 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if not rows:
         logger.info("nothing to do")
+        # Still publish a summary so downstream tooling sees the
+        # current state of disk.
+        _, failing_cells = write_run_validity_summary(
+            results_path, invalid_path, summary_path, invalid_cell_limit,
+        )
+        if failing_cells:
+            logger.error(
+                "run-validity gate FAILED on resume/no-op for %d (solver, map) "
+                "cell(s): %s",
+                len(failing_cells),
+                ", ".join(f"{s}@{m}" for s, m in failing_cells),
+            )
+            return 3
         return 0
 
     # Execute.
@@ -531,7 +778,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     rec["run_id"][:12], rec["status"], rec.get("wall_clock_s", -1),
                 )
                 if len(new_rows) % flush_every == 0:
-                    _append_rows(results_path, new_rows)
+                    _append_rows_split(results_path, invalid_path, new_rows)
                     new_rows.clear()
     else:
         for k, row in enumerate(rows, 1):
@@ -543,16 +790,53 @@ def main(argv: Optional[List[str]] = None) -> int:
                 rec["run_id"][:12], rec["status"], rec.get("wall_clock_s", -1),
             )
             if len(new_rows) % flush_every == 0:
-                _append_rows(results_path, new_rows)
+                _append_rows_split(results_path, invalid_path, new_rows)
                 new_rows.clear()
 
     if new_rows:
-        _append_rows(results_path, new_rows)
+        _append_rows_split(results_path, invalid_path, new_rows)
 
     logger.info(
         "done: %d runs in %.1fs (results=%s)",
         len(rows), time.perf_counter() - t_start, results_path,
     )
+
+    # Post-sweep run-validity summary.  Aggregates over both the main
+    # CSV and the invalid CSV so the totals reflect every run on disk
+    # (including those carried in from earlier sharded / resumed
+    # invocations).  Exits non-zero -- without skipping the auto-stats
+    # block below -- if any (solver, map) cell exceeds the limit; the
+    # caller can then decide whether to retry or accept the partial
+    # sweep.
+    summary_rows, failing_cells = write_run_validity_summary(
+        results_path, invalid_path, summary_path, invalid_cell_limit,
+    )
+    total_runs = sum(int(r["total_runs"]) for r in summary_rows)
+    total_invalid = sum(int(r["invalid_runs"]) for r in summary_rows)
+    logger.info(
+        "run-validity summary written: %s (%d cells, %d/%d runs invalid)",
+        summary_path, len(summary_rows), total_invalid, total_runs,
+    )
+    for r in summary_rows:
+        if int(r["invalid_runs"]) > 0:
+            marker = "EXCEEDS LIMIT" if r["cell_exceeds_limit"] else "ok"
+            logger.warning(
+                "  cell solver=%s map=%s -- %d/%d invalid (%.2f%%) [%s]",
+                r["global_solver"], r["map_path"],
+                r["invalid_runs"], r["total_runs"],
+                100.0 * float(r["invalid_fraction"]), marker,
+            )
+    if failing_cells:
+        logger.error(
+            "run-validity gate FAILED: %d (solver, map) cell(s) "
+            "exceed %.2f%% invalid runs: %s",
+            len(failing_cells), invalid_cell_limit * 100.0,
+            ", ".join(f"{s}@{m}" for s, m in failing_cells),
+        )
+        # Continue to write auto-stats artifacts (if configured)
+        # before returning -- the operator may still want them for
+        # the partial valid subset -- but flag the failure with a
+        # non-zero exit at the end.
 
     # Auto-invocation hook (paper appendix material).  When the YAML
     # ships ``reference_condition`` and ``statistical_groupby`` fields,
@@ -564,7 +848,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             from scripts.evaluation.statistical_analysis import run_analysis
         except Exception as exc:  # noqa: BLE001
             logger.warning("statistical_analysis import failed (%s); skipping", exc)
-            return 0
+            return 3 if failing_cells else 0
         groupby_str = spec.get("statistical_groupby")
         if isinstance(groupby_str, str):
             groupby = [s.strip() for s in groupby_str.split(",") if s.strip()]
@@ -606,6 +890,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("auto-stats failed (%s); inspect manually", exc)
+
+    # Final exit code reflects the run-validity gate.  Exit code 3 is
+    # reserved for "sweep completed but failed the validity contract"
+    # so it is distinguishable from preflight failure (2) and from
+    # generic SystemExit / unhandled exceptions (1).
+    if failing_cells:
+        return 3
     return 0
 
 
