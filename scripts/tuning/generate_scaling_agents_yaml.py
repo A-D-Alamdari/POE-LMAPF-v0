@@ -66,6 +66,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List
 
+# Local-only import so we don't pollute ``scripts.tuning`` with a real
+# package; the helper lives alongside this script.
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _sweep_config_common import (  # noqa: E402
+    base_solver_budget_yaml,
+    base_validity_guard_yaml,
+    solver_provenance_comment,
+)
+
 # ---------------------------------------------------------------------------
 # PLACEHOLDER values — UPDATE FROM FOV/SAFETY ANALYSIS BEFORE LAUNCH.
 # ---------------------------------------------------------------------------
@@ -142,7 +152,9 @@ def _header() -> str:
         "# fov_radius and safety_radius below are PLACEHOLDERS pending\n"
         "# the fov/safety sweep analysis.  Update PLACEHOLDER_FOV /\n"
         "# PLACEHOLDER_SAFE in the generator and regenerate.\n"
-        "\n"
+        "#\n"
+        + solver_provenance_comment(SOLVERS)
+        + "\n"
         "name: scaling_agents\n"
         "description: |\n"
         "  §5.4 controlled-agent scaling sweep across 6 Tier-1 solvers\n"
@@ -162,8 +174,9 @@ def _header() -> str:
         "  task_allocator: congestion_avoidance\n"
         "  hard_safety: true\n"
         "  communication_mode: priority\n"
-        "  solver_timeout_s: 10.0\n"
-        "  log_violations_timeline: true\n"
+        + base_solver_budget_yaml()
+        + base_validity_guard_yaml()
+        +         "  log_violations_timeline: true\n"
         "\n"
         "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]\n"
         "\n"

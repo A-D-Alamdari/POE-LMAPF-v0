@@ -43,6 +43,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List
 
+# Local-only import so we don't pollute ``scripts.tuning`` with a real
+# package; the helper lives alongside this script.
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _sweep_config_common import (  # noqa: E402
+    base_solver_budget_yaml,
+    base_validity_guard_yaml,
+    solver_provenance_comment,
+)
+
 # ---------------------------------------------------------------------------
 # Sweep definition — single source of truth
 # ---------------------------------------------------------------------------
@@ -99,7 +109,9 @@ def _header() -> str:
         "# replan_every is coupled to horizon at half its value\n"
         "# (replan_every = max(1, horizon // 2)), reducing the axis\n"
         "# from an 8×8 grid to the 8-cell diagonal.\n"
-        "\n"
+        "#\n"
+        + solver_provenance_comment(["lacam_official"])
+        + "\n"
         "name: horizon_replan_full_tuning\n"
         "description: |\n"
         "  Horizon × replan_every tuning sweep across 2 maps with\n"
@@ -124,8 +136,9 @@ def _header() -> str:
         "  safety_radius: 1\n"
         "  hard_safety: true\n"
         "  communication_mode: priority\n"
-        "  solver_timeout_s: 10.0\n"
-        "  log_violations_timeline: false\n"
+        + base_solver_budget_yaml()
+        + base_validity_guard_yaml()
+        +         "  log_violations_timeline: false\n"
         "\n"
         "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]\n"
         "\n"

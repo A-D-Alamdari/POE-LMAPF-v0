@@ -647,6 +647,14 @@ def main(argv: Optional[List[str]] = None) -> int:
                    help=("Exit non-zero if any (solver, map) cell has a "
                          "strictly greater invalid-run fraction than this. "
                          f"Default: {DEFAULT_INVALID_CELL_FRACTION_LIMIT}."))
+    p.add_argument("--dry-run", action="store_true",
+                   help=("Expand the manifest, run solver preflight + "
+                         "config-consistency checks + the validity-guard "
+                         "wiring (read ``max_invalid_fraction`` /"
+                         " ``validity_threshold`` from the spec, log them), "
+                         "then exit 0 without running any sims.  Used by "
+                         "tests/test_sweep_config_dryrun.py to keep the "
+                         "scaling/baseline configs honest."))
     p.add_argument("--log-level", type=str, default="INFO")
     args = p.parse_args(argv)
 
@@ -672,10 +680,28 @@ def main(argv: Optional[List[str]] = None) -> int:
     else:
         validity_threshold = float(args.validity_threshold)
     invalid_cell_limit = float(args.invalid_cell_fraction_limit)
+    # P7 follow-up: the YAML may also declare a sweep-level
+    # ``max_invalid_fraction`` (the post-sweep invalid-row fraction
+    # ceiling).  We only read + log it here; downstream tooling
+    # (the validator) is what enforces it on the produced CSV.
+    # Logging it makes the contract visible at run launch so a
+    # mismatch between YAML and CLI flags is obvious in the log.
+    spec_max_invalid_fraction: Optional[float] = None
+    if "max_invalid_fraction" in spec:
+        try:
+            spec_max_invalid_fraction = float(spec["max_invalid_fraction"])
+        except (TypeError, ValueError):
+            logger.warning(
+                "spec key ``max_invalid_fraction`` is not numeric: %r",
+                spec.get("max_invalid_fraction"),
+            )
     logger.info(
         "run-validity gate: solver_fail_fraction <= %.4f per run; "
-        "(solver, map) cell limit %.2f%% invalid",
+        "(solver, map) cell limit %.2f%% invalid; "
+        "sweep-level max_invalid_fraction=%s",
         validity_threshold, invalid_cell_limit * 100.0,
+        "<unset>" if spec_max_invalid_fraction is None
+        else f"{spec_max_invalid_fraction:.4f}",
     )
 
     # Inject sidecar-JSON directory for per-tick timelines (paper §5.8).
@@ -711,6 +737,18 @@ def main(argv: Optional[List[str]] = None) -> int:
             sweep_solvers.append(s)
     if sweep_solvers:
         abort_if_any_failed(sweep_solvers, prefix="paper_harness")
+
+    if args.dry_run:
+        # Reached after manifest expansion + config consistency +
+        # preflight + validity-guard wiring -- the exact "plumbing"
+        # gate the P7 acceptance criterion asks for.  Exit 0 without
+        # executing any sims.
+        logger.info(
+            "dry-run: %d runs would execute; preflight + "
+            "consistency + validity guard wiring OK; exiting.",
+            len(rows),
+        )
+        return 0
 
     # Apply optional shard.
     shard: Optional[Tuple[int, int]] = None

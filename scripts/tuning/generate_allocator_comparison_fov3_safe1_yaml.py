@@ -63,6 +63,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List
 
+# Local-only import so we don't pollute ``scripts.tuning`` with a real
+# package; the helper lives alongside this script.
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _sweep_config_common import (  # noqa: E402
+    base_solver_budget_yaml,
+    base_validity_guard_yaml,
+    solver_provenance_comment,
+)
+
 # ---------------------------------------------------------------------------
 # fov/safety operating point — HARDCODED at (3, 1).
 # ---------------------------------------------------------------------------
@@ -157,7 +167,9 @@ def _header() -> str:
         "#\n"
         "# Operating point: (r_fov=3, r_safe=1).  Companion sweep at\n"
         "# (4, 2) lives in allocator_comparison_fov4_safe2.yaml.\n"
-        "\n"
+        "#\n"
+        + solver_provenance_comment([GLOBAL_SOLVER])
+        + "\n"
         "name: allocator_comparison_fov3_safe1\n"
         "description: |\n"
         "  §5.5 task allocator comparison @ (r_fov=3, r_safe=1) across\n"
@@ -176,8 +188,9 @@ def _header() -> str:
         "  local_planner: astar\n"
         "  hard_safety: true\n"
         "  communication_mode: priority\n"
-        "  solver_timeout_s: 10.0\n"
-        "  log_violations_timeline: true\n"
+        + base_solver_budget_yaml()
+        + base_validity_guard_yaml()
+        +         "  log_violations_timeline: true\n"
         "\n"
         "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]\n"
         "\n"
