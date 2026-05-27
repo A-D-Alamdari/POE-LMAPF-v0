@@ -768,3 +768,130 @@ downstream readers to keep reading it as Theorem 1's empirical
 witness, defeating the rewrite's whole point.  Theorem 1's
 invariant is now verified by code-walk + resolver-fallback tests,
 not by a metric.
+
+---
+
+## 14. Metric definitions and normalization (P6 audit)
+
+The P6 audit flagged five issues in `core/metrics.py` that broke
+cross-run comparability or counted the wrong quantity outright.  All
+five are fixed; no existing CSV columns were removed (downstream plot
+scripts read by name) -- the legacy names are preserved as aliases or
+flagged deprecated in their docstrings, and new columns expose the
+audit-corrected quantities.
+
+### 14.1 `safety_violation_rate` mis-normalization
+
+The legacy field divides by `total_steps` only:
+
+```python
+sv_rate = safety_violations / total_steps * 1000.0
+```
+
+But `wait_fraction` divides by `num_agents * total_steps`.  When
+`num_agents` varies (every scaling sweep), the legacy rate inflates
+with fleet size and is not comparable across cells.
+
+**Fix.** New column `safety_violation_rate_per_agent_step` computes
+`safety_violations / (num_agents * total_steps)`, matching the
+normalization of `wait_fraction`.  The legacy `safety_violation_rate`
+is kept (back-compat) and flagged **deprecated** in its docstring;
+new scaling tables/plots should switch to the agent-normalized
+field.  Acceptance test:
+`tests/test_metrics_invariants.py::
+test_safety_violation_rate_per_agent_step_is_agent_count_invariant`.
+
+### 14.2 Loitering-human over-count -> debounced events
+
+The per-tick classifier increments `safety_violations` and the
+attribution counters once per (agent, human, tick).  A human that
+loiters inside an agent's safety buffer for 10 ticks therefore
+contributes 10 to `safety_violations` (and to one of the attribution
+buckets) -- the metric counts agent-ticks of overlap, not events of
+overlap.  This was unflagged for §5.4 tables that read the numbers
+as "number of buffer breaches".
+
+**Fix.** Three new event-debounced counters:
+
+* `safety_violation_events` -- count of distinct overlap runs
+  across all `(agent_id, human_id)` pairs.
+* `violations_agent_attributable_events`
+* `violations_exogenous_attributable_events`
+
+A new MetricsTracker state machine
+(`record_violation_pair` + `close_violation_tick`) tracks which
+pairs were in violation in the previous tick, and bumps the event
+counter only on leading edges (transition from not-in-violation to
+in-violation).  The classifier in
+`simulator.py::_detect_collisions_and_near_misses` calls
+`record_violation_pair(aid, hid, bucket)` for each detected pair
+and `close_violation_tick()` once per tick (even when the
+detection block is skipped, so dropped pairs are forgotten).
+
+Three new `*_agent_ticks` columns are added as honestly-named
+aliases for the legacy per-tick counters
+(`safety_violation_agent_ticks ==  safety_violations`,
+`violations_agent_attributable_agent_ticks ==
+violations_agent_attributable`,
+`violations_exogenous_attributable_agent_ticks ==
+violations_exogenous_attributable`).  Paper tables / plots pick
+one of the two normalizations explicitly:
+
+| Use                                    | Column                                       |
+| -------------------------------------- | -------------------------------------------- |
+| "How much overlap time across the run" | `*_agent_ticks`  (legacy field also OK)      |
+| "How many buffer breaches"             | `*_events`                                   |
+| Cross-fleet comparison                 | `safety_violation_rate_per_agent_step`       |
+
+Acceptance tests:
+* `test_loitering_human_yields_events_below_agent_ticks` --
+  ten ticks of overlap on one pair -> agent_ticks == 10, events == 1.
+* `test_distinct_events_per_pair_and_per_run` -- re-entry of the
+  same pair after a quiet tick counts as a new event; two pairs
+  active in the same tick count separately.
+
+### 14.3 Lifelong-mode `makespan` is meaningless
+
+`makespan` is the last task-completion step.  In lifelong mode a
+fresh task almost always completes near `total_steps`, so
+`makespan ≈ total_steps` regardless of solver / fleet / map.  The
+column is preserved for one-shot mode and back-compat, but the
+docstring on `Metrics.makespan` and the CSV header note are flagged
+**deprecated for lifelong reporting**.  A new column
+`mean_task_completion_span` (numerically identical to
+`mean_flowtime`; same field, paper-aligned name) is added so
+downstream plots can switch off `makespan` without a column rename
+mid-paper.  Acceptance test:
+`test_mean_task_completion_span_mirrors_mean_flowtime`.
+
+### 14.4 `on_task_assigned` wrote to a non-existent attribute
+
+```python
+record.assigned_step = step
+record.assigned_agent = agent_id   # <-- not a _TaskRecord field
+```
+
+Python lets a dataclass instance accept new attributes silently,
+so `record.assigned_agent` quietly became an instance attribute
+while the documented `record.agent_id` field stayed `None` until
+`on_task_completed` overwrote it.  Callers reading `record.agent_id`
+between assignment and completion saw `None` and concluded the
+task was unassigned.
+
+**Fix.** `on_task_assigned` now writes `record.agent_id = agent_id`.
+Acceptance test: `test_on_task_assigned_records_agent_id`.
+
+### 14.5 `throughput_timeline` off-by-one
+
+The timeline bookkeeping bucketed each completion at index
+`rec.completed_step` only when `0 <= rec.completed_step < total_steps`.
+A task completing exactly at `total_steps` (boundary case, possible
+when test code or external callers feed `on_task_completed`
+directly with the final step value) was silently dropped from the
+timeline while still counted in the scalar `_completed_tasks`,
+producing `last_cumulative < completed_tasks`.
+
+**Fix.** Clamp the index to `min(completed_step, total_steps - 1)`
+so the timeline and the scalar count agree on the same set of
+tasks.  Acceptance test:
+`test_throughput_timeline_counts_match_completed_tasks_at_boundary`.

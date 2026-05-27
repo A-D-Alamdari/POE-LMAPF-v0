@@ -348,11 +348,41 @@ class Metrics:
     replans: int = 0
     total_wait_steps: int = 0
     steps: int = 0
+    # Per-tick agent-tick violation count (per (agent, human) pair,
+    # per tick).  A human loitering inside an agent's safety buffer
+    # for N consecutive ticks contributes N to this counter; the
+    # debounced ``safety_violation_events`` counts the same hover
+    # as ONE event.  The P6 audit flagged the per-tick form as a
+    # misleading summary stat for paper scaling tables; both are
+    # exposed so each plot / table can pick the right one.
+    # ``safety_violation_agent_ticks`` is an explicit alias for
+    # ``safety_violations`` that names the unit honestly; the
+    # legacy field is kept for back-compat with existing CSVs.
     safety_violations: int = 0
+    safety_violation_agent_ticks: int = 0
+    safety_violation_events: int = 0
+    # ``safety_violation_rate = safety_violations / total_steps * 1000``
+    # (legacy, **deprecated**: divides by steps only, not by agent count,
+    # so the rate inflates with fleet size and is not comparable across
+    # scaling sweeps).  Use ``safety_violation_rate_per_agent_step``
+    # instead.  See ``MetricsTracker.finalize`` for the migration note.
     safety_violation_rate: float = .0
+    # Agent-normalized safety-violation rate (P6 fix): per-agent-step
+    # incidence of (agent, human) buffer overlaps.  Matches the
+    # normalization of ``wait_fraction`` (which divides by
+    # ``num_agents * total_steps``) and is therefore comparable across
+    # ``num_agents`` values in §5.4 scaling sweeps.
+    safety_violation_rate_per_agent_step: float = .0
     # Paper Section 3.4 attribution split (legacy = sum of these two).
+    # Per-tick agent-tick counts (one increment per (agent, human)
+    # violating pair per tick); ``*_events`` counterparts apply the
+    # leading-edge debounce.
     violations_agent_attributable: int = 0
+    violations_agent_attributable_agent_ticks: int = 0
+    violations_agent_attributable_events: int = 0
     violations_exogenous_attributable: int = 0
+    violations_exogenous_attributable_agent_ticks: int = 0
+    violations_exogenous_attributable_events: int = 0
     global_replans: int = 0
     local_replans: int = 0
     intervention_rate: float = .0
@@ -367,8 +397,22 @@ class Metrics:
     mean_decision_time_ms: float = .0
     p95_decision_time_ms: float = .0
     # Cost-based metrics
+    # ``makespan`` is the step at which the last task completed.  In
+    # **lifelong** mode it is ~equal to ``total_steps`` (a fresh task
+    # almost always finishes near the end of the run), making it
+    # near-constant across configurations and useless for cross-run
+    # comparison -- the paper P6 audit flagged it as misleading.  Use
+    # ``mean_task_completion_span`` (= mean per-task release->completion
+    # time) for the lifelong analog.  ``makespan`` is preserved for
+    # back-compat (one-shot mode and downstream plot scripts) but is
+    # **deprecated** for lifelong reporting.
     makespan: int = 0
     sum_of_costs: int = 0
+    # Lifelong-friendly per-task completion span (mirrors
+    # ``mean_flowtime`` exactly; exposed under this name so plot
+    # scripts can switch off ``makespan`` without renaming columns
+    # mid-paper).  See ``MetricsTracker.finalize``.
+    mean_task_completion_span: float = 0.0
     # Delay robustness
     delay_events: int = 0
     immediate_assignments: int = 0

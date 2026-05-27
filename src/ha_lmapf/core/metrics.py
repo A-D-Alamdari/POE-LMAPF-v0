@@ -14,7 +14,7 @@ performance statistics for Lifelong MAPF experiments. It focuses on:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional, Tuple
 
 import numpy as np
 
@@ -70,12 +70,37 @@ class MetricsTracker:
         # underlying solver_{timeouts,errors} counts.
         self._solver_fallback_reuses: int = 0
 
-        # Enhanced metrics
+        # Enhanced metrics — agent-tick view (legacy).
+        # A "violation pair" (a_i, h) is counted every tick it holds:
+        # a human loitering inside the buffer for N consecutive ticks
+        # contributes N here.  The P6 audit flagged this as a misleading
+        # summary stat; the debounced ``*_events`` counters below count
+        # the same hover as a single event (leading-edge only).
         self._safety_violations: int = 0
         # Attribution split (paper Section 3.4): both counters increment per
         # (agent, human) violation pair; their sum equals _safety_violations.
         self._violations_agent_attributable: int = 0
         self._violations_exogenous_attributable: int = 0
+        # Event-debounced counters (P6 fix).  A "violation event" is a
+        # maximal contiguous run of ticks where a specific (agent_id,
+        # human_id) pair is inside r_safe; the counter ticks on the
+        # transition from not-in-violation to in-violation only.
+        # Updated by ``record_violation_pair`` + ``close_violation_tick``;
+        # the simulator's per-tick classifier calls those in lockstep
+        # with ``add_safety_violation`` / ``add_*_attributable_violation``
+        # so the agent-tick and event invariants hold by construction.
+        self._safety_violation_events: int = 0
+        self._violations_agent_attributable_events: int = 0
+        self._violations_exogenous_attributable_events: int = 0
+        # Per-tick scratch + carry-over state for the event debounce.
+        # ``_active_violation_pairs`` is the set of pairs that were in
+        # violation in the PREVIOUS tick, keyed by (aid, hid); value
+        # is the bucket ("agent" / "exo") that pair was in last.
+        # ``_pending_violation_pairs_this_tick`` accumulates the
+        # CURRENT tick's pairs between the per-pair record calls and
+        # the closing call.
+        self._active_violation_pairs: Dict[Tuple[int, int], Literal["agent", "exo"]] = {}
+        self._pending_violation_pairs_this_tick: Dict[Tuple[int, int], Literal["agent", "exo"]] = {}
         self._global_replans: int = 0
         self._local_replans: int = 0
         self._human_passive_wait_steps: int = 0
@@ -156,7 +181,14 @@ class MetricsTracker:
             record = _TaskRecord(release_step=step)
             self._tasks[task_id] = record
         record.assigned_step = step
-        record.assigned_agent = agent_id
+        # P6 fix: the previous implementation wrote
+        # ``record.assigned_agent = agent_id`` to a non-existent field
+        # (Python allowed it as an instance attribute, but ``record.
+        # agent_id`` -- the only documented field -- stayed ``None``
+        # between assignment and completion).  Callers reading
+        # ``record.agent_id`` mid-task saw ``None`` and concluded the
+        # task was unassigned.  Set the documented field.
+        record.agent_id = agent_id
 
         self.total_tasks = max(self.total_tasks, len(self._tasks))
 
@@ -277,6 +309,56 @@ class MetricsTracker:
         s_i(t+1)."""
         self._violations_exogenous_attributable += int(count)
 
+    # ------------------------------------------------------------------
+    # Event-debounced violation accounting (P6 fix)
+    # ------------------------------------------------------------------
+
+    def record_violation_pair(
+            self,
+            agent_id: int,
+            human_id: int,
+            bucket: Literal["agent", "exo"],
+    ) -> None:
+        """Record one (agent, human) violation pair detected this tick.
+
+        Caller must also bump the per-tick counters via
+        ``add_safety_violation`` and ``add_{agent,exogenous}_attributable_violation``
+        for the agent-tick view to stay consistent; this method only
+        feeds the event-debounce state machine.
+
+        The bucket argument carries the WAIT-counterfactual
+        classification (see ``docs/REVISION_AUDIT.md`` §13) so that
+        events can be split across the attribution buckets too.
+        """
+        self._pending_violation_pairs_this_tick[(int(agent_id), int(human_id))] = bucket
+
+    def close_violation_tick(self) -> None:
+        """Close out one tick of violation detection.
+
+        Computes the leading-edge diff between the pending tick's
+        violation pairs and the previously-active set, bumping the
+        event counters for pairs that JUST entered violation this
+        tick.  Then rotates the pending set into the active set so
+        the next tick can compute its own diff.
+
+        Must be called once per simulator tick after the per-pair
+        ``record_violation_pair`` calls -- even on ticks where the
+        classifier found no violations, so that dropped-out pairs
+        stop being tracked.  The simulator's
+        ``_detect_collisions_and_near_misses`` is the only caller.
+        """
+        prev = self._active_violation_pairs
+        curr = self._pending_violation_pairs_this_tick
+        for pair, bucket in curr.items():
+            if pair not in prev:
+                self._safety_violation_events += 1
+                if bucket == "agent":
+                    self._violations_agent_attributable_events += 1
+                else:
+                    self._violations_exogenous_attributable_events += 1
+        self._active_violation_pairs = curr
+        self._pending_violation_pairs_this_tick = {}
+
     def append_violations_timeline(self, agent_attr: int,
                                    exo_attr: int) -> None:
         """Paper §5.8 — append this tick's violation counts to the
@@ -395,6 +477,12 @@ class MetricsTracker:
 
     @staticmethod
     def csv_header() -> List[str]:
+        # The trailing block ``safety_violation_agent_ticks`` ..
+        # ``mean_task_completion_span`` was added in the P6 metric-
+        # definitions audit.  Existing legacy columns are preserved
+        # (downstream plot scripts read by name).  See
+        # ``docs/REVISION_AUDIT.md`` §14 for the new vs deprecated
+        # mapping.
         return [
             "throughput",
             "completed_tasks",
@@ -407,10 +495,10 @@ class MetricsTracker:
             "collisions_agent_agent",
             "collisions_agent_human",
             "near_misses",
-            "safety_violations",
-            "safety_violation_rate",
-            "violations_agent_attributable",
-            "violations_exogenous_attributable",
+            "safety_violations",                 # deprecated alias of *_agent_ticks
+            "safety_violation_rate",             # deprecated: divides by steps only
+            "violations_agent_attributable",     # deprecated alias of *_agent_ticks
+            "violations_exogenous_attributable", # deprecated alias of *_agent_ticks
             "replans",
             "global_replans",
             "local_replans",
@@ -422,13 +510,22 @@ class MetricsTracker:
             "max_planning_time_ms",
             "mean_decision_time_ms",
             "p95_decision_time_ms",
-            "makespan",
+            "makespan",                          # deprecated in lifelong mode
             "sum_of_costs",
             "delay_events",
             "immediate_assignments",
             "assignments_kept",
             "assignments_broken",
             "steps",
+            # P6 additions ---------------------------------------------
+            "safety_violation_agent_ticks",
+            "safety_violation_events",
+            "safety_violation_rate_per_agent_step",
+            "violations_agent_attributable_agent_ticks",
+            "violations_agent_attributable_events",
+            "violations_exogenous_attributable_agent_ticks",
+            "violations_exogenous_attributable_events",
+            "mean_task_completion_span",
         ]
 
     def to_csv_row(self, metrics: Metrics) -> List[str]:
@@ -466,6 +563,15 @@ class MetricsTracker:
             str(metrics.assignments_kept),
             str(metrics.assignments_broken),
             str(metrics.steps),
+            # P6 additions ---------------------------------------------
+            str(metrics.safety_violation_agent_ticks),
+            str(metrics.safety_violation_events),
+            f"{metrics.safety_violation_rate_per_agent_step:.6f}",
+            str(metrics.violations_agent_attributable_agent_ticks),
+            str(metrics.violations_agent_attributable_events),
+            str(metrics.violations_exogenous_attributable_agent_ticks),
+            str(metrics.violations_exogenous_attributable_events),
+            f"{metrics.mean_task_completion_span:.2f}",
         ]
 
     def finalize(
@@ -511,6 +617,14 @@ class MetricsTracker:
         task_completion = float(self._completed_tasks) / float(self.total_tasks) if self.total_tasks > 0 else 0.0
 
         sv_rate = (self._safety_violations / total_steps * 1000.0) if total_steps > 0 else 0.0
+        # Agent-normalized rate (P6 fix).  Matches the normalization of
+        # ``wait_fraction`` so cross-fleet comparisons in the §5.4
+        # scaling sweeps are like-for-like.  Falls back to 0.0 if
+        # ``num_agents`` was not provided to finalize.
+        denom = float(num_agents * total_steps) if (num_agents and total_steps > 0) else 0.0
+        sv_rate_per_agent_step = (
+            float(self._safety_violations) / denom if denom > 0.0 else 0.0
+        )
         int_rate = (self._global_replans / total_steps * 1000.0) if total_steps > 0 else 0.0
 
         # Timing stats
@@ -523,11 +637,20 @@ class MetricsTracker:
         mean_dt = float(np.mean(dt)) if dt else 0.0
         p95_dt = float(np.percentile(dt, 95)) if dt else 0.0
 
-        # Compute per-step cumulative throughput timeline for convergence analysis
+        # Compute per-step cumulative throughput timeline for
+        # convergence analysis.  P6 fix: clamp ``completed_step`` to
+        # the last bucket so a task completing exactly at
+        # ``total_steps`` is not dropped from the timeline while
+        # ``_completed_tasks`` still counts it (the scalar count and
+        # the timeline must agree on the same set of tasks).
         completions_per_step = [0] * max(total_steps, 1)
-        for rec in self._tasks.values():
-            if rec.completed_step is not None and 0 <= rec.completed_step < total_steps:
-                completions_per_step[rec.completed_step] += 1
+        if total_steps > 0:
+            last_idx = total_steps - 1
+            for rec in self._tasks.values():
+                if rec.completed_step is None or rec.completed_step < 0:
+                    continue
+                idx = min(int(rec.completed_step), last_idx)
+                completions_per_step[idx] += 1
         cumulative = 0
         throughput_timeline: List[float] = []
         for s in range(total_steps):
@@ -547,9 +670,16 @@ class MetricsTracker:
             total_wait_steps=self._total_wait_steps,
             steps=total_steps,
             safety_violations=self._safety_violations,
+            safety_violation_agent_ticks=self._safety_violations,
+            safety_violation_events=self._safety_violation_events,
             safety_violation_rate=sv_rate,
+            safety_violation_rate_per_agent_step=sv_rate_per_agent_step,
             violations_agent_attributable=self._violations_agent_attributable,
+            violations_agent_attributable_agent_ticks=self._violations_agent_attributable,
+            violations_agent_attributable_events=self._violations_agent_attributable_events,
             violations_exogenous_attributable=self._violations_exogenous_attributable,
+            violations_exogenous_attributable_agent_ticks=self._violations_exogenous_attributable,
+            violations_exogenous_attributable_events=self._violations_exogenous_attributable_events,
             global_replans=self._global_replans,
             local_replans=self._local_replans,
             intervention_rate=int_rate,
@@ -563,6 +693,12 @@ class MetricsTracker:
             mean_decision_time_ms=mean_dt,
             p95_decision_time_ms=p95_dt,
             makespan=self._makespan,
+            # P6 fix: paper-aligned per-task completion span.  Numerically
+            # identical to ``mean_flowtime`` (release -> completion mean
+            # over completed tasks); exposed under the explicit name so
+            # downstream plots can switch off the lifelong-meaningless
+            # ``makespan`` without column renames.
+            mean_task_completion_span=mean_flow,
             sum_of_costs=self._sum_of_costs,
             delay_events=self._delay_events,
             immediate_assignments=self._immediate_assignments,

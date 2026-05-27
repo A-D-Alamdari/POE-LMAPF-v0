@@ -1187,7 +1187,7 @@ class Simulator:
                 a_new = new_pos[aid]
                 a_prev = prev_pos[aid]
                 moved = a_new != a_prev
-                for h in humans_at_decision.values():
+                for hid, h in humans_at_decision.items():
                     hp = h.pos
                     d_new = abs(a_new[0] - hp[0]) + abs(a_new[1] - hp[1])
                     if d_new > safety_r:
@@ -1199,10 +1199,25 @@ class Simulator:
                     if moved and wait_safe_vs_h:
                         self.metrics.add_agent_attributable_violation(1)
                         tick_agent_attr += 1
+                        bucket = "agent"
                     else:
                         self.metrics.add_exogenous_attributable_violation(1)
                         tick_exo_attr += 1
+                        bucket = "exo"
                     self.metrics.add_safety_violation(1)
+                    # Feed the event-debounce state machine (P6 fix).
+                    # The events counter only ticks on leading edges
+                    # of (aid, hid) violation runs; see
+                    # ``MetricsTracker.record_violation_pair`` and
+                    # ``close_violation_tick`` below.
+                    self.metrics.record_violation_pair(aid, hid, bucket)
+        # Close the per-tick set even when the detection block above
+        # was skipped (no humans / safety disabled).  This guarantees
+        # ``_active_violation_pairs`` is reset on quiet ticks so that
+        # a previously-active pair that drops out is correctly
+        # forgotten -- otherwise re-entry would not register a new
+        # leading edge.
+        self.metrics.close_violation_tick()
 
         # Paper §5.8 — opt-in per-tick append.  Pure observation; the
         # scalar counters above are the canonical violation accounting.
