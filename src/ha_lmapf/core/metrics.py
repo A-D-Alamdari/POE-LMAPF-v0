@@ -474,6 +474,26 @@ class MetricsTracker:
             num_agents: Optional[int] = None,
             deadlock_count: int = 0,
     ) -> Metrics:
+        # Attribution invariant: every safety_violation must land in
+        # exactly one of the two attribution buckets.  Asserted here so
+        # a future classifier edit that breaks the bookkeeping is
+        # caught at run-end rather than silently in downstream
+        # aggregation.  See ``docs/REVISION_AUDIT.md`` for the
+        # WAIT-counterfactual rule and ``simulator.py::
+        # _detect_collisions_and_near_misses`` for the per-pair
+        # accounting.
+        attr_sum = (
+            int(self._violations_agent_attributable)
+            + int(self._violations_exogenous_attributable)
+        )
+        if attr_sum != int(self._safety_violations):
+            raise AssertionError(
+                f"safety attribution invariant broken: "
+                f"safety_violations={self._safety_violations} != "
+                f"agent_attributable + exogenous_attributable = "
+                f"{self._violations_agent_attributable} + "
+                f"{self._violations_exogenous_attributable} = {attr_sum}"
+            )
         flowtimes: List[int] = []
         service_times: List[int] = []
         for rec in self._tasks.values():

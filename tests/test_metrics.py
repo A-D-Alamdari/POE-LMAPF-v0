@@ -257,9 +257,16 @@ class TestFinalization:
         assert metrics.mean_flowtime == 15.0  # (10 + 20) / 2
 
     def test_safety_violation_rate(self):
-        """Safety violation rate = violations / steps * 1000."""
+        """Safety violation rate = violations / steps * 1000.
+
+        The simulator pairs every ``add_safety_violation`` with one of
+        the two attribution increments; the finalize-time invariant
+        ``safety_violations == agent_attributable + exogenous_attributable``
+        requires unit tests to mirror that.
+        """
         tracker = MetricsTracker()
         tracker.add_safety_violation(50)
+        tracker.add_exogenous_attributable_violation(50)
 
         metrics = tracker.finalize(total_steps=1000)
 
@@ -374,6 +381,9 @@ class TestMetricsIntegration:
         tracker.add_agent_agent_collision(3)
         tracker.add_agent_human_collision(1)
         tracker.add_safety_violation(10)
+        # Mirror the simulator's per-pair pairing so the
+        # finalize-time invariant holds.
+        tracker.add_exogenous_attributable_violation(10)
         tracker.add_global_replan(5)
         tracker.add_local_replan(20)
         tracker.add_wait_steps(150)

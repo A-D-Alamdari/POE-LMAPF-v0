@@ -671,3 +671,100 @@ it keeps the full architecture and just sets `safety_radius=0`,
 verifying that Theorem 1 holds even when the buffer collapses to the
 exogenous agents' exact cells (`tests/test_baseline_no_buffer.py`
 passes with `violations_agent_attributable == 0`).
+
+---
+
+## 13. Safety-violation attribution — WAIT-counterfactual rewrite
+
+**Problem.** The pre-rewrite classifier in
+`simulator.py::_detect_collisions_and_near_misses` re-tested the
+local planner's own constraint instead of measuring an independent
+quantity:
+
+```python
+observed_positions = [h.pos for h in humans_at_decision.values()
+                     if L1(a_prev, h.pos) <= fov_r]
+agent_attributable = moved and any(
+    L1(a_prev, p) >  safety_r and L1(a_new, p) <= safety_r
+    for p in observed_positions
+)
+```
+
+The `observed_positions` set is exactly the set of humans whose
+buffer cells `AgentController` already treats as forbidden.  The
+controller refuses to step into any observed buffer; if forced, it
+Safe-Waits (`moved=False`).  So the `moved and any(...)` conjunction
+is vacuously false on every shipped controller, and
+`agent_attr_max = 0` appears in every row of every scaling CSV not
+because Theorem 1 is being verified, but because the metric is
+self-fulfilling: the planner enforces its own constraint, and the
+metric checks whether the planner enforced its own constraint.
+
+**Replacement rule.** The classifier is rebuilt as a per-pair WAIT
+counterfactual that does NOT consult the FOV / observed set:
+
+> For each violation pair $(a_i, h)$ at $t+1$ (any human $h$ with
+> $\ell_1(s_i(t+1), h_{\mathrm{pos\;at\;}t+1}) \le r_{\mathit{safe}}$):
+> the pair is **agent-attributable** iff the agent moved AND
+> $\ell_1(s_i(t), h_{\mathrm{pos\;at\;}t+1}) > r_{\mathit{safe}}$
+> (WAIT would have left the agent safe vs $h$); otherwise it is
+> **exogenous-attributable** (either the agent didn't move so WAIT
+> was the chosen action, or WAIT would have been unsafe vs $h$
+> anyway).
+
+The rule iterates over every human within $r_{\mathit{safe}}$ of
+$a_{\mathrm{new}}$ -- not the FOV-restricted set -- and assigns
+attribution per pair, not per agent.  Two consequences:
+
+1. The metric is now independent of the planner's internal state.
+   A planner that knew nothing about its forbidden set and walked
+   blindly into a buffer would correctly read as agent-attributable.
+2. The metric can be nonzero on FOV-blind moves -- the case the old
+   rule structurally missed.  Empirically the §5.4 sweeps now
+   report a real nonzero `agent_attr` distribution rather than the
+   construction-zero of the old rule.
+
+**Paper-claim implication.** The pre-rewrite metric was, by
+construction, the empirical witness of Theorem 1's
+agent-attribution invariant: the proof says "no agent action enters
+an observed buffer" and the metric checked exactly that.  Under the
+new rule, `violations_agent_attributable` is no longer the empirical
+witness of Theorem 1 -- it is a different (stricter) quantity.  The
+Theorem 1 invariant still holds for the planner, but it is now
+verified through code-walk and resolver-fallback tests
+(`tests/test_theorem1_resolver.py::test_loser_fallback_respects_F`
+and the controller branches in
+`tests/test_theorem1_stress.py`).  The paper's Definition 1 should
+be re-stated to distinguish "the planner's guarantee" (Theorem 1)
+from "the measured WAIT-counterfactual" (this metric) -- they were
+conflated in the original draft.
+
+**Invariant.**  The split still satisfies
+`safety_violations == violations_agent_attributable + violations_exogenous_attributable`
+on every tick and at finalize; the invariant is now asserted in
+`MetricsTracker.finalize` and breaks the run loud if a future edit
+miscounts.
+
+**Acceptance scenarios** (`tests/test_safety_classification.py`):
+
+* `test_wait_counterfactual_fov_blind_move_is_agent_attributable` --
+  an agent moves into the buffer of a human outside its FOV; the
+  old rule scored this as exogenous (witness unobserved), the new
+  rule scores it as agent-attributable (WAIT was safe).  This is
+  the test that proves the new rule isn't a tautology.
+* `test_wait_counterfactual_unavoidable_overlap_is_exogenous` --
+  a human ends up on (or adjacent to) the agent's cell after the
+  human-motion phase; WAIT was also unsafe, so the pair is
+  exogenous and `agent_attributable == 0`.
+* `test_attribution_invariant_holds_across_mixed_pairs` --
+  one agent generates one agent-attributable pair and one
+  exogenous-attributable pair in the same tick; verifies the
+  per-pair split and the finalize invariant.
+
+**Why "don't keep the old check" was the right call.** The prompt
+that authorised this change ruled out a side-by-side dual metric.
+Keeping the FOV-gated counter under a new name would invite
+downstream readers to keep reading it as Theorem 1's empirical
+witness, defeating the rewrite's whole point.  Theorem 1's
+invariant is now verified by code-walk + resolver-fallback tests,
+not by a metric.
