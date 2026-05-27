@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from ha_lmapf.core.interfaces import SimStateView, GlobalPlanner
-from ha_lmapf.core.types import PlanBundle, Task
+from ha_lmapf.core.types import AgentState, PlanBundle, Task, TimedPath
 
 
 # Allocator (Matches your task_allocator.py file name)
+
+
+# Sentinel used by _reanchor_last_good to distinguish "agent absent
+# from the stored goal snapshot" from "agent was tracked with goal
+# None".  The former must fall back to WAIT; the latter must still be
+# eligible for path reuse when its goal is still None.
+_SENTINEL = object()
 
 
 class RollingHorizonPlanner:
@@ -84,6 +91,24 @@ class RollingHorizonPlanner:
         # We suppress emergency triggers when the last replan was useless.
         self._last_replan_useful: bool = True
 
+        # Previous-plan reuse machinery.  ``_last_good_bundle`` is the
+        # most recent PlanBundle whose status was ``complete`` /
+        # ``partial_anytime``; ``_last_good_goals`` is the snapshot of
+        # ``{aid: goal}`` taken at that step so we can fall back to
+        # per-agent WAIT when an agent's goal has since changed.  On a
+        # solver failure (``timeout_no_result`` / ``error`` /
+        # ``binary_not_found``) the dispatch re-anchors the stored
+        # bundle to the current step instead of emitting the all-WAIT
+        # plan ``SolverResult.plan`` carries.  ``_fallback_reuse_count``
+        # is the cumulative re-anchor counter, mirrored into
+        # ``Metrics.solver_fallback_reuses`` via the simulator's
+        # tracker.  A reused plan is still a solver failure: the
+        # underlying solver_timeouts / solver_errors counter is also
+        # incremented on the same replan.
+        self._last_good_bundle: Optional[PlanBundle] = None
+        self._last_good_goals: Dict[int, Optional[Tuple[int, int]]] = {}
+        self._fallback_reuse_count: int = 0
+
     def _exhaustion_trigger(self, sim_state: SimStateView) -> bool:
         """
         Return True if too many agents have stale global plans.
@@ -139,6 +164,63 @@ class RollingHorizonPlanner:
         )
         frac = n_safe_wait / n
         return frac > self.eta_w
+
+    def _reanchor_last_good(
+            self,
+            agents: Dict[int, AgentState],
+            cur_step: int,
+            horizon: int,
+    ) -> PlanBundle:
+        """Shift / clip ``self._last_good_bundle`` so it is valid for
+        ``cur_step`` over ``horizon`` ticks.
+
+        For each agent in ``agents``:
+
+        * If the agent's identity is unchanged and its goal still
+          matches the snapshot taken when the bundle was stored, take
+          the tail of the stored ``TimedPath`` starting at index
+          ``cur_step - start_step``; clip or pad-with-last-cell to
+          length ``horizon + 1``.
+        * Otherwise (agent absent from the stored bundle, goal
+          changed, agent newly added, ``offset < 0``, or stored tail
+          empty), emit a WAIT path at the agent's current position
+          for that agent only.
+
+        The returned bundle carries ``created_step = cur_step`` so the
+        simulator's downstream consumers (``AgentController.global_path
+        .__call__``) index it correctly.
+        """
+        stored = self._last_good_bundle
+        assert stored is not None  # callers gate on this
+        last_paths = stored.paths
+        last_goals = self._last_good_goals
+        new_paths: Dict[int, Optional[TimedPath]] = {}
+        for aid, agent in agents.items():
+            stored_path = last_paths.get(aid)
+            goal_matches = last_goals.get(aid, _SENTINEL) == agent.goal
+            new_cells: Optional[list] = None
+            if stored_path is not None and goal_matches:
+                offset = cur_step - stored_path.start_step
+                if 0 <= offset < len(stored_path.cells):
+                    tail = stored_path.cells[offset:]
+                    new_cells = list(tail[: horizon + 1])
+                    if len(new_cells) < horizon + 1:
+                        pad = new_cells[-1] if new_cells else agent.pos
+                        new_cells.extend([pad] * (horizon + 1 - len(new_cells)))
+                elif offset >= len(stored_path.cells) and stored_path.cells:
+                    # The stored path has already run out — the agent
+                    # was expected to be parked at its final cell; keep
+                    # it there.
+                    new_cells = [stored_path.cells[-1]] * (horizon + 1)
+            if new_cells is None:
+                # Goal changed, agent unknown, or offset was negative.
+                # Falling back per-agent (not globally) avoids dropping
+                # the plan-quality benefit for agents whose goals are
+                # still valid.
+                new_cells = [agent.pos] * (horizon + 1)
+            new_paths[aid] = TimedPath(cells=new_cells, start_step=cur_step)
+        return PlanBundle(paths=new_paths,
+                          created_step=cur_step, horizon=horizon)
 
     def _safety_wait_trigger(self, sim_state: SimStateView) -> bool:
         """
@@ -262,26 +344,71 @@ class RollingHorizonPlanner:
         # _last_replan_useful heuristic with an explicit five-way
         # SolverStatus check — see core/types.py::SolverStatus and
         # the decision tree in solvers/_base.py::_wrap_subprocess.
+        import logging
+        log = logging.getLogger(__name__)
+        solver_class = getattr(self.solver, "__class__",
+                               type(self.solver)).__name__
+
         if status in ("complete", "partial_anytime"):
             self._last_replan_useful = True
+            # Stash the good plan and a goal snapshot so a subsequent
+            # failed solve can re-anchor it.  Defensive copy so that
+            # downstream mutation of the path objects can't corrupt
+            # what we hand back later.
+            self._last_good_bundle = PlanBundle(
+                paths={
+                    aid: (TimedPath(cells=list(tp.cells),
+                                    start_step=tp.start_step)
+                          if tp is not None else None)
+                    for aid, tp in plan.paths.items()
+                },
+                created_step=plan.created_step,
+                horizon=plan.horizon,
+            )
+            self._last_good_goals = {
+                aid: a.goal for aid, a in sim_state.agents.items()
+            }
             if status == "partial_anytime" and metrics is not None and \
                     hasattr(metrics, "add_solver_partial_return"):
                 metrics.add_solver_partial_return(1)
-        elif status == "timeout_no_result":
+        else:
+            # ``timeout_no_result`` / ``error`` / ``binary_not_found``.
+            # Count the failure first — a reused plan is still a
+            # solver failure and the counter must NOT be downgraded.
             self._last_replan_useful = False
-            if metrics is not None and hasattr(metrics, "add_solver_timeout"):
-                metrics.add_solver_timeout(1)
-        else:  # "error" or "binary_not_found"
-            self._last_replan_useful = False
-            if metrics is not None and hasattr(metrics, "add_solver_error"):
-                metrics.add_solver_error(1)
-            import logging
-            logging.getLogger(__name__).warning(
-                "[rolling-horizon] solver %r returned status=%s at step %d "
-                "(error_msg=%r); reusing previous PlanBundle.",
-                getattr(self.solver, "__class__", type(self.solver)).__name__,
-                status, cur_step, result.error_msg,
-            )
+            if status == "timeout_no_result":
+                if metrics is not None and hasattr(metrics, "add_solver_timeout"):
+                    metrics.add_solver_timeout(1)
+            else:  # "error" or "binary_not_found"
+                if metrics is not None and hasattr(metrics, "add_solver_error"):
+                    metrics.add_solver_error(1)
+
+            if self._last_good_bundle is not None:
+                reused = self._reanchor_last_good(
+                    sim_state.agents, cur_step, self.horizon,
+                )
+                self._fallback_reuse_count += 1
+                if metrics is not None and \
+                        hasattr(metrics, "add_solver_fallback_reuse"):
+                    metrics.add_solver_fallback_reuse(1)
+                log.warning(
+                    "[rolling-horizon] solver %r returned status=%s at step %d "
+                    "(error_msg=%r); reused last good PlanBundle from step %d.",
+                    solver_class, status, cur_step, result.error_msg,
+                    self._last_good_bundle.created_step,
+                )
+                plan = reused
+            else:
+                # First-replan failure: no prior bundle to re-anchor.
+                # Keep the all-WAIT plan SolverResult already built
+                # but surface the degenerate-start condition loudly.
+                log.warning(
+                    "[rolling-horizon] solver %r returned status=%s at step %d "
+                    "(error_msg=%r); no prior bundle; emitting all-WAIT. "
+                    "This run started with a failed global solver — every "
+                    "agent will be stationary until the next successful solve.",
+                    solver_class, status, cur_step, result.error_msg,
+                )
 
         self.last_planned_step = cur_step
         self.last_replan_step = cur_step
