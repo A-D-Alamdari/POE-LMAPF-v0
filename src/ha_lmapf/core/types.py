@@ -411,6 +411,15 @@ class Metrics:
     solver_timeouts: int = 0
     solver_partial_returns: int = 0
     solver_errors: int = 0
+    # Count of replans for which the global solver failed
+    # (timeout_no_result / error / binary_not_found) AND the
+    # RollingHorizonPlanner re-anchored the previous good PlanBundle
+    # instead of emitting all-WAIT.  Strictly <= solver_timeouts +
+    # solver_errors; the difference equals "failures handled at the
+    # start of the run, before any good bundle existed."  A reused
+    # plan is still a solver failure — solver_errors / solver_timeouts
+    # are NOT downgraded when this counter ticks.
+    solver_fallback_reuses: int = 0
     # Paper §5.7 — deadlock count.  Number of distinct controlled
     # agents whose position-unchanged streak exceeded
     # ``SimConfig.deadlock_streak_threshold`` at any point during the

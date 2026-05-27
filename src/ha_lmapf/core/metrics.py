@@ -64,6 +64,11 @@ class MetricsTracker:
         self._solver_timeouts: int = 0
         self._solver_partial_returns: int = 0
         self._solver_errors: int = 0
+        # Count of replan failures where the rolling-horizon planner
+        # re-anchored its last good PlanBundle instead of falling back
+        # to all-WAIT.  Independent of (and does NOT decrement) the
+        # underlying solver_{timeouts,errors} counts.
+        self._solver_fallback_reuses: int = 0
 
         # Enhanced metrics
         self._safety_violations: int = 0
@@ -210,6 +215,13 @@ class MetricsTracker:
         to ``Metrics.solver_errors``.
         """
         self._solver_errors += int(count)
+
+    def add_solver_fallback_reuse(self, count: int = 1) -> None:
+        """Count a failed-solve replan that recovered by re-anchoring
+        the rolling-horizon planner's last good PlanBundle.  Maps to
+        ``Metrics.solver_fallback_reuses``.  Independent of (and does
+        not decrement) ``solver_timeouts`` / ``solver_errors``."""
+        self._solver_fallback_reuses += int(count)
 
     def add_safety_violation(self, count: int = 1) -> None:
         self._safety_violations += int(count)
@@ -512,6 +524,7 @@ class MetricsTracker:
             solver_timeouts=self._solver_timeouts,
             solver_partial_returns=self._solver_partial_returns,
             solver_errors=self._solver_errors,
+            solver_fallback_reuses=self._solver_fallback_reuses,
             deadlock_count=deadlock_count,
             max_global_no_progress_streak=int(self._global_no_progress_streak_max),
             global_no_progress_steps=int(self._global_no_progress_steps),
