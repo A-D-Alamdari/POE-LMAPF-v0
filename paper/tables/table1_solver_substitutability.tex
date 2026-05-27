@@ -50,3 +50,21 @@ PIBT2 & 0.249 $\pm$ 0.034 & 0.0 $\pm$ 0.0 & 759.0 $\pm$ 117.2 & 28.7 $\pm$ 2.6 \
 \caption{Tier-1 Solver Substitutability at $H = 20$ on warehouse-10-20-10-2-2.}
 \label{tab:solver_subst_warehouse-10-20-10-2-2}
 \end{table}
+
+% System-health footnote -- required by the P9 task spec so the
+% reader sees agent-level progress alongside throughput.  The §5.2
+% sweep CSV predates the deadlock instrumentation, so the
+% deadlock_count column is empty in the tables above; the
+% headline-cell number cited here comes from the §5.5
+% baseline_comparison_v2 sweep at the same warehouse / |M|=100
+% point.  See \S\ref{sec:system_health} for the full table.
+
+\paragraph{System-health footnote (Table~\ref{tab:solver_subst_warehouse-10-20-10-2-2}).}
+At $|M| = 100$ on the warehouse map, an average of 16.10 agents per
+run cross the deadlock threshold (Ours, mean across 10 seeds;
+baselines fare worse -- No-Buffer 29.30, PIBT2-FR 43.00,
+LaCAM-blind 100.00).  This is consistent with the system being
+task-arrival-limited: throughput saturates near the arrival rate
+regardless of how many agents are stuck.  See
+\S\ref{sec:system_health} (System Health Indicators) for the
+cross-density table and the per-method comparison.

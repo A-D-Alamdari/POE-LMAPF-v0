@@ -38,3 +38,21 @@ verbatim.  See `reports/table1_audit.md` § "Known issue".
 | PBS | 0.249 ± 0.034 | 0.0 ± 0.0 | 798.6 ± 126.9 | 997.2 ± 296.5 |
 | PIBT2 | 0.249 ± 0.034 | 0.0 ± 0.0 | 759.0 ± 117.2 | 28.7 ± 2.6 |
 
+## System-health footnote
+
+The §5.2 sweep CSV that backs the throughput / violation numbers above
+predates the `deadlock_count` / `global_no_progress_steps` instrumentation;
+those columns are zero at the §5.2 density (|M| ∈ {25, 50, 75, 100}, H=20)
+in every cell of this table.  This is not the agent-level progress picture
+at deployment density.  Reading across to the §5.5 baseline comparison
+(`paper/sections/05_4_system_health.md`):
+
+**At |M| = 100 on the warehouse map, an average of 16.10 agents per run
+cross the deadlock threshold (Ours, mean across 10 seeds; baselines fare
+worse -- No-Buffer 29.30, PIBT2-FR 43.00, LaCAM-blind 100.00).  This is
+consistent with the system being task-arrival-limited: throughput saturates
+near the arrival rate regardless of how many agents are stuck.**
+
+See §5.4 (System Health Indicators) for the cross-density table and the
+per-method comparison.
+

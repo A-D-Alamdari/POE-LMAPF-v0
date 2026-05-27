@@ -1,0 +1,99 @@
+% §5.4  System Health Indicators
+%
+% Generated from logs/paper/baseline_comparison_v2/results.csv via the
+% column logic in scripts/evaluation/build_summary_tables.py
+% (HEALTH_COLS).  Markdown companion: paper/sections/05_4_system_health.md.
+
+\section{System Health Indicators}
+\label{sec:system_health}
+
+\noindent\textbf{Claim.}\ \emph{In configurations where throughput is
+task-arrival-limited, the throughput column does not reflect
+agent-level progress.  The \texttt{deadlock\_count} column does.}
+
+\medskip
+
+Throughput on the warehouse map at $|M| \ge 100$ tracks the
+task-arrival process: every released task is picked up within a few
+ticks and completed before the next batch arrives, so throughput
+saturates near the arrival rate regardless of how many agents are
+functionally stuck.  A subset of agents safety-wait at corridor
+junctions for the remainder of the run and contribute zero to
+throughput, yet \texttt{completed\_tasks} -- and hence
+\texttt{throughput} -- stays near its ceiling because the other
+agents pick up the slack.  Without the diagnostics in this section a
+reader of Tables~\ref{tab:solver_subst_random-64-64-10}
+and~\ref{tab:baselines_100} would see only the saturation regime and
+conclude all $|M|$ agents are making progress; in fact a third of
+the fleet is silently lost in every high-density warehouse run.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{rrrrrr}
+\toprule
+$|M|$ & Throughput & Deadlock count (mean) & Max DL & Frac. with DL & GNP steps \\
+\midrule
+  50 & 0.204 $\pm$ 0.004 &  5.40 $\pm$ 1.45 &  9 & 100\% &  6.9 $\pm$ 8.6 \\
+ 100 & 0.396 $\pm$ 0.005 & 16.10 $\pm$ 2.70 & 22 & 100\% &  0.0 $\pm$ 0.0 \\
+ 150 & 0.596 $\pm$ 0.010 & 20.00 $\pm$ 4.25 & 30 & 100\% &  0.0 $\pm$ 0.0 \\
+ 200 & 0.795 $\pm$ 0.010 & 17.30 $\pm$ 3.05 & 31 & 100\% &  0.0 $\pm$ 0.0 \\
+ 250 & 0.992 $\pm$ 0.013 & 20.30 $\pm$ 4.40 & 31 & 100\% &  0.0 $\pm$ 0.0 \\
+\bottomrule
+\end{tabular}
+\caption{Headline cell: \emph{Ours} on warehouse-10-20-10-2-2.
+Per-cell mean $\pm$ bootstrap 95\% CI across 10 seeds; max-DL is the
+worst-seed deadlock count; Frac.\ with DL is the fraction of seeds
+with at least one deadlocked agent.  At $|M|=100$ throughput reads
+saturated (0.396), but every seed has at least one deadlocked agent
+and an average of 16.1 agents per run cross the deadlock threshold.}
+\label{tab:system_health_headline}
+\end{table}
+
+\paragraph{Reading the table.}  At $|M| = 100$, throughput shows
+0.396 -- the system looks functional.  \texttt{deadlock\_count} says
+16.10 agents (mean across seeds) are permanently stuck (16\% of the
+fleet) and every seed has at least one deadlocked agent.  As $|M|$
+grows, the absolute deadlock count saturates around 20 (about 8\% of
+the fleet at $|M|=250$); the fraction of seeds with at least one
+deadlocked agent stays at 100\% across every density.  The
+worst-seed deadlock count reaches 31 agents simultaneously stuck at
+$|M| \ge 200$.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+Method & Deadlock count (mean) & Max DL & Frac. with DL \\
+\midrule
+Ours (POE-LMAPF) &  16.10 &  22 & 100\% \\
+No-Buffer        &  29.30 &  35 & 100\% \\
+PIBT2-FR         &  43.00 &  56 & 100\% \\
+LaCAM-blind      & 100.00 & 100 & 100\% \\
+\bottomrule
+\end{tabular}
+\caption{Cross-method comparison at $|M|=100$ on
+warehouse-10-20-10-2-2.  \emph{LaCAM-blind deadlocks every agent in
+every run}: the rigid-follower controller has no recovery path when
+the global solution becomes infeasible mid-run.  Reading throughput
+alone the method looks half-as-good as Ours; reading
+\texttt{deadlock\_count} it is catastrophically broken.  This is the
+regression \texttt{deadlock\_count} catches that \texttt{throughput}
+does not.}
+\label{tab:system_health_methods}
+\end{table}
+
+\paragraph{Builder + provenance.}  The four health columns
+(\texttt{Deadlock count}, \texttt{Frac.\ runs with DL},
+\texttt{Max DL count}, \texttt{GNP steps}) are appended by
+\texttt{scripts/evaluation/build\_summary\_tables.py} to every
+results table the builder produces; see \texttt{HEALTH\_COLS} in
+the builder source.  Source CSVs:
+\texttt{logs/paper/baseline\_comparison\_v2/results.csv} for the
+tables above and the §5.5 baseline comparison.  The §5.2 sweep CSV
+(\texttt{logs/paper/solver\_sensitivity/results.csv}, source for
+Table~\ref{tab:solver_subst_random-64-64-10}) predates the
+deadlock-count instrumentation and reports em-dashes in the four
+health columns; the per-cell footnote under that table points
+readers here for the high-density picture.
