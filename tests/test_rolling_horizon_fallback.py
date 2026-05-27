@@ -328,7 +328,18 @@ def test_reanchor_per_agent_wait_on_goal_change() -> None:
 def test_reanchor_horizon_length_invariant() -> None:
     """Re-anchored TimedPaths must be exactly ``horizon + 1`` cells —
     same invariant ``_make_all_wait_bundle`` enforces and that
-    ``test_receding_horizon_handoff`` implicitly depends on."""
+    ``test_receding_horizon_handoff`` implicitly depends on.
+
+    Iteration coverage (HORIZON=10, REPLAN_EVERY=5, stored path has
+    11 cells indexed 0..10):
+
+    * k=1 → offset=5  → in-range, tail length 6, **pad** branch.
+    * k=2 → offset=10 → in-range, tail length 1, **pad** branch.
+    * k=3 → offset=15 → **out-of-range** branch (offset >=
+      len(stored.cells)); see
+      :func:`test_reanchor_offset_past_stored_path_end` for the
+      explicit "parked at final cell" assertion.
+    """
     statuses: List[SolverStatus] = ["complete", "error", "error", "error"]
     solver = ScriptedSolver(statuses)
     planner = RollingHorizonPlanner(
@@ -339,10 +350,6 @@ def test_reanchor_horizon_length_invariant() -> None:
     sim = _MockSimState(step=0, agents=agents, metrics=metrics)
 
     _run_step(planner, sim)
-    # Walk forward across several failed replans; each one re-anchors
-    # the same stored bundle further into the future.  The padding
-    # branch (tail shorter than horizon+1) must engage on the deeper
-    # offsets.
     for k in (1, 2, 3):
         sim.step = k * REPLAN_EVERY
         plan = _run_step(planner, sim)
@@ -354,6 +361,93 @@ def test_reanchor_horizon_length_invariant() -> None:
                 f"{len(tp.cells)} != horizon+1={HORIZON + 1}"
             )
             assert tp.start_step == k * REPLAN_EVERY
+
+
+def test_reanchor_offset_past_stored_path_end() -> None:
+    """When ``cur_step - stored.start_step >= len(stored.cells)`` the
+    re-anchored bundle parks every agent at the stored path's final
+    cell — NOT at the agent's current position.  Pinning these is
+    important: the two look identical only when the agent happens to
+    already be at the final cell, and the controllers consume them
+    differently downstream.
+
+    Setup: HORIZON=10, REPLAN_EVERY=5, so stored.cells has 11 entries
+    (indices 0..10).  On the third failure at cur_step=15 the offset
+    is 15 >= 11, exercising the ``elif offset >= len(stored_path.cells)``
+    branch in ``_reanchor_last_good``.
+    """
+    statuses: List[SolverStatus] = ["complete", "error", "error", "error"]
+    solver = ScriptedSolver(statuses)
+    planner = RollingHorizonPlanner(
+        horizon=HORIZON, replan_every=REPLAN_EVERY, solver_impl=solver,
+    )
+    metrics = MetricsTracker()
+    agents = _make_agents()
+    sim = _MockSimState(step=0, agents=agents, metrics=metrics)
+
+    # Successful first solve at step 0 produces the bundle we'll
+    # re-anchor; capture the final cells of every agent's stored path
+    # so we can pin the boundary-branch behavior to them specifically
+    # (and distinguish from each agent's current pos).
+    plan0 = _run_step(planner, sim)
+    assert plan0 is not None
+    stored_final = {aid: tp.cells[-1] for aid, tp in plan0.paths.items()}
+    assert len(plan0.paths[0].cells) == HORIZON + 1
+    for aid, agent in agents.items():
+        assert stored_final[aid] != agent.pos, (
+            f"test setup invariant violated: agent {aid} starts at its "
+            f"stored final cell, so 'parked at final' and 'all-WAIT at "
+            f"current pos' are indistinguishable."
+        )
+
+    # Drive two in-range failure replans first; they exercise the pad
+    # branch and are already covered by other tests.
+    sim.step = REPLAN_EVERY     # offset = 5
+    _run_step(planner, sim)
+    sim.step = 2 * REPLAN_EVERY  # offset = 10
+    _run_step(planner, sim)
+
+    # The boundary case: offset = 15 > len(stored.cells)=11.
+    sim.step = 3 * REPLAN_EVERY
+    plan = _run_step(planner, sim)
+    assert plan is not None
+    assert plan.created_step == 3 * REPLAN_EVERY
+
+    for aid, agent in agents.items():
+        tp = plan.paths[aid]
+        assert tp is not None
+        assert tp.start_step == 3 * REPLAN_EVERY, (
+            f"agent {aid} TimedPath must be re-anchored to cur_step"
+        )
+        assert len(tp.cells) == HORIZON + 1, (
+            f"agent {aid} TimedPath length {len(tp.cells)} != "
+            f"horizon+1={HORIZON + 1}"
+        )
+        # The whole path is the agent parked at the stored final cell:
+        # exactly one distinct cell, and that cell is stored.cells[-1]
+        # (NOT the agent's current pos).
+        assert len(set(tp.cells)) == 1, (
+            f"agent {aid} should be parked at a single cell at the "
+            f"out-of-range boundary; got cells={tp.cells}"
+        )
+        assert tp.cells[0] == stored_final[aid], (
+            f"agent {aid} boundary parking cell {tp.cells[0]} != "
+            f"stored final cell {stored_final[aid]} — looks like the "
+            f"all-WAIT-at-current-pos fallback engaged instead of the "
+            f"'parked at stored final cell' branch."
+        )
+        assert tp.cells[0] != agent.pos, (
+            f"agent {aid} parked at its current pos {agent.pos}, not "
+            f"the stored final cell {stored_final[aid]}; the wrong "
+            f"branch fired."
+        )
+
+    # The reuse counter ticks for all three failures (not just this
+    # one).  Errors counter is NOT downgraded — invariant from the
+    # parent test.
+    assert planner._fallback_reuse_count == 3
+    assert metrics._solver_errors == 3
+    assert metrics._solver_fallback_reuses == 3
 
 
 def test_reanchor_no_collision_invariant() -> None:
