@@ -59,6 +59,12 @@ import pandas as pd
 EXIT_GO = 0
 EXIT_NO_GO = 1
 
+# Degenerate-run guard (P2 follow-up).  Same threshold the experiment
+# runner uses; per-row classifier lives in
+# ``scripts.evaluation.validate_paper_claims.classify_row_validity``
+# so the two validators reach the same verdict on the same row.
+DEFAULT_VALIDITY_THRESHOLD = 0.05
+
 
 def _load_manifest_methods(manifest_path: Path) -> Dict[str, str]:
     """Return ``{run_id: method}`` from a manifest CSV.  ``method`` is
@@ -79,6 +85,60 @@ def _load_results(results_path: Path) -> Optional[pd.DataFrame]:
         return None
     df = pd.read_csv(results_path)
     return df
+
+
+def step_validity_gate(
+    logs_dir: Path, threshold: float,
+) -> Tuple[bool, int, int, List[str]]:
+    """Per-row degenerate-run guard.
+
+    Returns ``(ok, n_total, n_invalid, examples)`` where ``ok`` is
+    ``False`` if any row fails the guard (the smoke run is then NO-GO
+    regardless of the other steps -- a Confirmed verdict on top of
+    100/100 solver-error rows is exactly the failure mode this
+    follow-up exists to catch).
+    """
+    # Import lazily so the smoke validator works even when
+    # validate_paper_claims has been moved / renamed; the shared
+    # classifier is the canonical implementation.
+    try:
+        from scripts.evaluation.validate_paper_claims import (
+            classify_row_validity,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"  WARN: validity classifier import failed: {exc}; skipping gate.")
+        return False, 0, 0, []
+
+    results_path = logs_dir / "results.csv"
+    if not results_path.exists():
+        print(f"  WARN: results.csv missing at {results_path}; cannot apply guard.")
+        return False, 0, 0, []
+
+    df = pd.read_csv(results_path)
+    n_total = len(df)
+    invalid: List[Tuple[str, str]] = []
+    for _, row in df.iterrows():
+        rd = row.to_dict()
+        reason = classify_row_validity(rd, threshold)
+        if reason is not None:
+            rid = str(rd.get("run_id", ""))[:12]
+            invalid.append((rid, reason))
+
+    examples: List[str] = []
+    print(f"  Rows checked         : {n_total}")
+    print(f"  Validity threshold   : {threshold}")
+    print(f"  Invalid runs         : {len(invalid)}")
+    if invalid:
+        print(f"  FAIL: {len(invalid)} row(s) failed the degenerate-run guard:")
+        for rid, reason in invalid[:10]:
+            examples.append(f"{rid}: {reason}")
+            print(f"    - {rid}: {reason}")
+        if len(invalid) > 10:
+            print(f"    ... and {len(invalid) - 10} more.")
+        return False, n_total, len(invalid), examples
+    print("  OK   : every row passes run_valid / solver_fail_fraction / "
+          "global_replans checks.")
+    return True, n_total, 0, examples
 
 
 def step1_sidecar_count(logs_dir: Path) -> Tuple[bool, int, int]:
@@ -329,6 +389,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--no-figure", action="store_true",
                    help="Skip step 4 (figure generation).  Use when "
                         "results.csv is not yet flushed.")
+    p.add_argument("--validity-threshold", type=float,
+                   default=DEFAULT_VALIDITY_THRESHOLD,
+                   help=("Per-row solver_fail_fraction threshold for "
+                         "the degenerate-run guard.  "
+                         f"Default {DEFAULT_VALIDITY_THRESHOLD}."))
     args = p.parse_args(argv)
 
     skip_methods: Set[str] = set(args.skip_method) if args.skip_method else {"rhcr"}
@@ -337,6 +402,12 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     print(f"Validating sweep at: {logs_dir}")
     print(f"Skipping methods   : {sorted(skip_methods)}")
+    print()
+
+    print("STEP 0 — Degenerate-run guard (P2 follow-up)")
+    step0_ok, n_rows_total, n_invalid, invalid_examples = step_validity_gate(
+        logs_dir, float(args.validity_threshold),
+    )
     print()
 
     print("STEP 1 — Sidecar count")
@@ -368,9 +439,14 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # GO / NO-GO
     print("=" * 72)
-    go = step1_ok and step2_ok and step3_ok and step4_ok
+    # Validity-gate failure is fatal regardless of the other steps:
+    # a clean sidecar/timeline check on top of 100/100 solver-error
+    # rows is still GO, but those rows are not valid input.  Refuse
+    # to recommend GO if any row failed the guard.
+    go = step0_ok and step1_ok and step2_ok and step3_ok and step4_ok
     if go:
         print("RECOMMENDATION: GO")
+        print(f"  - Validity gate passed ({n_rows_total} rows, 0 invalid).")
         print("  - Sidecar count matches manifest.")
         print("  - Timeline sums match scalar counters for all non-skipped runs.")
         if any(m in summary for m in ("ours", "no_buffer")):
@@ -382,6 +458,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("  Proceed to the next sweep batch.")
         return EXIT_GO
     print("RECOMMENDATION: NO-GO")
+    if not step0_ok:
+        print(f"  - Degenerate-run guard failed "
+              f"({n_invalid}/{n_rows_total} row(s) invalid); "
+              f"a Confirmed verdict on this CSV would be on tainted "
+              f"data.  Examples:")
+        for example in invalid_examples[:5]:
+            print(f"      {example}")
     if not step1_ok:
         print(f"  - Sidecar count mismatch ({n_sidecars} vs {n_manifest}).")
     if not step2_ok:

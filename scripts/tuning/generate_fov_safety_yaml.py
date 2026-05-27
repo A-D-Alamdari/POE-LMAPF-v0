@@ -50,6 +50,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List
 
+# Local-only import so we don't pollute ``scripts.tuning`` with a real
+# package; the helper lives alongside this script.
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _sweep_config_common import (  # noqa: E402
+    base_solver_budget_yaml,
+    base_validity_guard_yaml,
+    solver_provenance_comment,
+)
+
 # ---------------------------------------------------------------------------
 # Sweep definition — single source of truth
 # ---------------------------------------------------------------------------
@@ -139,7 +149,9 @@ def _header() -> str:
         "# values below are PLACEHOLDERS pending the horizon tuning sweep\n"
         "# (logs/tuning/horizon_replan_full/).  Once that sweep completes,\n"
         "# update REFERENCE_SCALE in the generator and regenerate.\n"
-        "\n"
+        "#\n"
+        + solver_provenance_comment(["lacam_official"])
+        + "\n"
         "name: fov_safety_sweep\n"
         "description: |\n"
         "  §5.3 FOV × safety_radius sensitivity sweep across 2 maps.\n"
@@ -161,8 +173,9 @@ def _header() -> str:
         "  task_allocator: congestion_avoidance\n"
         "  hard_safety: true\n"
         "  communication_mode: priority\n"
-        "  solver_timeout_s: 10.0\n"
-        "  log_violations_timeline: true\n"
+        + base_solver_budget_yaml()
+        + base_validity_guard_yaml()
+        +         "  log_violations_timeline: true\n"
         "\n"
         "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]\n"
         "\n"

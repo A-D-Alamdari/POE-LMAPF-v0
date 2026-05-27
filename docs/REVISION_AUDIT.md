@@ -671,3 +671,227 @@ it keeps the full architecture and just sets `safety_radius=0`,
 verifying that Theorem 1 holds even when the buffer collapses to the
 exogenous agents' exact cells (`tests/test_baseline_no_buffer.py`
 passes with `violations_agent_attributable == 0`).
+
+---
+
+## 13. Safety-violation attribution — WAIT-counterfactual rewrite
+
+**Problem.** The pre-rewrite classifier in
+`simulator.py::_detect_collisions_and_near_misses` re-tested the
+local planner's own constraint instead of measuring an independent
+quantity:
+
+```python
+observed_positions = [h.pos for h in humans_at_decision.values()
+                     if L1(a_prev, h.pos) <= fov_r]
+agent_attributable = moved and any(
+    L1(a_prev, p) >  safety_r and L1(a_new, p) <= safety_r
+    for p in observed_positions
+)
+```
+
+The `observed_positions` set is exactly the set of humans whose
+buffer cells `AgentController` already treats as forbidden.  The
+controller refuses to step into any observed buffer; if forced, it
+Safe-Waits (`moved=False`).  So the `moved and any(...)` conjunction
+is vacuously false on every shipped controller, and
+`agent_attr_max = 0` appears in every row of every scaling CSV not
+because Theorem 1 is being verified, but because the metric is
+self-fulfilling: the planner enforces its own constraint, and the
+metric checks whether the planner enforced its own constraint.
+
+**Replacement rule.** The classifier is rebuilt as a per-pair WAIT
+counterfactual that does NOT consult the FOV / observed set:
+
+> For each violation pair $(a_i, h)$ at $t+1$ (any human $h$ with
+> $\ell_1(s_i(t+1), h_{\mathrm{pos\;at\;}t+1}) \le r_{\mathit{safe}}$):
+> the pair is **agent-attributable** iff the agent moved AND
+> $\ell_1(s_i(t), h_{\mathrm{pos\;at\;}t+1}) > r_{\mathit{safe}}$
+> (WAIT would have left the agent safe vs $h$); otherwise it is
+> **exogenous-attributable** (either the agent didn't move so WAIT
+> was the chosen action, or WAIT would have been unsafe vs $h$
+> anyway).
+
+The rule iterates over every human within $r_{\mathit{safe}}$ of
+$a_{\mathrm{new}}$ -- not the FOV-restricted set -- and assigns
+attribution per pair, not per agent.  Two consequences:
+
+1. The metric is now independent of the planner's internal state.
+   A planner that knew nothing about its forbidden set and walked
+   blindly into a buffer would correctly read as agent-attributable.
+2. The metric can be nonzero on FOV-blind moves -- the case the old
+   rule structurally missed.  Empirically the §5.4 sweeps now
+   report a real nonzero `agent_attr` distribution rather than the
+   construction-zero of the old rule.
+
+**Paper-claim implication.** The pre-rewrite metric was, by
+construction, the empirical witness of Theorem 1's
+agent-attribution invariant: the proof says "no agent action enters
+an observed buffer" and the metric checked exactly that.  Under the
+new rule, `violations_agent_attributable` is no longer the empirical
+witness of Theorem 1 -- it is a different (stricter) quantity.  The
+Theorem 1 invariant still holds for the planner, but it is now
+verified through code-walk and resolver-fallback tests
+(`tests/test_theorem1_resolver.py::test_loser_fallback_respects_F`
+and the controller branches in
+`tests/test_theorem1_stress.py`).  The paper's Definition 1 should
+be re-stated to distinguish "the planner's guarantee" (Theorem 1)
+from "the measured WAIT-counterfactual" (this metric) -- they were
+conflated in the original draft.
+
+**Invariant.**  The split still satisfies
+`safety_violations == violations_agent_attributable + violations_exogenous_attributable`
+on every tick and at finalize; the invariant is now asserted in
+`MetricsTracker.finalize` and breaks the run loud if a future edit
+miscounts.
+
+**Acceptance scenarios** (`tests/test_safety_classification.py`):
+
+* `test_wait_counterfactual_fov_blind_move_is_agent_attributable` --
+  an agent moves into the buffer of a human outside its FOV; the
+  old rule scored this as exogenous (witness unobserved), the new
+  rule scores it as agent-attributable (WAIT was safe).  This is
+  the test that proves the new rule isn't a tautology.
+* `test_wait_counterfactual_unavoidable_overlap_is_exogenous` --
+  a human ends up on (or adjacent to) the agent's cell after the
+  human-motion phase; WAIT was also unsafe, so the pair is
+  exogenous and `agent_attributable == 0`.
+* `test_attribution_invariant_holds_across_mixed_pairs` --
+  one agent generates one agent-attributable pair and one
+  exogenous-attributable pair in the same tick; verifies the
+  per-pair split and the finalize invariant.
+
+**Why "don't keep the old check" was the right call.** The prompt
+that authorised this change ruled out a side-by-side dual metric.
+Keeping the FOV-gated counter under a new name would invite
+downstream readers to keep reading it as Theorem 1's empirical
+witness, defeating the rewrite's whole point.  Theorem 1's
+invariant is now verified by code-walk + resolver-fallback tests,
+not by a metric.
+
+---
+
+## 14. Metric definitions and normalization (P6 audit)
+
+The P6 audit flagged five issues in `core/metrics.py` that broke
+cross-run comparability or counted the wrong quantity outright.  All
+five are fixed; no existing CSV columns were removed (downstream plot
+scripts read by name) -- the legacy names are preserved as aliases or
+flagged deprecated in their docstrings, and new columns expose the
+audit-corrected quantities.
+
+### 14.1 `safety_violation_rate` mis-normalization
+
+The legacy field divides by `total_steps` only:
+
+```python
+sv_rate = safety_violations / total_steps * 1000.0
+```
+
+But `wait_fraction` divides by `num_agents * total_steps`.  When
+`num_agents` varies (every scaling sweep), the legacy rate inflates
+with fleet size and is not comparable across cells.
+
+**Fix.** New column `safety_violation_rate_per_agent_step` computes
+`safety_violations / (num_agents * total_steps)`, matching the
+normalization of `wait_fraction`.  The legacy `safety_violation_rate`
+is kept (back-compat) and flagged **deprecated** in its docstring;
+new scaling tables/plots should switch to the agent-normalized
+field.  Acceptance test:
+`tests/test_metrics_invariants.py::
+test_safety_violation_rate_per_agent_step_is_agent_count_invariant`.
+
+### 14.2 Loitering-human over-count -> debounced events
+
+The per-tick classifier increments `safety_violations` and the
+attribution counters once per (agent, human, tick).  A human that
+loiters inside an agent's safety buffer for 10 ticks therefore
+contributes 10 to `safety_violations` (and to one of the attribution
+buckets) -- the metric counts agent-ticks of overlap, not events of
+overlap.  This was unflagged for §5.4 tables that read the numbers
+as "number of buffer breaches".
+
+**Fix.** Three new event-debounced counters:
+
+* `safety_violation_events` -- count of distinct overlap runs
+  across all `(agent_id, human_id)` pairs.
+* `violations_agent_attributable_events`
+* `violations_exogenous_attributable_events`
+
+A new MetricsTracker state machine
+(`record_violation_pair` + `close_violation_tick`) tracks which
+pairs were in violation in the previous tick, and bumps the event
+counter only on leading edges (transition from not-in-violation to
+in-violation).  The classifier in
+`simulator.py::_detect_collisions_and_near_misses` calls
+`record_violation_pair(aid, hid, bucket)` for each detected pair
+and `close_violation_tick()` once per tick (even when the
+detection block is skipped, so dropped pairs are forgotten).
+
+Three new `*_agent_ticks` columns are added as honestly-named
+aliases for the legacy per-tick counters
+(`safety_violation_agent_ticks ==  safety_violations`,
+`violations_agent_attributable_agent_ticks ==
+violations_agent_attributable`,
+`violations_exogenous_attributable_agent_ticks ==
+violations_exogenous_attributable`).  Paper tables / plots pick
+one of the two normalizations explicitly:
+
+| Use                                    | Column                                       |
+| -------------------------------------- | -------------------------------------------- |
+| "How much overlap time across the run" | `*_agent_ticks`  (legacy field also OK)      |
+| "How many buffer breaches"             | `*_events`                                   |
+| Cross-fleet comparison                 | `safety_violation_rate_per_agent_step`       |
+
+Acceptance tests:
+* `test_loitering_human_yields_events_below_agent_ticks` --
+  ten ticks of overlap on one pair -> agent_ticks == 10, events == 1.
+* `test_distinct_events_per_pair_and_per_run` -- re-entry of the
+  same pair after a quiet tick counts as a new event; two pairs
+  active in the same tick count separately.
+
+### 14.3 Lifelong-mode `makespan` is meaningless
+
+`makespan` is the last task-completion step.  In lifelong mode a
+fresh task almost always completes near `total_steps`, so
+`makespan ≈ total_steps` regardless of solver / fleet / map.  The
+column is preserved for one-shot mode and back-compat, but the
+docstring on `Metrics.makespan` and the CSV header note are flagged
+**deprecated for lifelong reporting**.  A new column
+`mean_task_completion_span` (numerically identical to
+`mean_flowtime`; same field, paper-aligned name) is added so
+downstream plots can switch off `makespan` without a column rename
+mid-paper.  Acceptance test:
+`test_mean_task_completion_span_mirrors_mean_flowtime`.
+
+### 14.4 `on_task_assigned` wrote to a non-existent attribute
+
+```python
+record.assigned_step = step
+record.assigned_agent = agent_id   # <-- not a _TaskRecord field
+```
+
+Python lets a dataclass instance accept new attributes silently,
+so `record.assigned_agent` quietly became an instance attribute
+while the documented `record.agent_id` field stayed `None` until
+`on_task_completed` overwrote it.  Callers reading `record.agent_id`
+between assignment and completion saw `None` and concluded the
+task was unassigned.
+
+**Fix.** `on_task_assigned` now writes `record.agent_id = agent_id`.
+Acceptance test: `test_on_task_assigned_records_agent_id`.
+
+### 14.5 `throughput_timeline` off-by-one
+
+The timeline bookkeeping bucketed each completion at index
+`rec.completed_step` only when `0 <= rec.completed_step < total_steps`.
+A task completing exactly at `total_steps` (boundary case, possible
+when test code or external callers feed `on_task_completed`
+directly with the final step value) was silently dropped from the
+timeline while still counted in the scalar `_completed_tasks`,
+producing `last_cumulative < completed_tasks`.
+
+**Fix.** Clamp the index to `min(completed_step, total_steps - 1)`
+so the timeline and the scalar count agree on the same set of
+tasks.  Acceptance test:
+`test_throughput_timeline_counts_match_completed_tasks_at_boundary`.

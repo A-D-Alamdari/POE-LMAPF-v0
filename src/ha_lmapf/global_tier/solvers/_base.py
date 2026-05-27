@@ -38,6 +38,7 @@ from ha_lmapf.core.types import (
     PlanBundle,
     SolverResult,
     SolverStatus,
+    Task,
     TimedPath,
 )
 
@@ -93,6 +94,84 @@ class BaseSolverWrapper:
     #: self-reported timing.  Subclasses override.  Asserted by
     #: ``tests/test_full_migration_manifest.py``.
     MIGRATION_DEPTH: ClassVar[Literal["full", "coarse"]] = "coarse"
+
+    # ---------------------------------------------------------------
+    # Instance pre-filter for one-shot MAPF binaries
+    # ---------------------------------------------------------------
+
+    @staticmethod
+    def _filter_one_shot_instance(
+        agents: Dict[int, AgentState],
+        assignments: Dict["int", "Task"],
+        active_agents: Iterable[int],
+    ) -> Tuple[List[int], Dict[int, Tuple[int, int]]]:
+        """Rewrite duplicate-goal agents to ``goal == start`` so the
+        instance satisfies the one-shot-MAPF contract that Kei18
+        LaCAM / Jiaoyang-Li LNS2 binaries assume.
+
+        See ``docs/solver_error_diagnosis.md`` for the empirical
+        rationale.  In short: those binaries reject -- or fail to find
+        any feasible plan for -- instances where two agents share an
+        effective goal cell.  At 250+ agents on randomly-sampled task
+        streams that collision becomes near-certain, producing the
+        observed ``solver_errors_mean = 100/100`` at scale.
+
+        The function walks ``active_agents`` in the given order, and
+        for each agent whose effective goal cell (``agent.goal`` if
+        set, else ``assignments[aid].goal``, else ``agent.pos``) has
+        already been claimed by an earlier agent, records a goal
+        override pinning that agent's scenario goal to its current
+        position.  The agent itself remains in the instance -- it just
+        becomes a static obstacle the binary will plan around, so the
+        returned bundle is collision-free.
+
+        Why not drop the offenders from the instance?  Then the binary
+        is unaware of their positions and routes other agents through
+        their cells; the WAIT paths the caller fills in for the dropped
+        ids would then conflict with the binary's plans.  Rewriting
+        their goal to their start keeps every agent visible while still
+        satisfying the distinct-goals invariant.
+
+        Returns ``(agent_order, goal_overrides)`` where
+        ``agent_order`` is the full active list (preserving the input
+        ordering) and ``goal_overrides[aid] = agent.pos`` for every
+        agent whose effective goal was a duplicate.  Callers pass the
+        overrides into their scenario writer.
+        """
+        agent_order: List[int] = []
+        goal_overrides: Dict[int, Tuple[int, int]] = {}
+        seen_goals: set = set()
+        for aid in active_agents:
+            ag = agents.get(aid)
+            if ag is None:
+                continue
+            if ag.goal is not None:
+                g = ag.goal
+            elif aid in assignments:
+                g = assignments[aid].goal
+            else:
+                g = ag.pos
+            if g != ag.pos and g not in seen_goals:
+                effective_goal = g
+            else:
+                # Either start == goal (already a static) or a goal
+                # cell another agent claimed first.  Pin the scenario
+                # goal to ``ag.pos`` (unique across active agents per
+                # the simulator's no-collision invariant) so the
+                # solver sees a static obstacle at the right cell.
+                effective_goal = ag.pos
+                goal_overrides[aid] = ag.pos
+            # ``effective_goal`` always enters seen_goals -- a later
+            # agent whose original goal happens to equal this cell
+            # (including an earlier agent's start) must be detected
+            # as a duplicate and rewritten in turn.  Without this an
+            # agent assigned to "deliver to cell X" where another
+            # agent is statically parked at X would silently push
+            # the binary back into the unsolvable duplicate-goal
+            # state we were trying to escape.
+            seen_goals.add(effective_goal)
+            agent_order.append(aid)
+        return agent_order, goal_overrides
 
     # ---------------------------------------------------------------
     # All-WAIT bundle helper (was duplicated across every wrapper)

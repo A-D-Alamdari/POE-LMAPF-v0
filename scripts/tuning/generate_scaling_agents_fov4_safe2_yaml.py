@@ -42,6 +42,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List
 
+# Local-only import so we don't pollute ``scripts.tuning`` with a real
+# package; the helper lives alongside this script.
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _sweep_config_common import (  # noqa: E402
+    base_solver_budget_yaml,
+    base_validity_guard_yaml,
+    solver_provenance_comment,
+)
+
 # ---------------------------------------------------------------------------
 # Sweep constants — single source of truth.
 # ---------------------------------------------------------------------------
@@ -86,7 +96,9 @@ def _header() -> str:
         "#   scaling_humans_fov4_safe2.yaml\n"
         "# Together they supersede the older 6-solver scaling_agents.yaml\n"
         "# and scaling_humans.yaml.\n"
-        "\n"
+        "#\n"
+        + solver_provenance_comment(SOLVERS)
+        + "\n"
         "name: scaling_agents_fov4_safe2\n"
         "description: |\n"
         "  §5.4 agent-scaling sweep at (r_fov=4, r_safe=2).\n"
@@ -107,8 +119,9 @@ def _header() -> str:
         "  max_rounds: 5\n"
         "  hard_safety: true\n"
         "  communication_mode: priority\n"
-        "  solver_timeout_s: 10.0\n"
-        "  log_violations_timeline: true\n"
+        + base_solver_budget_yaml()
+        + base_validity_guard_yaml()
+        +         "  log_violations_timeline: true\n"
         "\n"
         "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]\n"
         "\n"

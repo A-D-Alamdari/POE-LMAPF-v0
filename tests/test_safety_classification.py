@@ -281,6 +281,99 @@ def test_scenario_R3_move_within_buffer_at_rsafe2(map5x5):
     assert m.safety_violations == 1
 
 
+# ---------------------------------------------------------------------------
+# Acceptance scenarios for the WAIT-counterfactual classifier
+# (replaces the FOV-gated rule that produced agent_attr ≡ 0 by
+# construction).  Documented in docs/REVISION_AUDIT.md.
+# ---------------------------------------------------------------------------
+
+
+def test_wait_counterfactual_fov_blind_move_is_agent_attributable(map5x5):
+    """A scenario where the agent moves into the buffer of a human it
+    did NOT observe at decision time AND where WAIT would have left
+    the agent safe vs that human.
+
+    Under the legacy FOV-gated rule this counted as exogenous (the
+    witness was outside the observed set).  Under the WAIT
+    counterfactual it is agent-attributable: the agent's previous
+    cell was outside the buffer, so staying would have avoided this
+    pair, and the chosen MOVE put the agent inside.
+
+    This is the scenario that proves the new classifier is not
+    tautological -- the old rule never returned a nonzero agent count
+    for it, but the WAIT counterfactual does."""
+    # r_fov = 1 keeps the human at distance 2 outside the agent's
+    # observation set, exercising the old rule's blind spot.
+    sim = _make_sim(map5x5, fov_radius=1, safety_radius=1)
+    sim.agents = {0: AgentState(agent_id=0, pos=(1, 0))}
+    sim.humans = {0: HumanState(human_id=0, pos=(2, 0))}
+
+    prev_pos = {0: (0, 0)}            # WAIT-safe: L1((0,0),(2,0))=2 > 1
+    new_pos  = {0: (1, 0)}            # violates: L1((1,0),(2,0))=1 <= 1
+    humans_at_decision = {0: HumanState(human_id=0, pos=(2, 0))}
+
+    sim._detect_collisions_and_near_misses(prev_pos, new_pos, humans_at_decision)
+    m = sim.metrics.finalize(total_steps=1)
+
+    assert m.violations_agent_attributable == 1
+    assert m.violations_exogenous_attributable == 0
+    assert m.safety_violations == 1
+
+
+def test_wait_counterfactual_unavoidable_overlap_is_exogenous(map5x5):
+    """A scenario where the human's post-step-4 position makes every
+    action -- including WAIT -- a buffer violation for the agent.
+    The classifier must attribute this to the exogenous bucket and
+    leave agent_attributable at zero."""
+    # Human ends the human-motion phase at the agent's own cell, so
+    # WAIT (a_new == a_prev == (2,2)) is L1=0 from the human, and
+    # every neighbour cell is also within r_safe=1.  The agent moves
+    # to (2,3); the violation pair is detected at t+1.
+    sim = _make_sim(map5x5, fov_radius=4, safety_radius=1)
+    sim.agents = {0: AgentState(agent_id=0, pos=(2, 3))}
+    sim.humans = {0: HumanState(human_id=0, pos=(2, 2))}
+
+    prev_pos = {0: (2, 2)}            # WAIT-unsafe: L1((2,2),(2,2))=0 <= 1
+    new_pos  = {0: (2, 3)}            # violates: L1((2,3),(2,2))=1 <= 1
+    humans_at_decision = {0: HumanState(human_id=0, pos=(2, 2))}
+
+    sim._detect_collisions_and_near_misses(prev_pos, new_pos, humans_at_decision)
+    m = sim.metrics.finalize(total_steps=1)
+
+    assert m.violations_agent_attributable == 0
+    assert m.violations_exogenous_attributable == 1
+    assert m.safety_violations == 1
+
+
+def test_attribution_invariant_holds_across_mixed_pairs(map5x5):
+    """One agent generates two violation pairs in the same tick: one
+    where WAIT would have been safe (agent-attributable) and one
+    where WAIT would also have been unsafe (exogenous-attributable).
+    The classifier must split them per-pair and the finalize-time
+    invariant ``safety == agent_attr + exo_attr`` must hold."""
+    sim = _make_sim(map5x5, fov_radius=4, safety_radius=1)
+    sim.agents = {0: AgentState(agent_id=0, pos=(2, 2))}
+    sim.humans = {
+        # h0 at (2,3) — WAIT was safe (L1((2,1),(2,3))=2>1), agent moves to (2,2) (L1=1) => agent-attributable
+        0: HumanState(human_id=0, pos=(2, 3)),
+        # h1 at (2,1) — WAIT was already in buffer (L1((2,1),(2,1))=0<=1) => exogenous
+        1: HumanState(human_id=1, pos=(2, 1)),
+    }
+    prev_pos = {0: (2, 1)}            # in h1's buffer at t
+    new_pos  = {0: (2, 2)}            # in both h0's and h1's buffer at t+1
+    humans_at_decision = {
+        0: HumanState(human_id=0, pos=(2, 3)),
+        1: HumanState(human_id=1, pos=(2, 1)),
+    }
+
+    sim._detect_collisions_and_near_misses(prev_pos, new_pos, humans_at_decision)
+    m = sim.metrics.finalize(total_steps=1)
+
+    assert m.violations_agent_attributable == 1, m
+    assert m.violations_exogenous_attributable == 1, m
+    assert m.safety_violations == 2, m
+
+
 def test_scenario_R4_multi_witness_observed_drives_attribution(map5x5):
     """R4 — multi-witness mixed observation; observed witness drives
     attribution.

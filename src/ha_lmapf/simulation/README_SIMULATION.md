@@ -53,8 +53,13 @@ class Simulator:
 Theorem 1's induction has a base case: at $t = 0$, no exogenous agent
 sits within $r_{\mathit{safe}}$ of any controlled agent.  Otherwise
 the very first invocation of the violation classifier at phase 8
-would record a nonzero ``violations_agent_attributable`` from
+would record a nonzero ``violations_exogenous_attributable`` from
 placement geometry alone — independent of any algorithmic choice.
+(Under the rewritten WAIT-counterfactual classifier such placement
+geometry is *exogenous*-attributable, not agent-attributable: the
+agent had no WAIT-safe option from its placed cell, so the rule
+correctly assigns the failure to the placement, not the controller.
+See ``docs/REVISION_AUDIT.md`` §13.)
 
 ``Simulator._place_entities`` enforces this:
 
@@ -114,11 +119,19 @@ exogenous-attributable classifier in phase 8.
    and the decision-time exogenous-agent snapshot `humans_at_decision`
    are passed to ``_detect_collisions_and_near_misses``.  This is
    where the **agent-attributable** vs. **exogenous-attributable**
-   split is computed (paper §3.4) and where Theorem 1's empirical
-   counter ``violations_agent_attributable`` is incremented (or, on
-   correct runs, *not* incremented).  Other counters logged here:
-   agent-agent collisions, agent-human collisions, near-misses,
-   human-passive-wait.
+   split is computed by the per-pair **WAIT counterfactual**
+   (paper §3.4, rewritten -- see ``docs/REVISION_AUDIT.md`` §13):
+   for each violation pair ``(a_i, h)`` at ``t+1``, the pair is
+   agent-attributable iff the agent moved AND
+   ``L1(s_i(t), h.pos_at_t+1) > r_safe`` (i.e. WAIT would have left
+   the agent safe vs ``h``); otherwise it is exogenous-attributable.
+   The rule does NOT consult the FOV / observed set -- that was the
+   old, planner-tautological rule, replaced because it produced
+   ``agent_attr_max = 0`` on every scaling CSV by construction.
+   Other counters logged here: agent-agent collisions, agent-human
+   collisions, near-misses, human-passive-wait.  The invariant
+   ``safety_violations == agent_attributable + exogenous_attributable``
+   is asserted at finalize.
 9. **Task completion** — pickup → delivery transition, makespan / SoC
    updates, mid-horizon re-assignment.
 10. **Replay record** — append agent / human positions to the replay

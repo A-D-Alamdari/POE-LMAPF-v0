@@ -209,6 +209,14 @@ class Simulator:
         # final ``Metrics.deadlock_count = len(_deadlocked_agents)``.
         self._deadlock_streak: Dict[int, int] = {}
         self._prev_task_id: Dict[int, Optional[str]] = {}
+        # Per-tick snapshot of each agent's goal as the global planner
+        # saw it, used by the guidance-handoff instrumentation.  The
+        # simulator may mutate ``agent.goal`` between decision time and
+        # the eligibility check (Phase-1 pickup completes -> goal
+        # rewrites to task.goal); the snapshot gives us the
+        # decision-time view that matches the bundle the controllers
+        # consulted.  Empty when ``debug_guidance_trace`` is False.
+        self._prev_goal_for_guidance: Dict[int, Optional[Cell]] = {}
         self._deadlocked_agents: Set[int] = set()
         self._deadlock_streak_threshold: int = int(
             getattr(config, "deadlock_streak_threshold", 100)
@@ -1112,50 +1120,59 @@ class Simulator:
                     break
 
         # ----------------------------------------------------------------
-        # Safety-buffer violation classification (paper Section 3.4).
+        # Safety-buffer violation classification — independent WAIT
+        # counterfactual (paper §3.4 attribution; revised from the
+        # FOV-gated rule that produced ``agent_attr ≡ 0`` by
+        # construction).
         #
-        # For every (a_i, h) pair with ell_1(s_i(t+1), h_pos_at_t) <= r_safe
-        # we emit one violation event.  Attribution depends on the agent's
-        # decision-time observation set X_t^{Phi_i}, which is computed from
-        # the agent's pre-move position s_i(t) (= prev_pos[aid]) using
-        # r_fov, against the SAME decision-time human snapshot.
+        # The previous classifier mirrored the local planner's
+        # forbidden-set logic: it only considered humans the agent
+        # observed at decision time.  Because the planner refuses to
+        # step into ANY observed buffer (the agent Safe-Waits instead),
+        # the moved-into-observed-buffer branch was unreachable on
+        # every shipped controller, and ``agent_attr_max = 0`` showed
+        # up in every scaling CSV.  The metric was re-testing the
+        # planner's own constraint rather than measuring an
+        # independent quantity.
         #
-        # Classify safety violations into agent-attributable and
-        # external-attributable buckets per Definition 1.
+        # The replacement rule is the WAIT counterfactual: for each
+        # (a_i, h) violation pair at t+1 (any human h with
+        # ell_1(s_i(t+1), h_pos_at_t+1) <= r_safe), check whether
+        # WAIT-respecting alternative action would have avoided THIS
+        # pair.  Concretely, "WAIT" means the agent stays at s_i(t):
         #
-        # For each controlled agent a_i:
-        #   1. Determine the set of external agents observed by a_i at
-        #      the prior tick (FoV centered on s_i(t), L1 metric).
-        #   2. The violation pair (a_i, h) at t+1 (any human h within
-        #      r_safe of s_i(t+1)) is agent-attributable iff some
-        #      observed h' satisfies BOTH:
-        #        (a) L1(s_i(t),   h') >  r_safe  (pairwise safe at t),
-        #        (b) L1(s_i(t+1), h') <= r_safe  AND s_i(t) != s_i(t+1).
-        #   3. All other violation pairs are external-attributable,
-        #      including: (i) violations where the agent did not move
-        #      (Safe Wait); (ii) violations where every observed
-        #      witness was already in the buffer at t; (iii) violations
-        #      against humans the agent did not observe at t.
+        #   wait_safe_vs_h := ell_1(s_i(t), h_pos_at_t+1) > r_safe
         #
-        # The per-(agent, h) classification depends on three pieces of
-        # state for each (agent a_i, witness h'):
-        #   - s_i(t)   (the agent's pre-move position)
-        #   - s_i(t+1) (the agent's post-move position, after physics
-        #     reverts)
-        #   - h'.pos at decision time t (humans are stationary within a
-        #     tick, so this also equals h'.pos at t+1)
-        # Per agent and per tick, the existential over observed witnesses
-        # yields a single agent_attributable boolean which is then applied
-        # uniformly to all n_pairs violation pairs that agent generates
-        # this tick.
+        # * If wait_safe_vs_h AND the agent moved (s_i(t+1) != s_i(t)),
+        #   then a safe alternative existed and the agent's chosen
+        #   action put it inside the buffer => agent-attributable.
+        # * Otherwise (wait was unsafe vs h, OR the agent didn't move
+        #   so WAIT *was* the chosen action), the human's motion or
+        #   the geometry made every action unsafe vs this pair =>
+        #   exogenous-attributable.
         #
-        # The legacy ``safety_violations`` counter is incremented per pair
-        # so that ``safety_violations == violations_agent_attributable +
-        # violations_exogenous_attributable`` always holds.  When r_safe = 0
-        # the Manhattan check ``<= 0`` correctly reduces to "cells coincide".
+        # The rule is purely positional: it does NOT consult the
+        # FOV / observed set, the planner's forbidden set, or the
+        # agent's task state.  This is what makes it an independent
+        # measurement rather than a tautology.  The paper's
+        # Definition 1 + Theorem 1 still hold for the FOV-gated
+        # quantity; that count is now ``violations_unsafe_observed``
+        # (Theorem 1 invariant) while ``violations_agent_attributable``
+        # carries the new WAIT-counterfactual count.  See
+        # ``docs/REVISION_AUDIT.md`` for the migration note.
+        #
+        # ``humans_at_decision`` is, by the simulator's human-first
+        # tick ordering, also the human position at t+1 (humans only
+        # move at step 4 and stay still through steps 5-7).  No
+        # additional snapshot is required.
+        #
+        # Invariant maintained: each violation pair is counted exactly
+        # once across the two buckets, so
+        #     safety_violations == agent_attributable + exogenous_attributable
+        # always holds.  The invariant is asserted in
+        # ``MetricsTracker.finalize``.
         # ----------------------------------------------------------------
         safety_r = int(getattr(self.config, "safety_radius", 1))
-        fov_r = int(getattr(self.config, "fov_radius", 4))
         disable_safety = bool(getattr(self, "_disable_safety", False))
 
         # Paper §5.8 — tick-local violation counters.  Always initialized;
@@ -1170,40 +1187,37 @@ class Simulator:
                 a_new = new_pos[aid]
                 a_prev = prev_pos[aid]
                 moved = a_new != a_prev
-
-                # X_t^{Phi_i}: humans observed by agent i at decision time t.
-                # FOV is centered on s_i(t) (pre-move agent position) and
-                # checked against decision-time human positions.
-                observed_positions = [
-                    h.pos for h in humans_at_decision.values()
-                    if abs(a_prev[0] - h.pos[0]) + abs(a_prev[1] - h.pos[1]) <= fov_r
-                ]
-
-                # Agent-attributable requires (i) the agent moved AND
-                # (ii) some observed h' was outside the buffer at t AND
-                #      inside the buffer at t+1 (Definition 1 clauses).
-                # The two distance checks are conjoined for the same witness p.
-                agent_attributable = moved and any(
-                    abs(a_prev[0] - p[0]) + abs(a_prev[1] - p[1]) >  safety_r
-                    and abs(a_new[0]  - p[0]) + abs(a_new[1]  - p[1]) <= safety_r
-                    for p in observed_positions
-                )
-
-                # Count violation pairs (a_i, h) for this agent.
-                n_pairs = sum(
-                    1 for h in humans_at_decision.values()
-                    if abs(a_new[0] - h.pos[0]) + abs(a_new[1] - h.pos[1]) <= safety_r
-                )
-                if n_pairs == 0:
-                    continue
-
-                if agent_attributable:
-                    self.metrics.add_agent_attributable_violation(n_pairs)
-                    tick_agent_attr += n_pairs
-                else:
-                    self.metrics.add_exogenous_attributable_violation(n_pairs)
-                    tick_exo_attr += n_pairs
-                self.metrics.add_safety_violation(n_pairs)
+                for hid, h in humans_at_decision.items():
+                    hp = h.pos
+                    d_new = abs(a_new[0] - hp[0]) + abs(a_new[1] - hp[1])
+                    if d_new > safety_r:
+                        continue  # not a violation pair at t+1
+                    # WAIT counterfactual: would staying at s_i(t)
+                    # have avoided this specific pair?
+                    d_wait = abs(a_prev[0] - hp[0]) + abs(a_prev[1] - hp[1])
+                    wait_safe_vs_h = d_wait > safety_r
+                    if moved and wait_safe_vs_h:
+                        self.metrics.add_agent_attributable_violation(1)
+                        tick_agent_attr += 1
+                        bucket = "agent"
+                    else:
+                        self.metrics.add_exogenous_attributable_violation(1)
+                        tick_exo_attr += 1
+                        bucket = "exo"
+                    self.metrics.add_safety_violation(1)
+                    # Feed the event-debounce state machine (P6 fix).
+                    # The events counter only ticks on leading edges
+                    # of (aid, hid) violation runs; see
+                    # ``MetricsTracker.record_violation_pair`` and
+                    # ``close_violation_tick`` below.
+                    self.metrics.record_violation_pair(aid, hid, bucket)
+        # Close the per-tick set even when the detection block above
+        # was skipped (no humans / safety disabled).  This guarantees
+        # ``_active_violation_pairs`` is reset on quiet ticks so that
+        # a previously-active pair that drops out is correctly
+        # forgotten -- otherwise re-entry would not register a new
+        # leading edge.
+        self.metrics.close_violation_tick()
 
         # Paper §5.8 — opt-in per-tick append.  Pure observation; the
         # scalar counters above are the canonical violation accounting.
@@ -1404,6 +1418,27 @@ class Simulator:
         actions: Dict[int, StepAction] = {}
         prev_pos: Dict[int, Cell] = {aid: self.agents[aid].pos for aid in self.agents.keys()}
 
+        # Tier-1 -> Tier-2 guidance handoff snapshot.  Captured BEFORE
+        # the decide loop because ``AgentController.decide_action`` may
+        # call ``clear_path`` on its own agent's bundle entry (e.g.
+        # after a local replan), which would erase the planner's
+        # original prescription and make the post-physics comparison
+        # meaningless.  Gated on ``debug_guidance_trace`` so the
+        # default sweep is unaffected.  See
+        # ``docs/tier_handoff_diagnosis.md``.
+        guidance_trace: Dict[int, Optional[Cell]] = {}
+        if bool(getattr(self.config, "debug_guidance_trace", False)):
+            plans_now = self._plans
+            for aid in self.agents.keys():
+                if plans_now is None:
+                    guidance_trace[aid] = None
+                    continue
+                path = plans_now.paths.get(aid)
+                if path is None or not path.cells:
+                    guidance_trace[aid] = None
+                else:
+                    guidance_trace[aid] = path(self.step + 1)
+
         for aid in sorted(self.agents.keys()):
             act = self.controllers[aid].decide_action(self, observations[aid], rng=self.rng)
             actions[aid] = act
@@ -1522,6 +1557,39 @@ class Simulator:
         # 7b. Apply validated actions
         for aid in sorted_aids:
             self.agents[aid] = apply_agent_action(self.env, self.agents[aid], actions[aid])
+
+        # Tier-1 -> Tier-2 guidance handoff post-physics evaluation.
+        # An agent is "eligible" iff it had an active task at decision
+        # time (goal != None, pos != goal); "covered" iff the bundle's
+        # ``step+1`` prescription existed; "followed" iff the agent's
+        # post-physics position equals that prescription.  At-goal /
+        # idle agents are excluded from the denominator -- they are
+        # not expected to receive guidance.  See
+        # ``docs/tier_handoff_diagnosis.md``.
+        if guidance_trace:
+            for aid in sorted_aids:
+                a = self.agents[aid]
+                prev_a_goal = self._prev_goal_for_guidance.get(aid)
+                # Use the goal that the agent had at decision time --
+                # not after the physics phase, which may have advanced
+                # the agent to its task.start and rewritten goal.  The
+                # bundle was built for that decision-time goal.
+                decision_goal = prev_a_goal if prev_a_goal is not None else a.goal
+                eligible = (
+                    decision_goal is not None
+                    and prev_pos[aid] != decision_goal
+                )
+                prescribed = guidance_trace.get(aid)
+                covered = (prescribed is not None) and eligible
+                followed = bool(covered and prescribed == a.pos)
+                self.metrics.add_guidance_observation(
+                    eligible=eligible, covered=covered, followed=followed,
+                )
+        # Refresh the per-agent goal snapshot used by the next tick's
+        # eligibility check (kept defensive against task pickup
+        # rewrites that happen later in step_once).
+        for aid, a in self.agents.items():
+            self._prev_goal_for_guidance[aid] = a.goal
 
         # 7c. Paper §5.7 deadlock detection: per-agent no-movement streak.
         # Pure observation — no decision-side effects.  Streak increments
