@@ -1,0 +1,21 @@
+# Experiment: Scalability Sweep - 10 Agents
+# Part of the agent-count scalability study. Measures throughput and
+# planning time as the number of agents increases on a large warehouse map.
+
+map_path: "data/maps/warehouse-20-40-10-2-1.map"
+seed: 0
+steps: 1000
+num_agents: 10
+num_humans: 5
+fov_radius: 4
+safety_radius: 1
+global_solver: "lacam"
+replan_every: 25
+horizon: 50
+communication_mode: "token"
+local_planner: "astar"
+human_model: "random_walk"
+human_model_params: {}
+hard_safety: true
+mode: "lifelong"
+task_allocator: "congestion_avoidance"

@@ -1,0 +1,13 @@
+# Sweep: safety_radius
+# Tests different human safety buffer sizes
+
+sweep_param: safety_radius
+sweep_values: [0, 1, 2, 3, 4, 5]
+# Values 4 and 5 capture the deadlock cliff where the forbidden zone is large
+# enough that agents regularly have no valid move.
+# NOTE: use near_misses (always distance<=1) as the primary safety metric
+# when analysing this sweep — safety_violations is confounded because a
+# larger radius counts more cells as violations by definition.
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

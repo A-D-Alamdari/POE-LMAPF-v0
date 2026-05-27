@@ -1,0 +1,22 @@
+# Experiment: Dense Random Map (20% Obstacles)
+# Evaluates performance on a random map with 20% obstacle density. Tests
+# pathfinding and coordination when obstacle placement is unstructured,
+# creating irregular corridors and dead ends throughout the environment.
+
+map_path: "data/maps/random-32-32-20.map"
+seed: 0
+steps: 1500
+num_agents: 20
+num_humans: 5
+fov_radius: 4
+safety_radius: 1
+global_solver: "lacam"
+replan_every: 25
+horizon: 50
+communication_mode: "token"
+local_planner: "astar"
+human_model: "random_walk"
+human_model_params: {}
+hard_safety: true
+mode: "lifelong"
+task_allocator: "congestion_avoidance"

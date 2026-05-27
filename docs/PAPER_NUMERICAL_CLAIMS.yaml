@@ -1,0 +1,594 @@
+# Paper numerical claim registry — POE-LMAPF §5.2 through §5.5.
+#
+# Each entry encodes one quantitative or structural claim from the
+# paper text, the metric and filter the claim refers to, the
+# aggregation that turns the filtered rows into a single number, and
+# the verdict / tolerance the validator should apply.
+#
+# Used by ``scripts/evaluation/validate_paper_claims.py`` — see that
+# file's docstring for the schema this YAML is parsed against.
+#
+# IMPORTANT.  The ``expected.value`` fields below were lifted from the
+# paper's previous (HA-LMAPF / SoCS2026) submission.  After the new
+# results are in, the validator will compute the actual value, compare
+# against ``expected``, and flag refuted claims with a suggested
+# replacement sentence.  Edit the paper text accordingly; do NOT edit
+# this file to make the actual match the expected.
+
+schema_version: 1
+
+aggregation_kinds:
+  - mean                   # average of metric over filtered rows
+  - max
+  - min
+  - max_minus_min_over_field  # spread across grouping field
+  - ratio_of_filters       # mean(num_filter) / mean(den_filter)
+  - linear_r_squared       # R^2 of metric ~ x_field linear regression
+  - sum
+  - count
+  - structural             # not numerical; record actual for user inspection
+
+verdict_directions:
+  - higher                 # higher actual = stronger paper claim
+  - lower                  # lower  actual = stronger paper claim
+  - neither                # no monotone preference
+
+claims:
+
+  # ====================================================================
+  # §5.2 — Tier-1 solver sensitivity
+  # ====================================================================
+
+  - section: "5.2"
+    claim_id: "throughput_range_random_h20"
+    paper_text: "All six solvers fall within a 0.03 throughput range on random-64-64-10 at H=20."
+    source: solver_sensitivity
+    metric: throughput
+    filter:
+      horizon: 20
+      map_stem: random-64-64-10
+    aggregation:
+      kind: max_minus_min_over_field
+      field: global_solver
+    expected:
+      op: lte
+      value: 0.03
+    tolerance:
+      kind: absolute
+      value: 0.005
+    favorable_direction: lower
+
+  - section: "5.2"
+    claim_id: "throughput_range_warehouse2_h20"
+    paper_text: "All six solvers fall within a 0.02 throughput range on warehouse-10-20-10-2-2 at H=20."
+    source: solver_sensitivity
+    metric: throughput
+    filter:
+      horizon: 20
+      map_stem: warehouse-10-20-10-2-2
+    aggregation:
+      kind: max_minus_min_over_field
+      field: global_solver
+    expected:
+      op: lte
+      value: 0.02
+    tolerance:
+      kind: absolute
+      value: 0.005
+    favorable_direction: lower
+
+  - section: "5.2"
+    claim_id: "pibt2_planning_under_80ms"
+    paper_text: "PIBT2 maintains under 80 ms per replan across all configurations."
+    source: solver_sensitivity
+    metric: mean_planning_time_ms
+    filter:
+      global_solver: pibt2
+    aggregation:
+      kind: max
+    expected:
+      op: lte
+      value: 80.0
+    tolerance:
+      kind: absolute
+      value: 20.0
+    favorable_direction: lower
+
+  - section: "5.2"
+    claim_id: "lacam_lacamstar_under_600ms"
+    paper_text: "LaCAM and LaCAM* scale below 600 ms per replan across the full sweep."
+    source: solver_sensitivity
+    metric: mean_planning_time_ms
+    filter:
+      global_solver_in: [lacam_official, lacam3]
+    aggregation:
+      kind: max
+    expected:
+      op: lte
+      value: 600.0
+    tolerance:
+      kind: absolute
+      value: 100.0
+    favorable_direction: lower
+
+  - section: "5.2"
+    claim_id: "lns2_pbs_cbsh2_hit_10s_budget"
+    paper_text: "MAPF-LNS2, PBS, and CBSH2-RTC reach the 10 s solver-time budget at high agent counts."
+    source: solver_sensitivity
+    metric: mean_planning_time_ms
+    filter:
+      global_solver_in: [lns2, pbs, cbsh2]
+      num_agents_gte: 75
+    aggregation:
+      kind: max
+    expected:
+      op: gte
+      value: 2700.0
+    tolerance:
+      kind: absolute
+      value: 200.0
+    favorable_direction: higher
+
+  - section: "5.2"
+    claim_id: "table1_solver_substitutability"
+    paper_text: "Table 1 — Solver substitutability at H=20.  Per-solver per-map cells (12 cells = 6 solvers × 2 maps)."
+    source: solver_sensitivity
+    metric: throughput
+    aggregation:
+      kind: structural
+    structural_kind: table_cells
+    table_axes:
+      rows: global_solver         # 6 values
+      cols: map_stem              # 2 values
+      filter:
+        horizon: 20
+    favorable_direction: neither
+
+  # ====================================================================
+  # §5.3 — FoV / safety-radius sweep
+  # ====================================================================
+
+  - section: "5.3"
+    claim_id: "viol_ratio_rsafe0_vs_rsafe1_random"
+    paper_text: "Exogenous-attributable violations at r_safe=0 are 5–8× higher than at r_safe=1 on random-64-64-10."
+    source: fov_safety
+    metric: violations_exogenous_attributable
+    filter:
+      map_stem: random-64-64-10
+    aggregation:
+      kind: ratio_of_filters
+      numerator_filter:   { safety_radius: 0 }
+      denominator_filter: { safety_radius: 1 }
+    expected:
+      op: in_range
+      value: [5.0, 8.0]
+    tolerance:
+      kind: absolute
+      value: 1.0
+    favorable_direction: neither
+
+  - section: "5.3"
+    claim_id: "viol_ratio_rsafe0_vs_rsafe1_warehouse2"
+    paper_text: "Exogenous-attributable violations at r_safe=0 are 5–8× higher than at r_safe=1 on warehouse-10-20-10-2-2."
+    source: fov_safety
+    metric: violations_exogenous_attributable
+    filter:
+      map_stem: warehouse-10-20-10-2-2
+    aggregation:
+      kind: ratio_of_filters
+      numerator_filter:   { safety_radius: 0 }
+      denominator_filter: { safety_radius: 1 }
+    expected:
+      op: in_range
+      value: [5.0, 8.0]
+    tolerance:
+      kind: absolute
+      value: 1.0
+    favorable_direction: neither
+
+  - section: "5.3"
+    claim_id: "default_rfov4_rsafe1_throughput"
+    paper_text: "The default (r_fov=4, r_safe=1) sits on the throughput Pareto front (within 5% of the best (r_fov, r_safe) cell on each map)."
+    source: fov_safety
+    metric: throughput
+    filter:
+      fov_radius: 4
+      safety_radius: 1
+    aggregation:
+      kind: gte_relative_to_max_over   # returns (cell_mean / max_cell_mean) over (fov, safety) pairs
+    expected:
+      op: gte
+      value: 0.95                       # cell throughput >= 95 % of best (fov, safety) cell
+    tolerance:
+      kind: absolute
+      value: 0.02
+    favorable_direction: higher
+
+  - section: "5.3"
+    claim_id: "rfov_marginal_benefit_drops_at_rsafe_plus_2"
+    paper_text: "Marginal benefit of r_fov drops sharply once r_fov >= r_safe + 2."
+    source: fov_safety
+    metric: throughput
+    aggregation:
+      kind: structural
+    structural_kind: rfov_diminishing_returns
+    favorable_direction: neither
+
+  # ====================================================================
+  # §5.4 — Scaling sweeps
+  # ====================================================================
+
+  - section: "5.4"
+    claim_id: "throughput_linear_in_M"
+    paper_text: "Throughput grows approximately linearly in |M| until map saturation."
+    source: scaling_agents
+    metric: throughput
+    aggregation:
+      kind: linear_r_squared
+      x_field: num_agents
+      groupby: [map_stem, global_solver]   # one R^2 per (map, solver)
+    expected:
+      op: gte
+      value: 0.80                # mean R^2 across (map, solver) groups >= 0.80
+    tolerance:
+      kind: absolute
+      value: 0.10
+    favorable_direction: higher
+
+  - section: "5.4"
+    claim_id: "pibt2_planning_under_100ms_all_densities"
+    paper_text: "PIBT2 stays under 100 ms per replan across all densities."
+    source: scaling_agents
+    metric: mean_planning_time_ms
+    filter:
+      global_solver: pibt2
+    aggregation:
+      kind: max
+    expected:
+      op: lte
+      value: 100.0
+    tolerance:
+      kind: absolute
+      value: 30.0
+    favorable_direction: lower
+
+  - section: "5.4"
+    claim_id: "lacam_grow_to_1s_at_high_density"
+    paper_text: "LaCAM and LaCAM* grow linearly to about 1 s per replan at the highest densities."
+    source: scaling_agents
+    metric: mean_planning_time_ms
+    filter:
+      global_solver_in: [lacam_official, lacam3]
+      num_agents_gte: 350
+    aggregation:
+      kind: max
+    expected:
+      op: in_range
+      value: [700.0, 1300.0]
+    tolerance:
+      kind: absolute
+      value: 200.0
+    favorable_direction: neither
+
+  - section: "5.4"
+    claim_id: "lns2_approaches_10s_warehouse2_high_density"
+    paper_text: "MAPF-LNS2 grows super-linearly and approaches the 10 s budget at high agent counts on warehouse-10-20-10-2-2."
+    source: scaling_agents
+    metric: mean_planning_time_ms
+    filter:
+      global_solver: lns2
+      map_stem: warehouse-10-20-10-2-2
+      num_agents_gte: 350
+    aggregation:
+      kind: max
+    expected:
+      op: gte
+      value: 2500.0
+    tolerance:
+      kind: absolute
+      value: 300.0
+    favorable_direction: higher
+
+  - section: "5.4"
+    claim_id: "exo_violations_linear_in_X_warehouse"
+    paper_text: "Exogenous-attributable violations grow approximately linearly in |X| on warehouse maps."
+    source: scaling_exogenous
+    metric: violations_exogenous_attributable
+    filter:
+      map_stem_in: [warehouse-10-20-10-2-1, warehouse-10-20-10-2-2]
+    aggregation:
+      kind: linear_r_squared
+      x_field: num_humans
+      groupby: [map_stem, global_solver]
+    expected:
+      op: gte
+      value: 0.75
+    tolerance:
+      kind: absolute
+      value: 0.10
+    favorable_direction: higher
+
+  # ====================================================================
+  # §5.5 — Baseline comparison
+  # ====================================================================
+
+  - section: "5.5"
+    claim_id: "rhcr_violations_super_linear_warehouse_M450"
+    paper_text: "RHCR violations grow super-linearly in |M|, exceeding 10^4 at |M|=450 on the warehouse map."
+    source: baseline_comparison
+    metric: violations_exogenous_attributable
+    filter:
+      method: rhcr
+      map_stem: warehouse-10-20-10-2-2
+      num_agents: 450
+    aggregation:
+      kind: mean
+    expected:
+      op: gte
+      value: 10000.0
+    tolerance:
+      kind: relative
+      value: 0.20
+    favorable_direction: neither
+
+  - section: "5.5"
+    claim_id: "rhcr_matches_ours_within_5pct_M_le_250"
+    paper_text: "RHCR matches the framework throughput within 5% across the warehouse map up to |M|=250."
+    source: baseline_comparison
+    metric: throughput
+    aggregation:
+      kind: max_relative_diff_between_methods
+      method_field: method
+      reference: ours
+      other: rhcr
+      filter:
+        map_stem: warehouse-10-20-10-2-2
+        num_agents_lte: 250
+    expected:
+      op: lte
+      value: 0.05
+    tolerance:
+      kind: absolute
+      value: 0.02
+    favorable_direction: lower
+
+  - section: "5.5"
+    claim_id: "ours_outperforms_rhcr_8_to_12pct_high_M"
+    paper_text: "The framework outperforms RHCR by 8–12% at |M| in {350, 450} on the warehouse map."
+    source: baseline_comparison
+    metric: throughput
+    aggregation:
+      kind: relative_diff_between_methods
+      method_field: method
+      reference: rhcr
+      other: ours
+      filter:
+        map_stem: warehouse-10-20-10-2-2
+        num_agents_in: [350, 450]
+    expected:
+      op: in_range
+      value: [0.08, 0.12]
+    tolerance:
+      kind: absolute
+      value: 0.02
+    favorable_direction: higher
+
+  - section: "5.5"
+    claim_id: "pibt2fr_highest_throughput_low_M"
+    paper_text: "PIBT2-FR achieves the highest raw throughput at low |M|."
+    source: baseline_comparison
+    metric: throughput
+    aggregation:
+      kind: best_method_at_density
+      method_field: method
+      filter:
+        map_stem: warehouse-10-20-10-2-2
+        num_agents_lte: 100
+    expected:
+      op: equals
+      value: pibt2_fr
+    tolerance:
+      kind: absolute
+      value: 0.0
+    favorable_direction: neither
+
+  - section: "5.5"
+    claim_id: "pibt2fr_degrades_above_M200"
+    paper_text: "PIBT2-FR throughput degrades sharply above |M|=200 on the warehouse map."
+    source: baseline_comparison
+    metric: throughput
+    aggregation:
+      kind: max_minus_value_at
+      method_field: method
+      method: pibt2_fr
+      filter:
+        map_stem: warehouse-10-20-10-2-2
+      reference_x: 200
+      tail_x: 450
+      x_field: num_agents
+    expected:
+      op: gte
+      value: 0.10                  # paper implies a >=10 pp drop from |M|=200 to |M|=450
+    tolerance:
+      kind: absolute
+      value: 0.05
+    favorable_direction: higher
+
+  - section: "5.5"
+    claim_id: "no_buffer_throughput_within_3pct"
+    paper_text: "No-Buffer ablation matches the framework throughput closely (within 3%)."
+    source: baseline_comparison
+    metric: throughput
+    aggregation:
+      kind: max_relative_diff_between_methods
+      method_field: method
+      reference: ours
+      other: no_buffer
+    expected:
+      op: lte
+      value: 0.03
+    tolerance:
+      kind: absolute
+      value: 0.01
+    favorable_direction: lower
+
+  - section: "5.5"
+    claim_id: "no_buffer_violations_5_to_8x_more"
+    paper_text: "No-Buffer produces 5–8× more exogenous-attributable violations than the full framework."
+    source: baseline_comparison
+    metric: violations_exogenous_attributable
+    aggregation:
+      kind: ratio_between_methods
+      method_field: method
+      numerator: no_buffer
+      denominator: ours
+    expected:
+      op: in_range
+      value: [5.0, 8.0]
+    tolerance:
+      kind: absolute
+      value: 1.0
+    favorable_direction: neither
+
+  - section: "5.5"
+    claim_id: "ours_planning_time_matches_rhcr_524ms"
+    paper_text: "The framework's mean Tier-1 planning time matches RHCR's at the same H=20 (both around 524 ms on warehouse at |M|=100)."
+    source: baseline_comparison
+    metric: mean_planning_time_ms
+    filter:
+      map_stem: warehouse-10-20-10-2-2
+      num_agents: 100
+      method_in: [ours, rhcr]
+    aggregation:
+      kind: mean
+    expected:
+      op: approx
+      value: 524.0
+    tolerance:
+      kind: relative
+      value: 0.20
+    favorable_direction: neither
+
+  - section: "5.5"
+    claim_id: "pibt2fr_perstep_50_80ms_low_M"
+    paper_text: "PIBT2-FR per-step compute is 50–80 ms at low |M|."
+    source: baseline_comparison
+    metric: mean_decision_time_ms
+    filter:
+      method: pibt2_fr
+      num_agents_lte: 100
+    aggregation:
+      kind: mean
+    expected:
+      op: in_range
+      value: [50.0, 80.0]
+    tolerance:
+      kind: absolute
+      value: 20.0
+    favorable_direction: neither
+
+  - section: "5.5"
+    claim_id: "pibt2fr_perstep_over_2s_M450"
+    paper_text: "PIBT2-FR per-step compute rises to over 2 s at |M|=450."
+    source: baseline_comparison
+    metric: mean_decision_time_ms
+    filter:
+      method: pibt2_fr
+      num_agents: 450
+      map_stem: warehouse-10-20-10-2-2
+    aggregation:
+      kind: mean
+    expected:
+      op: gte
+      value: 2000.0
+    tolerance:
+      kind: absolute
+      value: 300.0
+    favorable_direction: higher
+
+  - section: "5.5"
+    claim_id: "ours_violations_10_30x_lower_than_rhcr"
+    paper_text: "The framework's exogenous-attributable violations are 10–30× lower than RHCR's."
+    source: baseline_comparison
+    metric: violations_exogenous_attributable
+    aggregation:
+      kind: ratio_between_methods
+      method_field: method
+      numerator: rhcr
+      denominator: ours
+    expected:
+      op: in_range
+      value: [10.0, 30.0]
+    tolerance:
+      kind: absolute
+      value: 3.0
+    favorable_direction: neither
+
+  - section: "5.5"
+    claim_id: "ours_violations_3_5x_lower_than_pibt2fr_warehouse"
+    paper_text: "The framework's exogenous-attributable violations are 3–5× lower than frequent-replan PIBT2 (PIBT2-FR) on warehouse maps."
+    source: baseline_comparison
+    metric: violations_exogenous_attributable
+    aggregation:
+      kind: ratio_between_methods
+      method_field: method
+      numerator: pibt2_fr
+      denominator: ours
+      filter:
+        map_stem_in: [warehouse-10-20-10-2-1, warehouse-10-20-10-2-2]
+    expected:
+      op: in_range
+      value: [3.0, 5.0]
+    tolerance:
+      kind: absolute
+      value: 0.5
+    favorable_direction: neither
+
+  - section: "5.5"
+    claim_id: "table2_baseline_matrix"
+    paper_text: "Table 2 — Per-density baseline comparison on warehouse-10-20-10-2-2.  Cells: 9 |M| densities × 4 methods × 4 metrics."
+    source: baseline_comparison
+    metric: throughput        # the "primary" metric of the table
+    aggregation:
+      kind: structural
+    structural_kind: table_cells
+    table_axes:
+      rows: num_agents       # 9 densities
+      cols: method            # 4 methods
+      metrics: [throughput, violations_agent_attributable,
+                violations_exogenous_attributable, wait_fraction]
+      filter:
+        map_stem: warehouse-10-20-10-2-2
+    favorable_direction: neither
+
+  - section: "5.5"
+    claim_id: "summary_total_configurations"
+    paper_text: "Across all 200+ configurations tested, the framework produces zero agent-attributable safety violations."
+    source: all
+    metric: violations_agent_attributable
+    filter:
+      method_in: [ours, no_buffer]            # the two methods covered by Theorem 1
+    aggregation:
+      kind: max
+    expected:
+      op: equals
+      value: 0
+    tolerance:
+      kind: absolute
+      value: 0
+    favorable_direction: lower
+
+  - section: "5.5"
+    claim_id: "summary_total_configurations_count"
+    paper_text: "200+ configurations tested across §5.2–§5.5."
+    source: all
+    metric: throughput
+    aggregation:
+      kind: count
+    expected:
+      op: gte
+      value: 200
+    tolerance:
+      kind: absolute
+      value: 0
+    favorable_direction: higher

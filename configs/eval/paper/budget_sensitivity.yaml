@@ -1,0 +1,64 @@
+# E17 — Budget-sensitivity defensive sweep.
+#
+# Defends §5.1's 10s per-call solver-budget default against the
+# reviewer pushback "your relative-advantage claim only holds at this
+# specific budget".  Holds every §5.5 axis fixed except the per-call
+# wall-clock budget for the global solver, and sweeps the four methods
+# from §5.5 across {1, 5, 10, 30} s.
+#
+# Single map, single density — by design.  This is a defensive ablation,
+# not a full re-sweep.
+#
+#   warehouse-10-20-10-2-2 : |M| = 200, |X| = 100
+#
+# 4 budgets x 4 methods x 10 seeds = 160 runs.
+#
+# Steps is set to 1500 (matches §5.5 baseline_comparison.yaml, whose
+# four methods this sweep re-runs).  This stem is not in
+# PAPER_SECTION_TO_STEPS, so the harness only warns; the steps choice
+# is anchored to §5.5 because the comparison is read against §5.5.
+
+name: budget_sensitivity
+description: "E17 — per-call solver-budget sensitivity (defends §5.1 default)"
+
+base:
+  steps: 1500
+  fov_radius: 4
+  safety_radius: 1
+  global_solver: lacam_official
+  horizon: 20
+  replan_every: 10
+  hard_safety: true
+  communication_mode: priority
+  local_planner: astar
+  human_model: random_walk
+  mode: lifelong
+  task_allocator: congestion_avoidance
+  num_agents: 200
+  num_humans: 100
+  map_to_human_model:
+    random-64-64-10: random_walk
+    warehouse-10-20-10-2-1: aisle
+    warehouse-10-20-10-2-2: aisle
+
+groups:
+  - sweep:
+      solver_timeout_s: [1.0, 5.0, 10.0, 30.0]
+      method:           [ours, lacam_blind, pibt2_fr, no_buffer]   # rhcr deferred — see docs/RHCR_DEFERRED.md
+      map_path:         [data/maps/warehouse-10-20-10-2-2.map]
+
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+# Auto-invoke statistical_analysis.py at the end of the sweep.
+# Pairs each non-reference method against ``ours`` across seeds within
+# each (solver_timeout_s, map, num_agents) cell — so the relative
+# ranking is read separately at every budget.
+reference_condition: ours
+reference_field:     method
+statistical_groupby: solver_timeout_s,method,map_path,num_agents
+statistical_metrics:
+  - throughput
+  - violations_exogenous_attributable
+  - wait_fraction
+  - solver_timeouts
+  - solver_errors

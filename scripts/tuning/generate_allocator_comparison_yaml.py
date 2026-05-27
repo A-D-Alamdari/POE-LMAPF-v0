@@ -1,0 +1,284 @@
+"""DEPRECATED — superseded by the (fov, safe) two-way split.
+
+  scripts/tuning/generate_allocator_comparison_fov3_safe1_yaml.py
+  scripts/tuning/generate_allocator_comparison_fov4_safe2_yaml.py
+
+The split hardcodes the two fov/safe operating points used by the
+§5.4 scaling sweeps instead of using PLACEHOLDER constants, and
+keeps the per-(fov, safe) data in separate YAMLs / output dirs for
+clean cluster scheduling.
+
+Kept on disk for audit-trail visibility; safe to ignore for new work.
+
+----------------------------------------------------------------------
+
+Generate the §5.5 task allocator comparison sweep YAML.
+
+Output: ``configs/tuning/allocator_comparison.yaml`` — a 200-cell
+sweep comparing four task allocators at fixed Tier-1 (LaCAM) and
+fixed (horizon, replan, fov, safe) settings.
+
+Hypothesis under test (§5.5):
+    POE-Solver's safety + throughput properties are robust to
+    task-allocator choice; the paper's Conflict-Aware (a.k.a.
+    Congestion-Avoidance) allocator is competitive with three
+    standard alternatives.
+
+Design notes
+------------
+
+* Single Tier-1 solver (``lacam_official``) so the experimental
+  variable is purely the allocator.
+* Per-map scale settings (warehouse sweeps |M|, random fixes |M|
+  at 50) match the paper §5.5 spec.  ``num_humans`` is also
+  map-specific (60 vs 20).
+* Each of the four allocators has different (or no)
+  hyperparameters.  Rather than pollute the global ``base:``
+  with knobs that don't apply to every group, each group's
+  ``sweep:`` block explicitly sets the hyperparameters relevant
+  to its allocator.  Non-applicable kwargs are silently ignored
+  by the simulator's allocator factory (verified by
+  ``tests/test_auction_epsilon.py::T-AE-4`` and
+  ``tests/test_congestion_avoidance_allocator.py``).
+* All hyperparameter values match the paper §5.5 spec AND
+  the SimConfig defaults — they are emitted explicitly anyway
+  to make the audit trail visible in the YAML.
+
+Allocator → registry-name mapping (verified against
+``src/ha_lmapf/task_allocator/__init__.py`` and
+``SimConfig.task_allocator`` Literal):
+
+    Paper §5.5 name        SimConfig.task_allocator value
+    -------------------    ------------------------------
+    Conflict-Aware         congestion_avoidance
+    Greedy                 greedy
+    Hungarian              hungarian
+    Auction                auction
+
+The legacy alias ``conflict_aware`` was removed in Phase 5 of
+the migration; this generator uses ``congestion_avoidance``
+throughout (paper §4.2 terminology).
+
+TODO — UPDATE BEFORE LAUNCH
+---------------------------
+
+``PLACEHOLDER_FOV`` and ``PLACEHOLDER_SAFE`` must be set from the
+fov/safety sweep analysis before launching this sweep.  Two-line
+edit at the top of this file; regenerate; launch.
+
+Usage
+-----
+
+    python scripts/tuning/generate_allocator_comparison_yaml.py
+"""
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Dict, List
+
+# ---------------------------------------------------------------------------
+# PLACEHOLDER values — UPDATE FROM FOV/SAFETY ANALYSIS BEFORE LAUNCH.
+# ---------------------------------------------------------------------------
+
+PLACEHOLDER_FOV: int = 4    # TODO: set from fov/safety sweep analysis
+PLACEHOLDER_SAFE: int = 1   # TODO: set from fov/safety sweep analysis
+
+# ---------------------------------------------------------------------------
+# Sweep definition — single source of truth
+# ---------------------------------------------------------------------------
+
+ALLOCATORS: List[Dict] = [
+    {
+        "name": "congestion_avoidance",
+        "hyperparams": {
+            "lambda_conflict": 0.5,
+            "max_rounds": 5,
+        },
+    },
+    {
+        "name": "greedy",
+        "hyperparams": {},
+    },
+    {
+        "name": "hungarian",
+        "hyperparams": {},
+    },
+    {
+        "name": "auction",
+        "hyperparams": {
+            "auction_epsilon": 0.01,
+        },
+    },
+]
+
+MAP_CONDITIONS: List[Dict] = [
+    {
+        "map_path": "data/maps/warehouse-10-20-10-2-2.map",
+        "num_agents": [50, 100, 150, 200],
+        "num_humans": 60,
+    },
+    {
+        "map_path": "data/maps/random-64-64-10.map",
+        "num_agents": [50],
+        "num_humans": 20,
+    },
+]
+
+HORIZON: int = 40
+REPLAN_EVERY: int = 20
+GLOBAL_SOLVER: str = "lacam_official"
+SEEDS: List[int] = list(range(10))
+
+OUT_PATH = Path(__file__).resolve().parent.parent.parent \
+    / "configs" / "tuning" / "allocator_comparison.yaml"
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _map_tag(map_path: str) -> str:
+    """``data/maps/warehouse-10-20-10-2-2.map`` → ``warehouse_10_20_10_2_2``"""
+    stem = Path(map_path).stem
+    return stem.replace("-", "_")
+
+
+# ---------------------------------------------------------------------------
+# YAML emission — hand-written for deterministic formatting
+# ---------------------------------------------------------------------------
+
+
+def _header() -> str:
+    return (
+        "# Auto-generated by scripts/tuning/generate_allocator_comparison_yaml.py.\n"
+        "# DO NOT edit by hand; rerun the generator to regenerate.\n"
+        "#\n"
+        "# §5.5 task allocator comparison sweep.\n"
+        "#\n"
+        "#   warehouse-10-20-10-2-2: 4 allocators × 4 num_agents × 10 seeds = 160\n"
+        "#   random-64-64-10:        4 allocators × 1 num_agents × 10 seeds =  40\n"
+        "#   ---------------------------------------------------------------------\n"
+        "#   total:                                                            200\n"
+        "#\n"
+        "# Single Tier-1 solver (lacam_official); horizon=40, replan_every=20.\n"
+        "# Each group's sweep:block explicitly sets the hyperparameters relevant\n"
+        "# to its allocator (lambda_conflict / max_rounds for congestion_avoidance,\n"
+        "# auction_epsilon for auction; greedy + hungarian have none).  All values\n"
+        "# match the paper §5.5 spec and SimConfig defaults but are emitted\n"
+        "# explicitly for audit-trail visibility.\n"
+        "#\n"
+        "# TODO — UPDATE BEFORE LAUNCH.\n"
+        "# fov_radius and safety_radius below are PLACEHOLDERS pending\n"
+        "# the fov/safety sweep analysis.  Update PLACEHOLDER_FOV /\n"
+        "# PLACEHOLDER_SAFE in the generator and regenerate.\n"
+        "\n"
+        "name: allocator_comparison\n"
+        "description: |\n"
+        "  §5.5 task allocator comparison across 4 allocators × 2 maps.\n"
+        "  200 runs total.  Single Tier-1 (lacam_official); horizon=40,\n"
+        "  replan_every=20.  fov/safety values are PROVISIONAL pending\n"
+        "  the fov/safety sweep analysis.\n"
+        "\n"
+        "base:\n"
+        "  mode: lifelong\n"
+        "  steps: 2000\n"
+        "  human_model: random_walk\n"
+        "  map_to_human_model:\n"
+        "    warehouse-10-20-10-2-1: aisle\n"
+        "    warehouse-10-20-10-2-2: aisle\n"
+        "    random-64-64-10: random_walk\n"
+        "  local_planner: astar\n"
+        "  hard_safety: true\n"
+        "  communication_mode: priority\n"
+        "  solver_timeout_s: 10.0\n"
+        "  log_violations_timeline: true\n"
+        "\n"
+        "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]\n"
+        "\n"
+        "groups:\n"
+    )
+
+
+def _group_yaml(allocator: Dict, condition: Dict) -> str:
+    """Emit a single sweep group for one (allocator, map) combination.
+    The group's inner sweep varies ``num_agents`` over the map's
+    list; allocator hyperparameters are encoded as singleton sweep
+    axes so they appear in the same block as ``task_allocator``."""
+    map_tag = _map_tag(condition["map_path"])
+    alloc_name = allocator["name"]
+    agent_counts_inline = "[" + ", ".join(str(n) for n in condition["num_agents"]) + "]"
+    lines = [
+        f"  # ----- {alloc_name} on {map_tag} -----\n",
+        f"  - name: {alloc_name}_{map_tag}\n",
+        f"    sweep:\n",
+        f"      method:         [ours]\n",
+        f"      global_solver:  [{GLOBAL_SOLVER}]\n",
+        f"      map_path:       [{condition['map_path']}]\n",
+        f"      num_agents:     {agent_counts_inline}\n",
+        f"      num_humans:     [{condition['num_humans']}]\n",
+        f"      horizon:        [{HORIZON}]\n",
+        f"      replan_every:   [{REPLAN_EVERY}]\n",
+        f"      fov_radius:     [{PLACEHOLDER_FOV}]\n",
+        f"      safety_radius:  [{PLACEHOLDER_SAFE}]\n",
+        f"      task_allocator: [{alloc_name}]\n",
+    ]
+    # Allocator-specific hyperparameters — emitted only for allocators
+    # that use them, so the YAML is self-documenting per group.
+    for k, v in allocator["hyperparams"].items():
+        lines.append(f"      {k}: [{v}]\n")
+    return "".join(lines)
+
+
+def build_yaml() -> str:
+    parts = [_header()]
+    # Order: ALLOCATORS in declaration order × MAP_CONDITIONS in declaration order.
+    for allocator in ALLOCATORS:
+        for condition in MAP_CONDITIONS:
+            parts.append(_group_yaml(allocator, condition))
+    return "".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Verification — re-parse the emitted YAML and compute the cell count
+# ---------------------------------------------------------------------------
+
+
+def verify(yaml_text: str) -> int:
+    import yaml
+    spec = yaml.safe_load(yaml_text)
+    seeds = spec.get("seeds", [])
+    total = 0
+    for group in spec.get("groups", []):
+        sweep = group.get("sweep", {})
+        cells = 1
+        # Every axis present in the group's sweep block contributes
+        # to the cell count.
+        for axis, values in sweep.items():
+            cells *= len(values)
+        total += cells * len(seeds)
+    return total
+
+
+def main() -> None:
+    yaml_text = build_yaml()
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    OUT_PATH.write_text(yaml_text)
+    print(f"wrote {OUT_PATH} ({len(yaml_text):,} bytes)")
+
+    expected = 0
+    for allocator in ALLOCATORS:
+        for condition in MAP_CONDITIONS:
+            expected += len(condition["num_agents"]) * len(SEEDS)
+    total = verify(yaml_text)
+    n_groups = len(ALLOCATORS) * len(MAP_CONDITIONS)
+    print(f"groups: {n_groups}")
+    print(f"cell count (re-parsed): {total}")
+    print(f"expected:               {expected}")
+    if total != expected:
+        raise SystemExit(f"FAIL: cell count {total} != {expected}")
+    print("OK")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,24 @@
+# One-shot MAPF with human obstacles
+# Classical MAPF goals + dynamic human avoidance.
+mode: "one_shot"
+
+map_path: "data/maps/random-32-32-20.map"
+
+steps: 500
+num_agents: 10
+num_humans: 5
+
+fov_radius: 5
+safety_radius: 1
+
+global_solver: "cbs"
+horizon: 200
+
+communication_mode: "token"
+local_planner: "astar"
+task_allocator: "hungarian"
+
+human_model: "random_walk"
+hard_safety: true
+
+seed: 42

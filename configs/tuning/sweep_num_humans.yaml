@@ -1,0 +1,10 @@
+# Sweep: num_humans
+# Tests performance with increasing human density
+
+sweep_param: num_humans
+sweep_values: [0, 2, 5, 10, 15, 20, 30]
+# Extended to 30 to show the degradation curve clearly.
+# warehouse-20-40 has ~800 free cells; 30 humans ≈ 3.75% occupancy.
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

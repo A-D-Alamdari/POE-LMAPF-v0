@@ -1,0 +1,10 @@
+# Sweep: fov_radius
+# Tests different agent field-of-view radii
+
+sweep_param: fov_radius
+sweep_values: [1, 2, 3, 4, 5, 6, 8, 10]
+# fov_radius=1 covers the critical region where agents cannot see humans far
+# enough in advance to avoid the safety zone (equals the default safety_radius).
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

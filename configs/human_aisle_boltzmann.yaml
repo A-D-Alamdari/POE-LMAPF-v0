@@ -1,0 +1,37 @@
+# Aisle-Following Human Model (Boltzmann with phi field)
+# Tests corridor-biased human behavior in warehouse environments
+
+# Map and tasks
+map_path: "data/maps/warehouse-10-20-10-2-1.map"
+task_stream_path: null
+
+# Simulation length
+steps: 2000
+
+# Agents and humans
+num_agents: 20
+num_humans: 5
+
+# Perception and safety
+fov_radius: 5
+safety_radius: 1
+
+# Global planning (Tier 1)
+global_solver: "lacam"
+replan_every: 25
+horizon: 50
+
+# Local execution (Tier 2)
+communication_mode: "token"
+local_planner: "astar"
+
+# Human behavior model: aisle-following (Boltzmann with phi field)
+human_model: "aisle"
+human_model_params:
+  alpha: 1.0   # aisle-bias strength (higher = stronger corridor preference)
+  beta: 1.5    # directional inertia (higher = more persistent direction)
+
+# Safety: hard constraint per paper
+hard_safety: true
+
+seed: 1

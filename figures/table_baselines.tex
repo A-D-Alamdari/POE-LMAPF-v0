@@ -1,0 +1,18 @@
+\begin{table*}[t]
+\centering
+\caption{Comparison with baselines (mean $\pm$ std over 5 seeds, 20 agents, 5 humans).}
+\label{tab:baselines}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l c c c c c c c c}
+\toprule
+Method & Throughput$\uparrow$ & Flowtime$\downarrow$ & Safety Viol.$\downarrow$ & Near Miss$\downarrow$ & Plan Time (ms) & P95 Plan (ms) & Replans & Wait$\downarrow$ \\
+\midrule
+\textbf{Ours (Two-Tier)} & 0.1840$\pm$0.0094 & 210.5$\pm$20.2 & 81$\pm$11 & 81$\pm$11 & 142.7$\pm$9.1 & 255.0$\pm$18.4 & 3663$\pm$206 & 1513$\pm$266 \\
+Global Only & 0.0338$\pm$0.0097 & 54.1$\pm$7.7 & 277$\pm$38 & 277$\pm$38 & 266.4$\pm$35.5 & 383.4$\pm$28.1 & 80$\pm$6 & 13742$\pm$328 \\
+PIBT Only & 0.0016$\pm$0.0010 & 23.7$\pm$13.5 & 205$\pm$47 & 205$\pm$47 & 21.7$\pm$16.3 & 25.2$\pm$19.8 & 52$\pm$1 & 14720$\pm$107 \\
+RHCR & 0.0340$\pm$0.0087 & 41.5$\pm$5.7 & 303$\pm$94 & 303$\pm$94 & 331.0$\pm$38.1 & 433.9$\pm$53.9 & 250$\pm$0 & 13819$\pm$309 \\
+WHCA* & 0.1880$\pm$0.0062 & 232.8$\pm$12.2 & 528$\pm$345 & 528$\pm$345 & 31.1$\pm$2.1 & 48.4$\pm$3.5 & 50$\pm$0 & 7056$\pm$219 \\
+Ignore Humans & 0.1816$\pm$0.0218 & 219.1$\pm$46.0 & 319$\pm$31 & 319$\pm$31 & 160.5$\pm$14.5 & 284.1$\pm$40.5 & 3949$\pm$411 & 798$\pm$386 \\
+\bottomrule
+\end{tabular}}
+\end{table*}

@@ -1,0 +1,13 @@
+# Sweep: replan_every
+# Tests different global replanning intervals
+
+sweep_param: replan_every
+sweep_values: [5, 10, 15, 20, 25, 30, 40, 50]
+
+# Coupled parameter: horizon should be >= 2 * replan_every
+# The tuning script will automatically set horizon = 2 * replan_every
+coupled_params:
+  horizon: "2 * replan_every"
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

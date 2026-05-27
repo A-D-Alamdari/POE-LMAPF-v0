@@ -1,0 +1,61 @@
+# Paper Section 5.2 — Tier-1 solver sensitivity sweep.
+#
+# Cartesian: solver x horizon x num_agents x map  (3360 runs)
+#   |solvers| x |horizons| x |agent_counts| x |maps| x |seeds|
+#       6     x     7      x       4         x    2  x    10  = 3360
+#
+# Fixed: |X| = 50 exogenous agents, 2000 simulation steps, 10.0 s
+# per-call solver budget.
+
+name: solver_sensitivity
+description: "Section 5.2 — Tier-1 solver substitutability sweep"
+
+base:
+  steps: 2000
+  num_humans: 50
+  fov_radius: 4
+  safety_radius: 1
+  hard_safety: true
+  communication_mode: priority
+  local_planner: astar
+  human_model: random_walk        # overridden per-map by map_to_human_model
+  hard_safety: true
+  mode: lifelong
+  task_allocator: congestion_avoidance
+  replan_every: 10
+  solver_timeout_s: 10.0
+  map_to_human_model:
+    random-64-64-10: random_walk
+    warehouse-10-20-10-2-1: aisle
+    warehouse-10-20-10-2-2: aisle
+
+groups:
+  - sweep:
+      global_solver:
+        - cbsh2
+        - lacam_official
+        - lacam3
+        - lns2
+        - pbs
+        - pibt2
+      horizon: [20, 30, 40, 50, 60, 70, 80]
+      num_agents: [25, 50, 75, 100]
+      map_path:
+        - data/maps/random-64-64-10.map
+        - data/maps/warehouse-10-20-10-2-2.map
+
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+# Auto-invoke statistical_analysis.py at the end of the sweep, with
+# LaCAM* (the paper's default solver) as the reference.  Pairs every
+# other solver against LaCAM* within each (map, horizon, num_agents)
+# cell.
+reference_condition: lacam_official
+reference_field:     global_solver
+statistical_groupby: global_solver,map_path,horizon,num_agents
+statistical_metrics:
+  - throughput
+  - violations_agent_attributable
+  - violations_exogenous_attributable
+  - mean_planning_time_ms
+

@@ -1,0 +1,37 @@
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lrrrr}
+\toprule
+Solver & Throughput & Agent-attr. violations & Exo-attr. violations & Mean planning time (ms) \\
+\midrule
+CBSH2-RTC & 0.471 $\pm$ 0.064 & 0.0 $\pm$ 0.0 & 2459.6 $\pm$ 335.2 & 1772.8 $\pm$ 430.3 \\
+LaCAM & 0.471 $\pm$ 0.065 & 0.0 $\pm$ 0.0 & 2454.4 $\pm$ 338.0 & 2211.8 $\pm$ 499.9 \\
+LaCAM* & 0.471 $\pm$ 0.064 & 0.0 $\pm$ 0.0 & 2454.4 $\pm$ 337.7 & 2224.2 $\pm$ 510.4 \\
+MAPF-LNS2 & 0.471 $\pm$ 0.064 & 0.0 $\pm$ 0.0 & 2443.2 $\pm$ 344.2 & 51.6 $\pm$ 29.6 \\
+PBS & 0.471 $\pm$ 0.065 & 0.0 $\pm$ 0.0 & 2533.2 $\pm$ 361.9 & 1080.1 $\pm$ 315.7 \\
+PIBT2 & 0.471 $\pm$ 0.064 & 0.0 $\pm$ 0.0 & 2405.1 $\pm$ 334.2 & 13.6 $\pm$ 1.0 \\
+\bottomrule
+\end{tabular}
+\caption{Tier-1 Solver Substitutability at $H = 20$ on random-64-64-10.}
+\label{tab:solver_subst_random-64-64-10}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lrrrr}
+\toprule
+Solver & Throughput & Agent-attr. violations & Exo-attr. violations & Mean planning time (ms) \\
+\midrule
+CBSH2-RTC & 0.249 $\pm$ 0.035 & 0.0 $\pm$ 0.0 & 820.3 $\pm$ 130.6 & 1067.6 $\pm$ 328.9 \\
+LaCAM & 0.249 $\pm$ 0.034 & 0.0 $\pm$ 0.0 & 760.5 $\pm$ 115.8 & 1098.7 $\pm$ 327.5 \\
+LaCAM* & 0.249 $\pm$ 0.034 & 0.0 $\pm$ 0.0 & 760.5 $\pm$ 113.1 & 1105.2 $\pm$ 328.0 \\
+MAPF-LNS2 & 0.249 $\pm$ 0.034 & 0.0 $\pm$ 0.0 & 765.1 $\pm$ 121.2 & 76.6 $\pm$ 10.1 \\
+PBS & 0.249 $\pm$ 0.034 & 0.0 $\pm$ 0.0 & 798.6 $\pm$ 126.9 & 997.2 $\pm$ 296.5 \\
+PIBT2 & 0.249 $\pm$ 0.034 & 0.0 $\pm$ 0.0 & 759.0 $\pm$ 117.2 & 28.7 $\pm$ 2.6 \\
+\bottomrule
+\end{tabular}
+\caption{Tier-1 Solver Substitutability at $H = 20$ on warehouse-10-20-10-2-2.}
+\label{tab:solver_subst_warehouse-10-20-10-2-2}
+\end{table}

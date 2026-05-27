@@ -1,0 +1,57 @@
+# Base configuration for hyperparameter tuning experiments
+# Other tuning configs inherit from this and override specific parameters
+
+# Map and tasks
+map_path: "data/maps/warehouse-20-40-10-2-1.map"
+task_stream_path: null  # Auto-generate tasks
+
+# Simulation length
+# 5000 steps → ~500 completed tasks with base arrival_rate=10 and 20 agents,
+# giving stable throughput / flowtime statistics across seeds.
+steps: 5000
+
+# Agents and humans
+num_agents: 20
+num_humans: 5
+
+# Perception and safety
+fov_radius: 4
+safety_radius: 1
+hard_safety: true
+
+# Global planning (Tier 1)
+global_solver: "lacam"
+replan_every: 25
+horizon: 50
+task_allocator: "congestion_avoidance"
+
+# Planner time budget — caps each global planning call at 5 s so that
+# large-horizon / CBS runs remain tractable. Set to 0 to disable.
+time_budget_ms: 5000.0
+
+# Commitment persistence (anti-thrashing)
+commit_horizon: 25
+delay_threshold: 2.5
+
+# Task generation
+task_arrival_rate: 10
+
+# Local execution (Tier 2)
+communication_mode: "token"
+local_planner: "astar"
+
+# Human behavior model
+human_model: "random_walk"
+human_model_params: {}
+
+# Execution robustness
+execution_delay_prob: 0.0
+execution_delay_steps: 1
+
+# Ablation flags (all disabled = full system)
+disable_local_replan: false
+disable_conflict_resolution: false
+disable_safety: false
+
+# Random seed (overridden by tuning script)
+seed: 0

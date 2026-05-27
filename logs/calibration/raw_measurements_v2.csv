@@ -1,0 +1,649 @@
+solver,map,num_agents,num_humans,seed,replan_idx,status,solver_wall_ms,end_to_end_wall_ms,plan_makespan,plan_first_agent_distinct_cells,error_msg,source_config
+lacam_official,random-64-64-10,20,20,2,0,complete,9.0,15.827428,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,20,20,2,1,complete,0.0,4.01354,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,20,20,2,2,complete,0.0,6.154198,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,20,20,0,0,complete,0.0,5.215688,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,20,20,0,1,complete,0.0,7.63826,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,20,20,0,2,complete,0.0,3.712918,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,40,20,1,0,complete,3.0,10.037262,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,40,20,1,1,complete,1.0,6.068475,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,40,20,1,2,complete,1.0,5.104695,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,40,20,0,0,complete,1.0,18.127267,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,40,20,0,1,complete,1.0,5.279429,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,40,20,0,2,complete,1.0,6.826657,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,60,20,1,0,complete,1.0,6.019386,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,60,20,1,1,complete,1.0,7.743429,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,60,20,1,2,complete,2.0,8.434221,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,50,40,1,0,complete,2.0,9.174492,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,50,40,1,1,complete,5.0,24.298416,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,50,40,1,2,complete,2.0,8.236215,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,80,20,0,0,complete,2.0,8.604419,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,80,20,0,1,complete,6.0,19.6421,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,80,20,0,2,complete,3.0,10.950689,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,50,40,2,0,complete,2.0,10.334455,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,50,40,2,1,complete,5.0,12.458777,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,50,40,2,2,complete,3.0,9.643667,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,20,20,0,0,complete,80.0,98.285029,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,20,20,0,1,complete,43.0,52.739482,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,20,20,0,2,complete,38.0,50.57281,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,20,20,2,0,complete,42.0,50.188206,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,20,20,2,1,complete,39.0,46.688566,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,20,20,2,2,complete,20.0,31.989121,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,40,20,1,0,complete,39.0,50.647145,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,40,20,1,1,complete,56.0,68.810562,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,40,20,1,2,complete,61.0,76.626348,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,100,60,2,0,complete,8.0,19.48238,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,100,60,2,1,complete,7.0,20.248704,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,100,60,2,2,complete,6.0,20.096414,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,100,60,0,0,complete,4.0,11.109592,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,100,60,0,1,complete,6.0,19.250457,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,100,60,0,2,complete,7.0,25.737918,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,100,60,1,0,complete,4.0,14.03991,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,100,60,1,1,complete,5.0,15.1428,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,100,60,1,2,complete,6.0,17.052683,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,60,20,0,0,complete,1.0,5.7295,21,21,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,60,20,0,1,error,12912.0,12976.416064,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,60,20,0,2,error,12841.0,12907.884926,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,100,40,2,0,complete,146.0,154.859083,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,100,40,2,1,error,11453.0,11500.481536,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,100,40,2,2,error,11418.0,11468.601306,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,80,20,0,0,complete,10015.0,10048.612455,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,80,20,0,1,complete,10015.0,10042.990013,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,80,20,0,2,complete,10021.0,10054.328596,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,100,40,1,0,complete,4.0,13.264773,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,100,40,1,1,complete,5.0,15.932659,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,100,40,1,2,complete,5.0,16.683568,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,20,20,1,0,error,10016.0,10030.539428,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,20,20,1,1,error,10032.0,10047.500426,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,20,20,1,2,error,10027.0,10040.235625,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,150,40,1,0,complete,7.0,21.136543,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,150,40,1,1,complete,8.0,21.265952,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,150,40,1,2,complete,13.0,30.460706,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,40,20,2,0,error,10015.0,10032.023792,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,40,20,2,1,error,10021.0,10035.502782,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,40,20,2,2,error,10031.0,10048.118732,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,40,20,0,0,complete,10012.0,10034.14014,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,40,20,0,1,complete,10008.0,10024.210857,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,40,20,0,2,complete,10014.0,10035.671022,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,100,40,0,0,error,11619.0,11667.673447,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,100,40,0,1,error,11585.0,11640.402625,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,100,40,0,2,complete,5.0,14.479309,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,60,20,0,0,complete,10012.0,10043.620918,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,60,20,0,1,error,10028.0,10046.912837,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,60,20,0,2,error,10029.0,10058.293366,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,50,40,1,0,complete,164.0,187.966178,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,50,40,1,1,complete,10013.0,10031.245182,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,50,40,1,2,complete,10013.0,10034.94702,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,60,20,1,0,complete,10014.0,10034.065656,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,60,20,1,1,complete,10015.0,10034.429514,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,60,20,1,2,complete,10012.0,10030.254013,21,21,,conflict_aware_v2_5_4
+lacam3,random-64-64-10,60,20,2,0,error,10026.0,10048.450882,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,60,20,2,1,error,10022.0,10047.005777,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,60,20,2,2,error,10019.0,10035.925508,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,80,20,2,0,error,11833.0,11895.133249,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,80,20,2,1,error,11998.0,12064.250356,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,80,20,2,2,error,11775.0,11838.328692,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,80,20,1,0,error,11998.0,12063.112059,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,80,20,1,1,error,12046.0,12110.845942,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,80,20,1,2,error,11862.0,11924.847894,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,60,20,2,0,error,12694.0,12767.289425,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,60,20,2,1,error,12638.0,12716.650848,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,60,20,2,2,error,12444.0,12525.928364,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,50,40,0,0,error,13145.0,13213.133932,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,50,40,0,1,error,12669.0,12748.839261,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,50,40,0,2,error,12601.0,12679.057785,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,150,40,2,0,error,10989.0,11033.732692,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,150,40,2,1,error,10966.0,11024.564535,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,150,40,2,2,error,11068.0,11118.579335,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,40,20,2,0,error,13942.0,14021.679881,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,40,20,2,1,error,13395.0,13494.946603,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,40,20,2,2,error,13919.0,14023.489483,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,80,20,1,0,error,10021.0,10043.540613,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,80,20,1,1,error,10023.0,10054.649577,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,80,20,1,2,error,10027.0,10047.710386,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,random-64-64-10,20,20,1,0,timeout_no_result,nan,15128.743053,21,1,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,20,20,1,1,timeout_no_result,nan,15158.332942,21,1,,conflict_aware_v2_5_4
+lacam_official,random-64-64-10,20,20,1,2,timeout_no_result,nan,15160.296119,21,1,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,150,40,0,0,error,11031.0,11072.080476,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,150,40,0,1,error,11214.0,11273.261898,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,150,40,0,2,error,11062.0,11123.42362,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,80,20,2,0,error,10026.0,10047.191073,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,80,20,2,1,error,10016.0,10045.335832,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,random-64-64-10,80,20,2,2,error,10028.0,10059.909065,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,50,40,0,0,error,10032.0,10049.773107,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,50,40,0,1,error,10031.0,10052.923793,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,50,40,0,2,error,10024.0,10043.7577,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,200,60,0,0,error,10664.0,10714.797126,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,200,60,0,1,error,10825.0,10890.311994,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,200,60,0,2,error,10779.0,10850.123557,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,50,40,2,0,complete,10012.0,10033.575178,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,50,40,2,1,complete,10022.0,10036.65181,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,50,40,2,2,complete,228.0,245.59176,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,200,40,2,0,error,10765.0,10808.750751,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,200,40,2,1,error,10775.0,10829.85892,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,200,40,2,2,error,10821.0,10885.957419,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lns2,random-64-64-10,20,20,0,0,complete,0.724712,22.799044,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,20,20,0,1,complete,4.35187,35.570785,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,20,20,0,2,complete,0.633639,27.997721,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,20,20,1,0,error,8.41618,26.677702,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 14 (of length 19) traverses agent 9 (of length 15)'s target location 1196 at timestep 19,conflict_aware_v2_5_4
+lns2,random-64-64-10,20,20,1,1,error,9.3485,29.6245,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 9 (of length 19) traverses agent 14 (of length 18)'s target location 1196 at timestep 19,conflict_aware_v2_5_4
+lns2,random-64-64-10,20,20,1,2,error,18.5087,32.624442,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 9 (of length 18) traverses agent 14 (of length 17)'s target location 1196 at timestep 18,conflict_aware_v2_5_4
+lns2,random-64-64-10,20,20,2,0,complete,0.701824,16.897006,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,20,20,2,1,complete,0.83282,18.001177,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,20,20,2,2,complete,0.72693,17.976164,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,40,20,0,0,complete,1.4058300000000001,27.521809,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,40,20,0,1,complete,1.8704500000000002,88.832369,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,40,20,0,2,complete,1.50708,35.459727,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,40,20,1,0,complete,1.01278,41.537248,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,40,20,1,1,complete,1.39851,30.094455,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,40,20,1,2,complete,1.21892,29.395131,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,200,60,1,0,error,10699.0,10746.832916,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,200,60,1,1,error,10802.0,10850.185111,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,200,60,1,2,error,10681.0,10734.877698,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lns2,random-64-64-10,40,20,2,0,error,18.0672,48.257277,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 10 (of length 30) traverses agent 34 (of length 29)'s target location 3212 at timestep 30,conflict_aware_v2_5_4
+lns2,random-64-64-10,40,20,2,1,error,37.1656,61.107663,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 10 (of length 29) traverses agent 34 (of length 28)'s target location 3212 at timestep 29,conflict_aware_v2_5_4
+lns2,random-64-64-10,40,20,2,2,error,18.5556,50.867954,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 10 (of length 28) traverses agent 34 (of length 27)'s target location 3212 at timestep 28,conflict_aware_v2_5_4
+lns2,random-64-64-10,60,20,0,0,complete,1.46145,42.284598,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,60,20,0,1,error,31.73,69.420477,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 22 (of length 17) traverses agent 29 (of length 16)'s target location 2552 at timestep 17,conflict_aware_v2_5_4
+lns2,random-64-64-10,60,20,0,2,error,11.203100000000001,51.585972,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 22 (of length 16) traverses agent 29 (of length 15)'s target location 2552 at timestep 16,conflict_aware_v2_5_4
+lns2,random-64-64-10,60,20,1,0,complete,1.94929,51.24627,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,60,20,1,1,complete,2.62889,50.943074,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,60,20,1,2,complete,2.75517,50.949623,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,60,20,2,0,error,37.987100000000005,83.827973,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 45 (of length 10) traverses agent 46 (of length 6)'s target location 3212 at timestep 10,conflict_aware_v2_5_4
+lns2,random-64-64-10,60,20,2,1,error,12.5703,62.156781,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 46 (of length 10) traverses agent 45 (of length 9)'s target location 3212 at timestep 10,conflict_aware_v2_5_4
+lns2,random-64-64-10,60,20,2,2,error,17.755799999999997,58.239537,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 46 (of length 7) traverses agent 45 (of length 6)'s target location 3212 at timestep 7,conflict_aware_v2_5_4
+lns2,random-64-64-10,80,20,0,0,complete,3.45192,62.758352,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,80,20,0,1,complete,3.88392,64.42662,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,80,20,0,2,complete,5.2710099999999995,50.128531,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,100,40,0,0,error,10034.0,10079.370672,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,100,40,0,1,error,10028.0,10083.134242,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,100,40,0,2,complete,10019.0,10059.941487,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,200,40,0,0,error,10822.0,10884.870305,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,200,40,0,1,error,11224.0,11357.921375,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,200,40,0,2,error,10896.0,10972.470303,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lns2,random-64-64-10,80,20,1,0,error,14.0594,70.321525,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 31 (of length 22) traverses agent 38 (of length 21)'s target location 1095 at timestep 22,conflict_aware_v2_5_4
+lns2,random-64-64-10,80,20,1,1,error,33.423899999999996,92.132429,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 31 (of length 21) traverses agent 38 (of length 20)'s target location 1095 at timestep 21,conflict_aware_v2_5_4
+lns2,random-64-64-10,80,20,1,2,error,28.7776,93.977682,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 31 (of length 20) traverses agent 38 (of length 19)'s target location 1095 at timestep 20,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,100,40,2,0,complete,10020.0,10064.215137,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,100,40,2,1,error,10023.0,10059.724618,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,100,40,2,2,error,10013.0,10059.42205,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,100,40,1,0,complete,10015.0,10054.163095,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,100,40,1,1,complete,10015.0,10060.907751,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,100,40,1,2,complete,10014.0,10061.723355,21,21,,conflict_aware_v2_5_4
+lns2,random-64-64-10,80,20,2,0,error,18.979,77.929756,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 46 (of length 6) traverses agent 77 (of length 5)'s target location 3212 at timestep 6,conflict_aware_v2_5_4
+lns2,random-64-64-10,80,20,2,1,error,13.9505,63.380158,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 46 (of length 5) traverses agent 77 (of length 4)'s target location 3212 at timestep 5,conflict_aware_v2_5_4
+lns2,random-64-64-10,80,20,2,2,error,22.6601,86.230598,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 46 (of length 4) traverses agent 77 (of length 3)'s target location 3212 at timestep 4,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,200,60,2,0,error,10769.0,10816.592338,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,200,60,2,1,error,10750.0,10810.371508,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,200,60,2,2,error,10681.0,10739.06092,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,50,40,1,0,complete,3.0261799999999996,49.550196,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,50,40,1,1,complete,3.05764,50.395745,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,50,40,1,2,complete,3.40706,47.047604,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,50,40,0,0,error,24.8092,71.42734,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 6 (of length 6) traverses agent 43 (of length 3)'s target location 642 at timestep 6,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,50,40,0,1,error,20.6551,65.716764,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 43 (of length 6) traverses agent 6 (of length 5)'s target location 642 at timestep 6,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,50,40,0,2,error,26.3688,78.774382,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 6 (of length 6) traverses agent 43 (of length 5)'s target location 642 at timestep 6,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,50,40,2,0,complete,3.91162,54.514548,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,50,40,2,1,complete,4.314089999999999,57.739661,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,50,40,2,2,complete,5.19415,62.418719,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,100,40,0,0,error,72.4467,166.22213,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 13 (of length 8) traverses agent 78 (of length 2)'s target location 5128 at timestep 8,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,100,40,0,1,error,29.639200000000002,135.431405,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 13 (of length 7) traverses agent 78 (of length 1)'s target location 5128 at timestep 7,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,100,40,0,2,complete,12.1448,102.358091,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,200,40,1,0,error,10916.0,10988.747102,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,200,40,1,1,error,10920.0,11022.926588,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-1,200,40,1,2,error,10667.0,10727.22526,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,100,40,1,0,complete,4.502059999999999,124.724348,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,100,40,1,1,complete,4.2166,92.104443,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,100,40,1,2,complete,6.98468,90.086341,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,100,40,2,0,complete,4.08497,113.592043,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,100,40,2,1,error,20.012900000000002,106.265977,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 78 (of length 117) traverses agent 82 (of length 8)'s target location 4671 at timestep 117,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,100,40,2,2,error,25.839000000000002,115.072419,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 78 (of length 116) traverses agent 82 (of length 7)'s target location 4671 at timestep 116,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,150,40,2,0,error,10016.0,10066.860195,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,150,40,2,1,error,10017.0,10072.91521,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,150,40,2,2,error,10024.0,10076.583045,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,100,60,0,0,complete,10012.0,10054.252389,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,100,60,0,1,complete,10024.0,10155.008137,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,100,60,0,2,complete,10016.0,10049.467803,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,100,60,1,0,complete,10021.0,10063.208697,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,100,60,1,1,complete,10021.0,10135.747536,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,100,60,1,2,complete,10019.0,10059.845092,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,100,60,2,0,complete,10012.0,10054.79938,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,100,60,2,1,complete,10016.0,10076.36677,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,100,60,2,2,complete,10014.0,10048.882371,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,150,40,0,0,error,10020.0,10062.03069,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,150,40,0,1,error,10032.0,10106.643079,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,150,40,0,2,error,10040.0,10115.503722,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,100,60,0,0,complete,5.400849999999999,153.676202,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,100,60,0,1,complete,5.61592,148.978959,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,100,60,0,2,complete,9.119580000000001,342.169472,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,150,40,2,0,error,63.4101,169.549206,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 22 (of length 8) traverses agent 78 (of length 1)'s target location 2034 at timestep 8,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,150,40,2,1,error,125.37300000000002,248.423768,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 147 (of length 118) traverses agent 78 (of length 117)'s target location 4671 at timestep 118,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,150,40,2,2,error,793.874,944.827646,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 78 (of length 116) traverses agent 147 (of length 10)'s target location 4671 at timestep 116,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,100,60,1,0,complete,5.15744,143.646533,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,100,60,1,1,complete,4.63744,149.076868,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,100,60,1,2,complete,5.33381,152.71051,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,100,60,2,0,complete,6.51518,154.142378,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,100,60,2,1,complete,6.87331,159.734711,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,100,60,2,2,complete,6.21476,156.072867,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,150,40,1,0,complete,10029.0,10084.223561,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,150,40,1,1,complete,10018.0,10082.876898,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,150,40,1,2,complete,10030.0,10081.079392,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,150,40,0,0,error,166.427,286.951857,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 23 (of length 158) traverses agent 69 (of length 157)'s target location 2754 at timestep 158,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,150,40,0,1,error,324.978,439.325123,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 23 (of length 157) traverses agent 69 (of length 156)'s target location 2754 at timestep 157,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,150,40,0,2,error,216.582,339.418056,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 69 (of length 155) traverses agent 23 (of length 16)'s target location 2754 at timestep 155,conflict_aware_v2_5_4
+pibt2,random-64-64-10,20,20,0,0,complete,1.0,4.44576,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,20,20,0,1,complete,1.0,5.065988,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,20,20,0,2,complete,1.0,5.982899,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,20,20,1,0,error,2.0,6.84318,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,20,20,1,1,error,2.0,6.835635,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,20,20,1,2,error,2.0,7.556553,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,20,20,2,0,complete,1.0,4.349548,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,20,20,2,1,complete,1.0,4.950645,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,20,20,2,2,complete,1.0,5.001915,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,40,20,0,0,complete,4.0,9.050822,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,40,20,0,1,complete,3.0,6.920736,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,40,20,0,2,complete,3.0,8.374654,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,150,40,1,0,complete,14.3003,147.299141,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,150,40,1,1,complete,11.6127,129.981249,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,150,40,1,2,complete,9.64337,154.082095,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,40,20,1,0,complete,3.0,10.273673,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,40,20,1,1,complete,4.0,10.765443,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,40,20,1,2,complete,6.0,18.030015,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,40,20,2,0,error,11.0,20.489956,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,40,20,2,1,error,7.0,17.427401,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,40,20,2,2,error,7.0,19.561445,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,60,20,0,0,complete,4.0,10.345506,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,60,20,0,1,error,13.0,26.033042,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,60,20,0,2,error,5.0,11.714063,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,60,20,1,0,complete,5.0,10.129852,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,60,20,1,1,complete,6.0,15.462616,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,60,20,1,2,complete,4.0,9.279743,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,60,20,2,0,error,6.0,12.634978,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,60,20,2,1,error,7.0,13.591142,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,60,20,2,2,error,6.0,12.665826,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,80,20,0,0,complete,10.0,18.336897,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,80,20,0,1,complete,7.0,15.390966,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,80,20,0,2,complete,6.0,13.971291,21,21,,conflict_aware_v2_5_4
+pibt2,random-64-64-10,80,20,1,0,error,8.0,20.356536,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,80,20,1,1,error,8.0,14.123059,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,80,20,1,2,error,9.0,16.585199,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,80,20,2,0,error,9.0,15.958422,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,80,20,2,1,error,9.0,15.873261,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,random-64-64-10,80,20,2,2,error,9.0,16.021087,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,50,40,0,0,error,6.0,14.495917,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,50,40,0,1,error,8.0,19.796294,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,50,40,0,2,error,6.0,15.136126,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,50,40,1,0,complete,4.0,11.094155,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,50,40,1,1,complete,4.0,11.840741,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,50,40,1,2,complete,3.0,9.419728,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,50,40,2,0,complete,7.0,15.230823,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,50,40,2,1,complete,4.0,11.815899,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,50,40,2,2,complete,5.0,12.793593,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,100,40,0,0,error,16.0,31.298585,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,100,40,0,1,error,15.0,27.411984,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,100,40,0,2,complete,9.0,21.734337,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,100,40,1,0,complete,8.0,19.210706,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,100,40,1,1,complete,8.0,19.851432,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,100,40,1,2,complete,9.0,20.264002,21,21,,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,300,60,2,0,error,10613.0,10680.703485,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,300,60,2,1,error,10653.0,10720.224257,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,300,60,2,2,error,10477.0,10527.328485,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,300,60,1,0,error,10724.0,10806.826702,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,300,60,1,1,error,10513.0,10628.070787,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,300,60,1,2,error,10480.0,10528.446088,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,100,40,2,0,error,13.0,27.256204,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,100,40,2,1,error,11.0,21.395603,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,100,40,2,2,error,16.0,31.4298,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,200,40,2,0,error,10031.0,10100.391618,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,200,40,2,1,error,10032.0,10114.817672,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,200,40,2,2,error,10050.0,10102.667164,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,200,60,0,0,error,10021.0,10117.024613,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,200,60,0,1,error,10023.0,10092.826163,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,200,60,0,2,error,10018.0,10074.750349,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,200,60,0,0,error,88.81360000000001,395.1413,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 18 (of length 32) traverses agent 82 (of length 3)'s target location 3862 at timestep 32,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,200,60,0,1,error,49.5107,303.175304,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 18 (of length 31) traverses agent 82 (of length 2)'s target location 3862 at timestep 31,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,200,60,0,2,error,83.5788,309.593085,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 18 (of length 30) traverses agent 82 (of length 1)'s target location 3862 at timestep 30,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,200,40,2,0,error,79.60730000000001,249.978242,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 13 (of length 4) traverses agent 155 (of length 1)'s target location 2273 at timestep 4,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,200,40,2,1,error,55.2124,191.10939,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 88 (of length 105) traverses agent 7 (of length 4)'s target location 229 at timestep 105,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,200,40,2,2,error,93.8371,243.320811,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 88 (of length 104) traverses agent 7 (of length 3)'s target location 229 at timestep 104,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,200,40,0,0,error,10028.0,10094.019994,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,200,40,0,1,error,10021.0,10093.382169,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,200,40,0,2,error,10037.0,10083.966515,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,100,60,0,0,complete,12.0,22.080526,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,100,60,0,1,complete,15.0,26.825065,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,100,60,0,2,complete,18.0,35.10778,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,200,40,0,0,error,415.14099999999996,577.749739,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 5 (of length 158) traverses agent 69 (of length 157)'s target location 2754 at timestep 158,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,200,40,0,1,error,770.923,905.785803,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 69 (of length 156) traverses agent 5 (of length 27)'s target location 2754 at timestep 156,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,200,40,0,2,error,463.156,623.318205,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 5 (of length 156) traverses agent 69 (of length 155)'s target location 2754 at timestep 156,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,200,60,1,0,error,10012.0,10102.827469,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,200,60,1,1,error,10077.0,10216.488907,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,200,60,1,2,error,10015.0,10079.832377,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,150,40,2,0,error,19.0,33.988645,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,150,40,2,1,error,17.0,30.734679,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,150,40,2,2,error,20.0,37.278261,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,100,60,1,0,complete,14.0,23.435237,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,100,60,1,1,complete,26.0,39.404404,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,100,60,1,2,complete,14.0,26.920611,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,100,60,2,0,complete,15.0,30.842265,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,100,60,2,1,complete,13.0,25.009785,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,100,60,2,2,complete,16.0,31.016104,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,200,40,1,0,error,10015.0,10074.604002,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,200,40,1,1,error,10036.0,10088.751438,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-1,200,40,1,2,error,10019.0,10074.874656,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,150,40,0,0,error,20.0,38.366455,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,150,40,0,1,error,21.0,40.0859,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,150,40,0,2,error,22.0,40.779509,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,200,60,1,0,error,88.2068,366.811165,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 100 (of length 11) traverses agent 40 (of length 10)'s target location 376 at timestep 11,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,200,60,1,1,error,263.413,499.481283,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 40 (of length 9) traverses agent 100 (of length 3)'s target location 376 at timestep 9,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,200,60,1,2,error,228.262,479.120515,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 100 (of length 9) traverses agent 40 (of length 8)'s target location 376 at timestep 9,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,200,40,1,0,error,294.282,521.529811,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 172 (of length 6) traverses agent 13 (of length 3)'s target location 7898 at timestep 6,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,200,40,1,1,error,180.005,349.656397,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 13 (of length 6) traverses agent 172 (of length 5)'s target location 7898 at timestep 6,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-1,200,40,1,2,error,177.508,310.967239,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 172 (of length 6) traverses agent 13 (of length 5)'s target location 7898 at timestep 6,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,20,20,0,0,complete,0.559,15.11745,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,20,20,0,1,complete,0.528,14.862601,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,20,20,0,2,complete,0.48000000000000004,15.992358,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,150,40,1,0,complete,14.0,28.195363,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,150,40,1,1,error,20.0,37.235189,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,150,40,1,2,complete,17.0,36.213564,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,20,20,2,0,complete,0.608,14.210754,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,20,20,2,1,complete,0.5810000000000001,14.417436,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,20,20,2,2,complete,1.323,20.063242,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,40,20,0,0,complete,2.113,27.270637,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,40,20,0,1,complete,2.093,28.382115,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,40,20,0,2,complete,2.22,27.138168,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,40,20,1,0,complete,1.204,27.899594,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,40,20,1,1,complete,1.2830000000000001,27.370111,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,40,20,1,2,complete,1.421,26.006233,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,200,60,2,0,error,94.2452,373.025846,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 50 (of length 5) traverses agent 28 (of length 4)'s target location 13709 at timestep 5,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,200,60,2,1,error,99.01559999999999,374.501112,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 28 (of length 4) traverses agent 50 (of length 3)'s target location 13709 at timestep 4,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,200,60,2,2,error,304.18,585.560309,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 28 (of length 5) traverses agent 50 (of length 4)'s target location 13709 at timestep 5,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,200,60,2,0,error,10014.0,10084.344168,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,200,60,2,1,error,10017.0,10093.004456,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,200,60,2,2,error,10028.0,10094.803463,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+cbsh2,random-64-64-10,60,20,1,0,complete,2.185,41.967963,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,60,20,1,1,complete,2.6359999999999997,35.888665,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,60,20,1,2,complete,4.630999999999999,37.275494,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,60,20,0,0,complete,3.229,40.175787,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,60,20,0,1,error,10237.8,10416.026489,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,60,20,0,2,error,10332.3,10620.738714,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,200,40,2,0,error,35.0,55.91058,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,200,40,2,1,error,28.0,49.489432,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,200,40,2,2,error,33.0,54.294842,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,80,20,0,0,complete,9.374,56.49342,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,80,20,0,1,complete,16.468,66.871472,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,80,20,0,2,complete,15.088000000000001,64.245862,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,200,60,0,0,error,40.0,64.403192,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,200,60,0,1,error,40.0,65.050961,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,200,60,0,2,error,64.0,88.637356,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,200,40,0,0,error,33.0,55.297252,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,200,40,0,1,error,27.0,46.074856,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,200,40,0,2,error,28.0,47.707084,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,300,60,0,0,error,10659.0,10743.340106,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,300,60,0,1,error,10465.0,10522.380939,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,300,60,0,2,error,10377.0,10436.366382,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,50,40,1,0,complete,13.844999999999999,55.504967,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,50,40,1,1,complete,27.119,68.24558,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,50,40,1,2,complete,32.029,74.491709,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,50,40,2,0,complete,9.967,46.764253,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,50,40,2,1,complete,17.125,75.232164,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,50,40,2,2,complete,15.87,69.450931,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,200,60,1,0,error,41.0,69.547627,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,200,60,1,1,error,41.0,66.566443,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,200,60,1,2,error,34.0,53.59406,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,200,40,1,0,error,27.0,45.855187,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,200,40,1,1,error,31.0,52.002353,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-1,200,40,1,2,error,27.0,48.721503,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,200,60,2,0,error,41.0,64.597909,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,200,60,2,1,error,40.0,64.332338,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,200,60,2,2,error,37.0,57.91601,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,300,60,2,0,error,157.895,569.37696,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 0 (of length 7) traverses agent 229 (of length 6)'s target location 11727 at timestep 7,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,300,60,2,1,error,136.706,605.582433,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 0 (of length 6) traverses agent 229 (of length 5)'s target location 11727 at timestep 6,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,300,60,2,2,error,807.246,1319.46647,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 50 (of length 4) traverses agent 28 (of length 2)'s target location 13709 at timestep 4,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,300,60,1,0,error,176.539,592.027087,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 293 (of length 18) traverses agent 15 (of length 2)'s target location 5840 at timestep 18,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,300,60,1,1,error,328.82,759.165004,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 15 (of length 18) traverses agent 293 (of length 17)'s target location 5840 at timestep 18,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,300,60,1,2,error,272.221,715.063889,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 28 (of length 11) traverses agent 37 (of length 6)'s target location 2658 at timestep 11,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,300,60,1,0,error,10024.0,10106.076596,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,300,60,1,1,error,10020.0,10134.568325,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,300,60,1,2,error,10035.0,10172.38225,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,300,60,2,0,error,10025.0,10141.818702,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,300,60,2,1,error,10045.0,10153.808342,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,300,60,2,2,error,10015.0,10131.907749,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+cbsh2,random-64-64-10,20,20,1,0,error,10072.300000000001,10307.579047,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,20,20,1,1,error,10217.2,10716.413497,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,20,20,1,2,error,10082.7,10782.259401,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,40,20,2,0,error,10230.800000000001,10502.959915,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,40,20,2,1,error,10107.5,10338.416571,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,40,20,2,2,error,10302.9,10672.722965,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,100,60,0,0,complete,10.364,127.617272,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,100,60,0,1,complete,36.963,188.198367,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,100,60,0,2,complete,69.384,221.104743,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,100,40,2,0,complete,25.07,111.346352,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,100,40,2,1,error,10936.5,11592.573899,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,100,40,2,2,error,10332.800000000001,10715.567935,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,60,20,2,0,error,10137.5,10391.21066,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,60,20,2,1,error,10223.2,10703.282901,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,60,20,2,2,error,10297.800000000001,10607.732768,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,100,60,1,0,complete,28.198,173.445547,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,100,60,1,1,complete,51.257999999999996,202.508632,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,100,60,1,2,complete,51.388000000000005,205.936189,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,100,40,1,0,complete,48.006,131.454099,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,100,40,1,1,complete,60.615,141.375982,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,100,40,1,2,complete,240.803,331.42893,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,100,60,2,0,complete,51.381,217.817408,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,100,60,2,1,complete,57.016999999999996,207.461744,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,100,60,2,2,complete,69.795,222.905019,21,21,,conflict_aware_v2_5_4
+cbsh2,random-64-64-10,80,20,1,0,error,10097.300000000001,10397.286362,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,80,20,1,1,error,10275.800000000001,10620.366174,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,80,20,1,2,error,10300.599999999999,10832.168013,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,80,20,2,0,error,10014.0,10265.65153,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,80,20,2,1,error,10577.1,10899.705832,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,random-64-64-10,80,20,2,2,error,10223.699999999999,10464.547943,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,50,40,0,0,error,10025.9,10240.96999,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,50,40,0,1,error,10189.7,10498.801061,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,50,40,0,2,error,10520.5,10725.377063,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,300,60,2,0,error,68.0,103.81389,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,300,60,2,1,error,67.0,104.159789,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,300,60,2,2,error,62.0,98.493925,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,100,40,0,0,error,13936.8,14250.299794,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,100,40,0,1,error,12691.4,13043.93545,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,100,40,0,2,complete,1499.5400000000002,1622.268425,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,20,20,0,0,complete,1.3290000000000002,18.726184,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,20,20,0,1,complete,1.239,14.354629,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,20,20,0,2,complete,1.2429999999999999,18.441674,21,21,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,300,60,1,0,error,68.0,102.996109,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,300,60,1,1,error,71.0,109.289338,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,300,60,1,2,error,79.0,127.084694,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pbs,random-64-64-10,20,20,2,0,complete,1.425,18.839557,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,20,20,2,1,complete,1.395,18.627018,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,20,20,2,2,complete,1.714,19.214145,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,40,20,0,0,complete,3.143,39.32571,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,40,20,0,1,complete,3.2,28.979745,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,40,20,0,2,complete,3.225,26.655293,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,40,20,1,0,complete,2.072,29.108899,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,40,20,1,1,complete,2.462,27.911993,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,40,20,1,2,complete,2.7239999999999998,30.044033,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,20,20,1,0,error,1.1789999999999998,1233.002745,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,20,20,1,1,error,1.138,1347.678005,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,20,20,1,2,error,1.171,1263.506057,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,150,40,1,0,complete,126.356,246.199958,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,150,40,1,1,complete,138.436,340.256051,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,150,40,1,2,complete,763.5920000000001,905.355783,21,21,,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,300,60,0,0,error,328.079,714.816626,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 105 (of length 19) traverses agent 299 (of length 13)'s target location 11139 at timestep 19,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,300,60,0,1,error,286.92400000000004,693.150431,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 105 (of length 18) traverses agent 299 (of length 12)'s target location 11139 at timestep 18,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,300,60,0,2,error,496.93,904.716869,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 105 (of length 17) traverses agent 299 (of length 11)'s target location 11139 at timestep 17,conflict_aware_v2_5_4
+pbs,random-64-64-10,60,20,1,0,complete,4.3420000000000005,41.119574,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,60,20,1,1,complete,5.44,43.010818,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,60,20,1,2,complete,5.572,42.869256,21,21,,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,300,60,0,0,error,10021.0,10118.150449,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,300,60,0,1,error,10012.0,10116.63648,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,300,60,0,2,error,10029.0,10148.542921,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+pbs,random-64-64-10,40,20,2,0,error,2.226,1200.374075,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,40,20,2,1,error,2.99,1444.720464,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,40,20,2,2,error,1239.88,2383.994482,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,80,20,0,0,complete,8.028,54.688728,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,80,20,0,1,complete,10.715,56.994985,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,80,20,0,2,complete,13.224,59.74914,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,60,20,0,0,complete,4.4270000000000005,40.931796,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,60,20,0,1,error,8009.3099999999995,9447.812381,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,60,20,0,2,error,3667.3900000000003,4811.054105,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,50,40,1,0,complete,6.7,50.817394,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,50,40,1,1,complete,8.206,51.387124,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,50,40,1,2,complete,9.056,53.057354,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,60,20,2,0,error,3.606,983.42277,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,60,20,2,1,error,2994.04,4786.522988,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,60,20,2,2,error,3527.28,5134.396206,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,150,40,0,0,error,10777.4,11085.092698,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,150,40,0,1,error,10445.1,10801.513644,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,150,40,0,2,error,10205.1,10560.724266,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,50,40,2,0,complete,6.197,52.066221,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,50,40,2,1,complete,6.418,54.313951,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,50,40,2,2,complete,6.325,51.041812,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,80,20,2,0,error,4.868,1273.485738,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,80,20,2,1,error,5851.18,7665.695777,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,80,20,2,2,error,8.665000000000001,1624.109993,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,150,40,2,0,timeout_no_result,nan,20030.20224,21,1,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,150,40,2,1,error,11353.400000000001,11653.569923,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,150,40,2,2,error,11354.900000000001,11697.460916,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,100,40,2,0,complete,13.584999999999999,89.2592,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,100,40,2,1,error,13.003,2748.738447,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,100,40,2,2,error,13.157,2613.389365,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,100,40,1,0,complete,15.284,115.056735,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,100,40,1,1,complete,16.17,99.267145,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,100,40,1,2,complete,29.317,130.235148,21,21,,conflict_aware_v2_5_4
+pbs,random-64-64-10,80,20,1,0,error,2380.5,3793.837381,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,80,20,1,1,error,3752.94,5157.314509,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,random-64-64-10,80,20,1,2,error,10828.0,10991.53292,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,450,60,1,0,error,10436.0,10587.690245,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,450,60,1,1,error,10436.0,10575.109613,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,450,60,1,2,error,10305.0,10405.466382,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,50,40,0,0,error,10146.9,10496.684857,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,50,40,0,1,timeout_no_result,nan,12031.471052,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,50,40,0,2,error,11800.599999999999,11951.189088,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,300,60,0,0,error,63.0,98.542872,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,300,60,0,1,error,66.0,95.490266,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,300,60,0,2,error,62.0,97.069667,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,200,40,2,0,error,10292.7,10613.92406,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,200,40,2,1,error,10265.4,10675.564793,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,200,40,2,2,error,10188.0,10542.061922,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,100,60,0,0,complete,13.176,147.694913,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,100,60,0,1,complete,16.035,155.523502,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,100,60,0,2,complete,20.422,156.339319,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,200,40,0,0,error,10564.0,10863.466809,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,200,40,0,1,error,10847.9,11294.529528,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,200,40,0,2,error,11013.6,11510.781345,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,100,60,1,0,complete,17.019,192.727393,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,100,60,1,1,complete,17.72,154.055481,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,100,60,1,2,complete,21.447,199.969242,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,150,40,1,0,complete,28.263,141.965449,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,150,40,1,1,complete,33.969,203.839075,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,150,40,1,2,complete,166.765,336.586716,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,100,60,2,0,complete,15.443999999999999,153.699351,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,100,60,2,1,complete,24.197,159.587268,21,21,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,100,60,2,2,complete,21.502,175.789387,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,200,60,0,0,error,10992.6,11459.676501,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,200,60,0,1,error,10794.2,11225.613006,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,200,60,0,2,error,11118.7,11497.270469,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,200,40,1,0,error,10219.5,10457.739623,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,200,40,1,1,error,10008.0,10353.63336,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-1,200,40,1,2,error,10056.800000000001,10528.071626,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,100,40,0,0,error,11412.4,11855.339189,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,100,40,0,1,error,10222.2,10476.348791,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,100,40,0,2,complete,52.729,130.715876,21,21,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,200,60,1,0,error,11735.6,12288.008226,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,200,60,1,1,error,10884.5,11774.606498,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,200,60,1,2,error,11867.800000000001,12414.550699,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,150,40,0,0,error,10898.5,11253.475567,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,150,40,0,1,timeout_no_result,nan,12029.351928,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,150,40,0,2,error,10230.7,10689.759816,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,200,60,2,0,error,10301.7,10696.027411,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,200,60,2,1,error,11308.0,11991.682163,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,200,60,2,2,error,10758.800000000001,11036.303928,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,150,40,2,0,error,10658.2,11229.339073,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,150,40,2,1,timeout_no_result,nan,12032.854251,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,150,40,2,2,error,10654.199999999999,10804.038287,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,300,60,1,0,error,10196.0,10848.503574,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,300,60,1,1,error,10478.400000000001,11316.063471,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,300,60,1,2,error,10798.199999999999,11569.097963,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,450,60,1,0,error,957.5749999999999,1569.768786,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 30 (of length 11) traverses agent 37 (of length 10)'s target location 2658 at timestep 11,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,450,60,1,1,error,913.06,1526.16326,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 30 (of length 9) traverses agent 37 (of length 7)'s target location 2658 at timestep 9,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,450,60,1,2,error,1053.1200000000001,1674.354643,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 37 (of length 35) traverses agent 30 (of length 34)'s target location 2658 at timestep 35,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,450,60,1,0,error,10021.0,10183.257152,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,450,60,1,1,error,10020.0,10237.926519,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,450,60,1,2,error,10064.0,10160.799606,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,300,60,2,0,error,11642.4,12248.581668,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,300,60,2,1,error,11174.2,11597.443513,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,300,60,2,2,error,10771.599999999999,11152.714078,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,200,40,1,0,error,10209.9,10657.83654,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,200,40,1,1,error,10773.199999999999,11030.426297,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,200,40,1,2,timeout_no_result,nan,12026.241955,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,200,40,0,0,timeout_no_result,nan,12027.100195,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,200,40,0,1,error,10186.199999999999,10342.110667,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,200,40,0,2,error,10247.400000000001,10661.974322,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,200,40,2,0,error,10742.800000000001,10918.308101,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,200,40,2,1,error,11586.9,11752.000088,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-1,200,40,2,2,timeout_no_result,nan,12029.084445,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,200,60,0,0,timeout_no_result,nan,12047.445943,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,200,60,0,1,timeout_no_result,nan,12063.278033,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,200,60,0,2,timeout_no_result,nan,12058.268031,21,1,,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,450,60,1,0,error,231.0,323.08991,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,450,60,1,1,error,95.0,145.802784,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,450,60,1,2,error,151.0,196.467961,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,200,60,1,0,timeout_no_result,nan,12063.036111,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,200,60,1,1,timeout_no_result,nan,12058.144138,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,200,60,1,2,timeout_no_result,nan,12042.103119,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,200,60,2,0,timeout_no_result,nan,12051.168331,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,200,60,2,1,timeout_no_result,nan,12055.128355,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,200,60,2,2,timeout_no_result,nan,12036.955251,21,1,,conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,300,60,0,0,error,10062.5,10848.34572,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,300,60,0,1,error,10371.4,10842.37899,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,300,60,0,2,error,11035.4,11310.652756,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,450,60,2,0,error,10578.0,10713.470748,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,450,60,2,1,error,10457.0,10558.983363,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,450,60,2,2,error,10448.0,10562.03026,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,450,60,0,0,error,10530.0,10653.094658,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,450,60,0,1,error,10509.0,10632.147416,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam_official,warehouse-10-20-10-2-2,450,60,0,2,error,10314.0,10408.203137,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,300,60,2,0,timeout_no_result,nan,12049.528453,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,300,60,2,1,error,11042.7,11347.550525,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,300,60,2,2,timeout_no_result,nan,12045.881524,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,300,60,1,0,timeout_no_result,nan,12044.036949,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,300,60,1,1,timeout_no_result,nan,12051.342258,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,300,60,1,2,error,10594.6,11007.835105,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,450,60,0,0,error,866.458,1362.801475,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 187 (of length 3) traverses agent 33 (of length 2)'s target location 12080 at timestep 3,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,450,60,0,1,error,1461.19,1998.986188,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 270 (of length 9) traverses agent 56 (of length 8)'s target location 6454 at timestep 9,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,450,60,0,2,error,3159.64,3645.47014,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 49 (of length 92) traverses agent 174 (of length 54)'s target location 8398 at timestep 72,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,450,60,2,0,error,743.279,1389.215762,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 77 (of length 4) traverses agent 0 (of length 3)'s target location 11727 at timestep 4,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,450,60,2,1,error,770.4530000000001,1318.251726,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 77 (of length 2) traverses agent 0 (of length 1)'s target location 11727 at timestep 2,conflict_aware_v2_5_4
+lns2,warehouse-10-20-10-2-2,450,60,2,2,error,1653.2199999999998,2059.259368,21,1,paths file not produced | rc=255 stderr=Find a target conflict where agent 55 (of length 10) traverses agent 5 (of length 1)'s target location 11737 at timestep 10,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,300,60,0,0,timeout_no_result,nan,12055.030611,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,300,60,0,1,timeout_no_result,nan,12047.699934,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,300,60,0,2,error,10217.1,10612.666912,21,1,"PBS self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before any feasible priority ordering; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,450,60,0,0,error,10049.0,10195.805697,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,450,60,0,1,error,10066.0,10175.06064,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,450,60,0,2,error,10062.0,10120.413129,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,450,60,1,0,error,10607.0,11235.574662,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,450,60,1,1,error,10715.8,11233.857025,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,450,60,1,2,error,10466.1,10894.498672,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,450,60,2,0,error,98.0,145.66968,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,450,60,2,1,error,135.0,179.578553,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,450,60,2,2,error,64.0,97.564347,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,450,60,2,0,error,10015.0,10201.959967,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,450,60,2,1,error,10077.0,10136.46018,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+lacam3,warehouse-10-20-10-2-2,450,60,2,2,error,10067.0,10124.787943,21,1,solver self-reported solved=0 (budget exhaustion: no initial solution within -t),conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,450,60,0,0,error,223.0,325.28315,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,450,60,0,1,error,63.0,95.211915,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pibt2,warehouse-10-20-10-2-2,450,60,0,2,error,50.0,81.728428,21,1,PIBT2 reported solved=0,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,450,60,1,0,error,124.503,9702.360673,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,450,60,1,1,error,147.57500000000002,5814.429188,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,450,60,1,2,error,141.666,5019.296805,21,1,"PBS reported no solution found (CSV solution_cost=-2: priority search exhausted without finding a feasible ordering — incompleteness, not a timeout)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,450,60,0,0,error,10565.6,11002.628595,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,450,60,0,1,error,11230.5,11693.091435,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,450,60,0,2,error,10925.4,11294.703922,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,450,60,2,0,error,11023.9,11476.851679,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,450,60,2,1,error,10746.800000000001,11178.15934,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+cbsh2,warehouse-10-20-10-2-2,450,60,2,2,error,10130.9,10457.614546,21,1,"CBSH2-RTC self-reported Timeout,-1 (CSV solution_cost=-1: -t exhausted before optimal solution; non-anytime solver writes no partial paths)",conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,450,60,0,0,timeout_no_result,nan,12039.412057,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,450,60,0,1,timeout_no_result,nan,12047.79391,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,450,60,0,2,timeout_no_result,nan,12047.773768,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,450,60,2,0,timeout_no_result,nan,12062.857342,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,450,60,2,1,timeout_no_result,nan,12050.138285,21,1,,conflict_aware_v2_5_4
+pbs,warehouse-10-20-10-2-2,450,60,2,2,timeout_no_result,nan,12051.963884,21,1,,conflict_aware_v2_5_4

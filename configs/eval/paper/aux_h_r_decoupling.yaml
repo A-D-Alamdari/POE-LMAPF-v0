@@ -1,0 +1,59 @@
+# Auxiliary experiment — Tier-1 H/R decoupling.
+#
+# Reviewer-3 question (previous round): "why does throughput drop with
+# H?"  Paper §5.2 attributes the trend to the coupling
+# R = floor(H/2) used in the main sweep.  This auxiliary sweep holds
+# R fixed and varies H, so we can isolate the horizon contribution
+# from the replan-cadence contribution.
+#
+# Cartesian: H x R x seeds (warehouse-10-20-10-2-2 only, |M|=50, |X|=50).
+# Cells where R >= H are degenerate (the rolling-horizon planner replans
+# only after the horizon is exhausted, so H plays no role) and are
+# omitted by enumerating each H's valid R grid in its own group.
+#
+#   H = 20: R ∈ {1, 5, 10}              (3 cells)
+#   H = 40: R ∈ {1, 5, 10, 20}          (4 cells)
+#   H = 80: R ∈ {1, 5, 10, 20}          (4 cells)
+#
+# Total: 11 cells × 10 seeds = 110 runs.  This sweep is **not** part
+# of the main paper text; it is staged for response-letter material
+# in the next review round.
+
+name: aux_h_r_decoupling
+description: "Auxiliary — H vs. R decoupling on warehouse-10-20-10-2-2"
+
+base:
+  steps: 2000
+  num_agents: 50
+  num_humans: 50
+  fov_radius: 4
+  safety_radius: 1
+  global_solver: lacam_official
+  solver_timeout_s: 10.0
+  hard_safety: true
+  communication_mode: priority
+  local_planner: astar
+  human_model: random_walk
+  mode: lifelong
+  task_allocator: congestion_avoidance
+  map_path: data/maps/warehouse-10-20-10-2-2.map
+  map_to_human_model:
+    warehouse-10-20-10-2-2: aisle
+
+groups:
+  # H = 20 — drop R = 20 (degenerate: R >= H).
+  - sweep:
+      horizon: [20]
+      replan_every: [1, 5, 10]
+
+  # H = 40 — every R value is valid (R <= H/2 always).
+  - sweep:
+      horizon: [40]
+      replan_every: [1, 5, 10, 20]
+
+  # H = 80 — every R value is valid.
+  - sweep:
+      horizon: [80]
+      replan_every: [1, 5, 10, 20]
+
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

@@ -1,0 +1,24 @@
+# Experiment: Aisle-Following Human Motion Model
+# Evaluates the system when humans follow structured aisle paths rather
+# than walking randomly. The alpha parameter controls aisle-following
+# strength and beta controls turning reluctance.
+
+map_path: "data/maps/warehouse-10-20-10-2-1.map"
+seed: 0
+steps: 2000
+num_agents: 20
+num_humans: 5
+fov_radius: 4
+safety_radius: 1
+global_solver: "lacam"
+replan_every: 25
+horizon: 50
+communication_mode: "token"
+local_planner: "astar"
+human_model: "aisle"
+human_model_params:
+  alpha: 1.0
+  beta: 1.5
+hard_safety: true
+mode: "lifelong"
+task_allocator: "congestion_avoidance"

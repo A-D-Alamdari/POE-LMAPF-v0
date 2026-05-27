@@ -1,0 +1,5 @@
+task_allocator,num_agents,thpt_mean,thpt_std,thpt_ci95,agent_attr_max,exo_attr_mean,completed_mean,safe_wait_mean,wall_s_mean
+auction,50,0.3743,0.0092,0.0057,0,1584.1,748.6,792.3,378.8227
+congestion_avoidance,50,0.3748,0.0088,0.0054,0,2572.4,749.5,747.2,327.6425
+greedy,50,0.3748,0.0089,0.0055,0,2621.9,749.5,702.1,236.613
+hungarian,50,0.375,0.0088,0.0055,0,2596.4,749.9,695.5,244.0844

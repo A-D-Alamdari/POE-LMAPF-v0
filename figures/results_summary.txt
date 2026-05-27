@@ -1,0 +1,19 @@
+======================================================================
+HA-LMAPF Evaluation Results Summary
+======================================================================
+
+
+──────────────────────────────────────────────────
+Group: baselines
+──────────────────────────────────────────────────
+  warehouse_baselines | global_only              tput=0.0338±0.0097  flow=54.1±7.7  sv=277±38  plan=266.4ms  p95=383.4ms  dec=21.41ms
+  warehouse_baselines | ignore_humans            tput=0.1816±0.0218  flow=219.1±46.0  sv=319±31  plan=160.5ms  p95=284.1ms  dec=34.69ms
+  warehouse_baselines | ours                     tput=0.1840±0.0094  flow=210.5±20.2  sv=81±11  plan=142.7ms  p95=255.0ms  dec=31.44ms
+  warehouse_baselines | pibt_only                tput=0.0016±0.0010  flow=23.7±13.5  sv=205±47  plan=21.7ms  p95=25.2ms  dec=1.50ms
+  warehouse_baselines | rhcr                     tput=0.0340±0.0087  flow=41.5±5.7  sv=303±94  plan=331.0ms  p95=433.9ms  dec=83.18ms
+  warehouse_baselines | whca_star                tput=0.1880±0.0062  flow=232.8±12.2  sv=528±345  plan=31.1ms  p95=48.4ms  dec=1.90ms
+
+──────────────────────────────────────────────────
+Group: scalability
+──────────────────────────────────────────────────
+  scale_agents_10 | ours                         tput=0.0015±0.0005  flow=266.8±88.8  sv=2±2  plan=2973.4ms  p95=3480.6ms  dec=142.13ms

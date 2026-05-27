@@ -1,0 +1,29 @@
+# Map and tasks
+map_path: data/maps/warehouse_large.map
+task_stream_path: null  # auto-generate tasks if null
+
+# Simulation length
+steps: 5000
+
+# Agents and humans
+num_agents: 50
+num_humans: 5
+
+# Perception and safety
+fov_radius: 5
+safety_radius: 1
+
+# Global planning (Tier 1)
+global_solver: "lacam"      # "cbs" or "lacam"
+replan_every: 50
+horizon: 80
+
+# Local execution (Tier 2)
+comms_mode: "priority"      # "token" or "priority"
+local_planner: "astar"
+
+# Human behavior model
+human_model: "aisle"        # "random_walk" or "aisle"
+
+# Random seed (overridden by run_experiments.py)
+seed: 1

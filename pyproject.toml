@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ha_lmapf"
+version = "0.2.0"
+description = "Human-Aware Lifelong Multi-Agent Path Finding under Partial Observability (HA-LMAPF)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Anonymous" }
+]
+
+dependencies = [
+    "numpy>=1.23",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+gui = [
+    "pygame>=2.5",
+]
+plots = [
+    "matplotlib>=3.7",
+]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+halmapf-make-tasks = "scripts.make_task_streams:main"
+halmapf-run-exp = "scripts.run_experiments:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra -vv --tb=short --color=yes"

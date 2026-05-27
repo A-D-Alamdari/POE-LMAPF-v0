@@ -1,0 +1,35 @@
+# Sweep: Component ablation study
+# Tests contribution of each system component
+# Each condition disables one tier/feature in isolation.
+# "full_system" is the control; all others differ by exactly one flag.
+
+sweep_param: ablation
+sweep_values:
+  - name: "full_system"
+    disable_local_replan: false
+    disable_conflict_resolution: false
+    disable_safety: false
+  - name: "no_local_replan"
+    disable_local_replan: true
+    disable_conflict_resolution: false
+    disable_safety: false
+  - name: "no_conflict_resolution"
+    disable_local_replan: false
+    disable_conflict_resolution: true
+    disable_safety: false
+  - name: "global_only"
+    disable_local_replan: true
+    disable_conflict_resolution: true
+    disable_safety: false
+  - name: "no_safety"
+    disable_local_replan: false
+    disable_conflict_resolution: false
+    disable_safety: true
+  - name: "soft_safety"
+    disable_local_replan: false
+    disable_conflict_resolution: false
+    disable_safety: false
+    hard_safety: false
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

@@ -1,0 +1,55 @@
+# Paper Section 5.4 part 1 — scaling in number of controlled agents |M|.
+#
+# Three asymmetric groups, one per map.  Each group sweeps
+# |solver| x |M|-grid x |seeds|; |X| is fixed per map.
+#
+#   random-64-64-10        : |X| = 20,  |M| in {10..90 step 10}      ->  9 |M| values
+#   warehouse-10-20-10-2-1 : |X| = 40,  |M| in {50..400 step 50}     ->  8 |M| values
+#   warehouse-10-20-10-2-2 : |X| = 60,  |M| in {50..450 step 50}     ->  9 |M| values
+#
+# 4 solvers x (9 + 8 + 9) |M| values x 10 seeds = 1040 runs.
+
+name: scaling_agents
+description: "Section 5.4 — scaling sweep over controlled-agent count |M|"
+
+base:
+  steps: 2000
+  fov_radius: 4
+  safety_radius: 1
+  horizon: 20
+  replan_every: 10
+  solver_timeout_s: 10.0
+  hard_safety: true
+  communication_mode: priority
+  local_planner: astar
+  human_model: random_walk
+  mode: lifelong
+  task_allocator: congestion_avoidance
+  map_to_human_model:
+    random-64-64-10: random_walk
+    warehouse-10-20-10-2-1: aisle
+    warehouse-10-20-10-2-2: aisle
+
+groups:
+  # Group A — open random map, 20 exogenous agents.
+  - sweep:
+      global_solver: [lacam_official, lacam3, lns2, pibt2]
+      map_path: [data/maps/random-64-64-10.map]
+      num_humans: [20]
+      num_agents: [10, 20, 30, 40, 50, 60, 70, 80, 90]
+
+  # Group B — small warehouse, 40 exogenous agents.
+  - sweep:
+      global_solver: [lacam_official, lacam3, lns2, pibt2]
+      map_path: [data/maps/warehouse-10-20-10-2-1.map]
+      num_humans: [40]
+      num_agents: [50, 100, 150, 200, 250, 300, 350, 400]
+
+  # Group C — large warehouse, 60 exogenous agents.
+  - sweep:
+      global_solver: [lacam_official, lacam3, lns2, pibt2]
+      map_path: [data/maps/warehouse-10-20-10-2-2.map]
+      num_humans: [60]
+      num_agents: [50, 100, 150, 200, 250, 300, 350, 400, 450]
+
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

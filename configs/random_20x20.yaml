@@ -1,0 +1,29 @@
+map_path: "data/random_map/random_20x20.map"
+# task_stream_path: "data/task_streams/random_task.json"
+
+steps: 500
+seed: 42
+
+# 5 Agents is reasonable for a 20x20 map with obstacles
+num_agents: 5
+num_humans: 2
+
+fov_radius: 5
+safety_radius: 1
+human_model: "random_walk"
+
+#global_solver: "lacam"
+#global_solver: "lacam3"
+#global_solver: "cbsh2"
+#global_solver: "rhcr" # NOT USE THIS
+#global_solver: "rt_lacam"
+#global_solver: "lns2"
+#global_solver: "eecbs"
+global_solver: "pbs"
+#global_solver: "pibt"
+
+horizon: 20
+replan_every: 10
+
+local_planner: "astar"
+communication_mode: "token"

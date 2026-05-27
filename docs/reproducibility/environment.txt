@@ -1,0 +1,35 @@
+# POE-LMAPF reproducibility environment lock
+# generated: 2026-05-17T07:43:30.348254Z
+
+git_commit:        f119f58ee368b5b097e32d56f18a5dcf7ea102d3
+git_clean:         False
+python_version:    3.10.20
+python_executable: /home/iisl/Desktop/github/EUMAS-POE-LMAPF-test/.venv/bin/python
+platform:          Linux-6.17.0-23-generic-x86_64-with-glibc2.39
+machine:           x86_64
+processor:         x86_64
+
+# pip freeze
+
+cbs-mapf==0.5
+contourpy==1.3.2
+cycler==0.12.1
+fonttools==4.62.1
+-e git+ssh://git@github.com/A-D-Alamdari/EUMAS-POE-LMAPF-test.git@f119f58ee368b5b097e32d56f18a5dcf7ea102d3#egg=ha_lmapf
+kiwisolver==1.5.0
+matplotlib==3.10.9
+numpy==2.2.6
+packaging==26.2
+pandas==2.3.3
+patsy==1.0.2
+pillow==12.2.0
+pygame==2.6.1
+pyparsing==3.3.2
+python-dateutil==2.9.0.post0
+pytz==2026.2
+PyYAML==6.0.3
+scipy==1.15.3
+six==1.17.0
+space-time-astar==0.8
+statsmodels==0.14.6
+tzdata==2026.2

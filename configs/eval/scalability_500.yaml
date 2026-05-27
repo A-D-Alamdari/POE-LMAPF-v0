@@ -1,0 +1,22 @@
+# Experiment: Scalability Sweep - 500 Agents
+# Part of the agent-count scalability study. Pushes the system to 500 agents
+# on a large warehouse map with extended planning horizon and replanning
+# interval to accommodate the increased computational load.
+
+map_path: "data/maps/warehouse-20-40-10-2-1.map"
+seed: 0
+steps: 1000
+num_agents: 500
+num_humans: 5
+fov_radius: 4
+safety_radius: 1
+global_solver: "lacam"
+replan_every: 50
+horizon: 80
+communication_mode: "token"
+local_planner: "astar"
+human_model: "random_walk"
+human_model_params: {}
+hard_safety: true
+mode: "lifelong"
+task_allocator: "congestion_avoidance"

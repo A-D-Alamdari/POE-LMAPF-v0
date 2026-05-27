@@ -1,0 +1,75 @@
+# =============================================================================
+# Paper Section 5.1 default configuration (POE-LMAPF revision)
+# =============================================================================
+#
+# This file documents the canonical default values used in paper
+# Section 5.1 and matches the post-revision SimConfig defaults in
+# src/ha_lmapf/core/types.py.  Use it as a base for individual experiment
+# configs when you want only to override specific fields.
+#
+# Defaults updated in this revision (vs. the SoCS2026 codebase):
+#   * steps                : 1000  -> 2000
+#   * horizon              :   50  ->   20
+#   * replan_every         :   25  ->   10
+#   * global_solver        : "cbs" -> "lacam_official"   (LaCAM)
+#   * communication_mode   : "token" -> "priority"
+#   * solver_timeout_s     : NEW, 10.0 s per planner call (was 5.0, then 3.0 in earlier revisions)
+#   * eta_w                : NEW, 0.20 (Section 4.4 trigger)
+#   * replan_min_gap       : NEW, 3
+#   * map_to_human_model   : NEW, paper Section 5.1 mapping
+#                            (random-* -> random_walk, warehouse-* -> aisle)
+#
+# Rationale for the "lacam_official" string: the global planner
+# factory (src/ha_lmapf/global_tier/planner_interface.py) registers the
+# LaCAM (Kei18/lacam, Okumura 2023 AAAI) C++ wrapper under the name
+# "lacam_official" (alias "lacam_cpp").  The unqualified name "lacam"
+# is also accepted and resolves to the same wrapper, but the explicit
+# form is preferred in configs for unambiguous reproducibility.  The
+# anytime variant LaCAM* (Okumura 2024, Kei18/lacam3) is available
+# under the separate name "lacam3".
+# =============================================================================
+
+map_path: "data/maps/warehouse-10-20-10-2-1.map"
+seed: 0
+
+# Lifelong run length (paper Section 5.1).
+steps: 2000
+
+# Fleet
+num_agents: 20
+num_humans: 5
+
+# Perception and safety
+fov_radius: 4
+safety_radius: 1
+hard_safety: true
+
+# Tier-1 (global planner)
+global_solver: "lacam_official"   # LaCAM  (see header rationale)
+replan_every: 10
+horizon: 20
+solver_timeout_s: 10.0
+
+# Tier-1 emergency replan trigger (paper Section 4.4)
+eta_w: 0.20
+replan_min_gap: 3
+
+# Tier-2 (local execution)
+communication_mode: "priority"
+local_planner: "astar"
+
+# Exogenous-agent (human) motion model.  Per-map override below picks
+# random-walk on open random maps and aisle-following in narrow
+# warehouse aisles, per paper Section 5.1.
+human_model: "random_walk"
+map_to_human_model:
+  random-64-64-10:        "random_walk"
+  random-32-32-20:        "random_walk"
+  warehouse-10-20-10-2-1: "aisle"
+  warehouse-10-20-10-2-2: "aisle"
+
+# Lifelong task generation
+mode: "lifelong"
+task_allocator: "congestion_avoidance"
+task_mode: "poisson"
+task_arrival_percentage: 0.9

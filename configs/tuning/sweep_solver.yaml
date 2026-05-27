@@ -1,0 +1,14 @@
+# Sweep: global_solver
+# Compares different MAPF solver algorithms
+
+sweep_param: global_solver
+sweep_values: ["cbs", "lacam"]
+# cbs = conflict-based search (optimal, slower; recommended for <=15 agents)
+# lacam = approximate, faster (recommended for larger fleets)
+# lacam3 and pibt2 require the C++ build — add when available.
+
+# Note: CBS becomes slow with many agents
+# Recommendation: Use num_agents <= 15 for CBS experiments
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

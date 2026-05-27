@@ -1,0 +1,15 @@
+# Sweep: num_agents
+# Tests scalability with increasing robot fleet size
+
+sweep_param: num_agents
+sweep_values: [5, 10, 15, 20, 30, 40, 50, 75, 100, 150]
+# Upper bound 150 shows where throughput saturates / MAPF planning time becomes
+# a bottleneck — important for scalability claims.
+# LaCAM is forced because CBS does not scale past ~30 agents.
+
+# Use LaCAM for scalability (CBS too slow at high agent counts)
+overrides:
+  global_solver: "lacam"
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

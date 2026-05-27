@@ -1,0 +1,24 @@
+# Experiment: Adversarial Human Motion Model
+# Stress-tests the safety layer by using adversarial human behaviour that
+# actively moves toward agents. The gamma parameter scales adversarial
+# intensity and lambda controls the stochastic perturbation.
+
+map_path: "data/maps/warehouse-10-20-10-2-1.map"
+seed: 0
+steps: 2000
+num_agents: 20
+num_humans: 5
+fov_radius: 4
+safety_radius: 1
+global_solver: "lacam"
+replan_every: 25
+horizon: 50
+communication_mode: "token"
+local_planner: "astar"
+human_model: "adversarial"
+human_model_params:
+  gamma: 2.0
+  lambda: 0.5
+hard_safety: true
+mode: "lifelong"
+task_allocator: "congestion_avoidance"

@@ -1,0 +1,8 @@
+# Sweep: task_allocator
+# Compares different task allocation strategies
+
+sweep_param: task_allocator
+sweep_values: ["greedy", "hungarian", "auction", "congestion_avoidance"]
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

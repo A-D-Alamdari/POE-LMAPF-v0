@@ -1,0 +1,40 @@
+# Paper Section 5.3 — FoV / safety-radius sweep.
+#
+# Cartesian: r_fov x r_safe x map  (400 runs)
+#   |r_fov| x |r_safe| x |maps| x |seeds|
+#      5    x    4    x    2    x    10  = 400
+#
+# Fixed: |M| = 50 controlled agents, |X| = 50 exogenous agents,
+# LaCAM* solver, 2000 steps.
+
+name: fov_safety
+description: "Section 5.3 — FoV radius x safety radius sweep"
+
+base:
+  steps: 2000
+  num_agents: 50
+  num_humans: 50
+  global_solver: lacam_official
+  horizon: 20
+  replan_every: 10
+  solver_timeout_s: 10.0
+  hard_safety: true
+  communication_mode: priority
+  local_planner: astar
+  human_model: random_walk
+  mode: lifelong
+  task_allocator: congestion_avoidance
+  map_to_human_model:
+    random-64-64-10: random_walk
+    warehouse-10-20-10-2-1: aisle
+    warehouse-10-20-10-2-2: aisle
+
+groups:
+  - sweep:
+      fov_radius: [2, 3, 4, 5, 6]
+      safety_radius: [0, 1, 2, 3]
+      map_path:
+        - data/maps/random-64-64-10.map
+        - data/maps/warehouse-10-20-10-2-2.map
+
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

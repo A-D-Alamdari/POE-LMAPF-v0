@@ -1,0 +1,33 @@
+# Experiment: Mixed Human Motion Model
+# Simulates a realistic population where different humans exhibit
+# different movement behaviours. The weights array controls the
+# proportion of each sub-model in the population.
+
+map_path: "data/maps/warehouse-10-20-10-2-1.map"
+seed: 0
+steps: 2000
+num_agents: 20
+num_humans: 5
+fov_radius: 4
+safety_radius: 1
+global_solver: "lacam"
+replan_every: 25
+horizon: 50
+communication_mode: "token"
+local_planner: "astar"
+human_model: "mixed"
+human_model_params:
+  weights:
+    random_walk: 0.5
+    aisle: 0.5
+  sub_params:
+    random_walk:
+      beta_go: 2.0
+      beta_wait: -1.0
+      beta_turn: 0.0
+    aisle:
+      alpha: 1.0
+      beta: 1.5
+hard_safety: true
+mode: "lifelong"
+task_allocator: "congestion_avoidance"

@@ -1,0 +1,7 @@
+pygame>=2.0
+numpy>=1.20
+pyyaml>=6.0
+cbs-mapf>=0.4
+matplotlib
+scipy
+statsmodels

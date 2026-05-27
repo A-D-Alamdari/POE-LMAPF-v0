@@ -1,0 +1,10 @@
+# Sweep: human_model
+# Compares performance under different human behavior models
+
+sweep_param: human_model
+sweep_values: ["random_walk", "aisle", "mixed"]
+# "mixed" uses a weighted combination of models to simulate realistic
+# heterogeneous human populations.
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

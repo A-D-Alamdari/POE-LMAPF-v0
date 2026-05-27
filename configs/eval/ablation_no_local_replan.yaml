@@ -1,0 +1,24 @@
+# Experiment: Ablation - No Local Replanning (Baseline Controller)
+# Uses the baseline controller without local replanning to isolate the
+# contribution of the local safety-aware replanner. Agents follow the
+# global plan directly without reactive adjustments when humans appear.
+# NOTE: This config serves as a marker for the experiment runner to
+# select the baseline controller instead of the local replanner.
+
+map_path: "data/maps/warehouse-10-20-10-2-1.map"
+seed: 0
+steps: 2000
+num_agents: 20
+num_humans: 5
+fov_radius: 4
+safety_radius: 1
+global_solver: "lacam"
+replan_every: 25
+horizon: 50
+communication_mode: "token"
+local_planner: "none"
+human_model: "random_walk"
+human_model_params: {}
+hard_safety: true
+mode: "lifelong"
+task_allocator: "congestion_avoidance"

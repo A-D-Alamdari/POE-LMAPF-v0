@@ -1,0 +1,36 @@
+# Experiment: Solver Comparison - PIBT2 (Official C++)
+# Evaluates the official PIBT2 C++ executable as the global solver.
+# PIBT2 (Priority Inheritance with Backtracking) is optimized for
+# real-time planning and lifelong MAPF scenarios.
+#
+# PIBT2 builds two executables:
+#   - mapf: For one-shot/classical MAPF problems
+#   - mapd: For lifelong MAPF / Multi-Agent Pickup and Delivery
+#
+# The wrapper auto-selects based on experiment mode:
+#   - mode: "lifelong" -> uses mapd_pibt2 binary
+#   - mode: "one_shot" -> uses mapf_pibt2 binary
+#
+# IMPORTANT: Requires PIBT2 binaries to be built and installed:
+#   1. git clone --recursive https://github.com/Kei18/pibt2.git
+#   2. cd pibt2 && mkdir build && cd build && cmake .. && make
+#   3. cp build/mapf src/ha_lmapf/global_tier/solvers/mapf_pibt2
+#   4. cp build/mapd src/ha_lmapf/global_tier/solvers/mapd_pibt2
+
+map_path: "data/maps/warehouse-10-20-10-2-1.map"
+seed: 0
+steps: 2000
+num_agents: 100
+num_humans: 15
+fov_radius: 4
+safety_radius: 1
+global_solver: "pibt2"
+replan_every: 25
+horizon: 60
+communication_mode: "token"
+local_planner: "astar"
+human_model: "random_walk"
+human_model_params: {}
+hard_safety: true
+mode: "lifelong"
+task_allocator: "congestion_avoidance"

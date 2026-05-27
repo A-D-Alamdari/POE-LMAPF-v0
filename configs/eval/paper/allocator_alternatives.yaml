@@ -1,0 +1,66 @@
+# Paper Section 5.6 — Task-allocator comparison.
+#
+# Holds the global solver and every other configuration axis fixed,
+# varying only the task_allocator and (map, |M|) to isolate the
+# allocator's effect on throughput, attributable violations, wait
+# fraction, and per-replan planning time.
+#
+# Two map groups per paper §5.6:
+#
+#   (a) warehouse-10-20-10-2-2 : |X| =  60, |M| in {50, 100, 150, 200}
+#   (b) random-64-64-10        : |X| =  20, |M| = 50
+#
+# 4 allocators x (4 + 1) cells x 10 seeds = 200 runs.
+
+name: allocator_alternatives
+description: "Section 5.6 — task-allocator comparison (greedy / hungarian / auction / congestion_avoidance)"
+
+base:
+  steps: 2000                     # paper §5.6 run length
+  fov_radius: 4
+  safety_radius: 1
+  global_solver: lacam_official   # §5.1 default; fixed for §5.6
+  horizon: 20
+  replan_every: 10
+  solver_timeout_s: 10.0
+  hard_safety: true
+  communication_mode: priority
+  local_planner: astar
+  human_model: random_walk
+  mode: lifelong
+  lambda_conflict: 0.5            # Congestion-Avoidance default
+  max_rounds: 5                   # Congestion-Avoidance default
+  map_to_human_model:
+    random-64-64-10: random_walk
+    warehouse-10-20-10-2-1: aisle
+    warehouse-10-20-10-2-2: aisle
+
+groups:
+  # Group (a) — warehouse, |X|=60, |M| sweep.
+  - sweep:
+      task_allocator: [greedy, hungarian, auction, congestion_avoidance]
+      map_path:       [data/maps/warehouse-10-20-10-2-2.map]
+      num_humans:     [60]
+      num_agents:     [50, 100, 150, 200]
+
+  # Group (b) — random, |X|=20, |M|=50.
+  - sweep:
+      task_allocator: [greedy, hungarian, auction, congestion_avoidance]
+      map_path:       [data/maps/random-64-64-10.map]
+      num_humans:     [20]
+      num_agents:     [50]
+
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+# Auto-invoke statistical_analysis.py at the end of the sweep.
+# Pairs each non-reference allocator against ``greedy`` across seeds
+# within each (map, num_agents) cell.
+reference_condition: greedy
+reference_field:     task_allocator
+statistical_groupby: task_allocator,map_path,num_agents
+statistical_metrics:
+  - throughput
+  - violations_agent_attributable
+  - violations_exogenous_attributable
+  - wait_fraction
+  - mean_planning_time_ms

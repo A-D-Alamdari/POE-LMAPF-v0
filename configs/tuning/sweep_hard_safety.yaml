@@ -1,0 +1,8 @@
+# Sweep: hard_safety
+# Compares hard safety constraints vs soft safety penalties
+
+sweep_param: hard_safety
+sweep_values: [true, false]
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

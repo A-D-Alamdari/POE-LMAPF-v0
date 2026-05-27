@@ -1,0 +1,84 @@
+Deleting pre-activation logs/calibration/raw_measurements_v2_5_5.csv
+=== Calibration cohort: calibration_v2_5_5 ===
+Started:        2026-05-13T11:15:12Z
+Git commit:     c56f0fcd0ec7968d24253db17336970952445023
+Active alloc:   conflict_aware
+Workers:        32
+CSV:            logs/calibration/raw_measurements_v2_5_5.csv
+Expected rows:  972
+===
+2026-05-13 14:15:12,488 INFO calibrate calibration grid: 324 cells × 3 replans/cell = 972 invocations (time_limit=10.0s each)
+2026-05-13 14:15:12,488 INFO calibrate num_humans per map: {'random-64-64-10': 20, 'warehouse-10-20-10-2-2': 100}
+2026-05-13 14:15:12,492 INFO calibrate running with 32 workers
+2026-05-13 14:15:13,451 INFO calibrate progress: 5/324 cells (1.5%, elapsed 1.0s)
+2026-05-13 14:15:14,318 INFO calibrate progress: 10/324 cells (3.1%, elapsed 1.8s)
+2026-05-13 14:15:16,506 INFO calibrate progress: 15/324 cells (4.6%, elapsed 4.0s)
+2026-05-13 14:15:23,624 INFO calibrate progress: 20/324 cells (6.2%, elapsed 11.1s)
+2026-05-13 14:15:42,173 INFO calibrate progress: 25/324 cells (7.7%, elapsed 29.7s)
+2026-05-13 14:16:27,615 INFO calibrate progress: 30/324 cells (9.3%, elapsed 75.1s)
+2026-05-13 14:16:29,248 INFO calibrate progress: 35/324 cells (10.8%, elapsed 76.8s)
+2026-05-13 14:16:33,385 INFO calibrate progress: 40/324 cells (12.3%, elapsed 80.9s)
+2026-05-13 14:16:44,706 INFO calibrate progress: 45/324 cells (13.9%, elapsed 92.2s)
+2026-05-13 14:17:16,786 INFO calibrate progress: 50/324 cells (15.4%, elapsed 124.3s)
+2026-05-13 14:17:30,354 INFO calibrate progress: 55/324 cells (17.0%, elapsed 137.9s)
+2026-05-13 14:17:37,777 INFO calibrate progress: 60/324 cells (18.5%, elapsed 145.3s)
+2026-05-13 14:17:54,830 INFO calibrate progress: 65/324 cells (20.1%, elapsed 162.3s)
+2026-05-13 14:18:20,789 INFO calibrate progress: 70/324 cells (21.6%, elapsed 188.3s)
+2026-05-13 14:18:41,719 INFO calibrate progress: 75/324 cells (23.1%, elapsed 209.2s)
+2026-05-13 14:18:56,239 INFO calibrate progress: 80/324 cells (24.7%, elapsed 223.8s)
+2026-05-13 14:18:59,113 INFO calibrate progress: 85/324 cells (26.2%, elapsed 226.6s)
+2026-05-13 14:19:01,227 INFO calibrate progress: 90/324 cells (27.8%, elapsed 228.7s)
+2026-05-13 14:19:04,114 INFO calibrate progress: 95/324 cells (29.3%, elapsed 231.6s)
+2026-05-13 14:19:09,380 INFO calibrate progress: 100/324 cells (30.9%, elapsed 236.9s)
+2026-05-13 14:19:15,703 INFO calibrate progress: 105/324 cells (32.4%, elapsed 243.2s)
+2026-05-13 14:19:20,122 INFO calibrate progress: 110/324 cells (34.0%, elapsed 247.6s)
+2026-05-13 14:19:29,835 INFO calibrate progress: 115/324 cells (35.5%, elapsed 257.3s)
+2026-05-13 14:19:47,061 INFO calibrate progress: 120/324 cells (37.0%, elapsed 274.6s)
+2026-05-13 14:20:31,672 INFO calibrate progress: 125/324 cells (38.6%, elapsed 319.2s)
+2026-05-13 14:20:45,425 INFO calibrate progress: 130/324 cells (40.1%, elapsed 332.9s)
+2026-05-13 14:20:51,670 INFO calibrate progress: 135/324 cells (41.7%, elapsed 339.2s)
+2026-05-13 14:20:55,110 INFO calibrate progress: 140/324 cells (43.2%, elapsed 342.6s)
+2026-05-13 14:21:00,430 INFO calibrate progress: 145/324 cells (44.8%, elapsed 347.9s)
+2026-05-13 14:21:03,863 INFO calibrate progress: 150/324 cells (46.3%, elapsed 351.4s)
+2026-05-13 14:21:07,826 INFO calibrate progress: 155/324 cells (47.8%, elapsed 355.3s)
+2026-05-13 14:21:15,443 INFO calibrate progress: 160/324 cells (49.4%, elapsed 363.0s)
+2026-05-13 14:21:26,983 INFO calibrate progress: 165/324 cells (50.9%, elapsed 374.5s)
+2026-05-13 14:21:50,712 INFO calibrate progress: 170/324 cells (52.5%, elapsed 398.2s)
+2026-05-13 14:22:11,909 INFO calibrate progress: 175/324 cells (54.0%, elapsed 419.4s)
+2026-05-13 14:22:47,566 INFO calibrate progress: 180/324 cells (55.6%, elapsed 455.1s)
+2026-05-13 14:23:33,519 INFO calibrate progress: 185/324 cells (57.1%, elapsed 501.0s)
+2026-05-13 14:23:36,370 INFO calibrate progress: 190/324 cells (58.6%, elapsed 503.9s)
+2026-05-13 14:23:43,511 INFO calibrate progress: 195/324 cells (60.2%, elapsed 511.0s)
+2026-05-13 14:23:53,217 INFO calibrate progress: 200/324 cells (61.7%, elapsed 520.7s)
+2026-05-13 14:24:39,092 INFO calibrate progress: 205/324 cells (63.3%, elapsed 566.6s)
+2026-05-13 14:24:43,399 INFO calibrate progress: 210/324 cells (64.8%, elapsed 570.9s)
+2026-05-13 14:24:51,670 INFO calibrate progress: 215/324 cells (66.4%, elapsed 579.2s)
+2026-05-13 14:25:02,633 INFO calibrate progress: 220/324 cells (67.9%, elapsed 590.1s)
+2026-05-13 14:25:09,473 INFO calibrate progress: 225/324 cells (69.4%, elapsed 597.0s)
+2026-05-13 14:25:46,131 INFO calibrate progress: 230/324 cells (71.0%, elapsed 633.6s)
+2026-05-13 14:25:56,521 INFO calibrate progress: 235/324 cells (72.5%, elapsed 644.0s)
+2026-05-13 14:26:45,014 INFO calibrate progress: 240/324 cells (74.1%, elapsed 692.5s)
+2026-05-13 14:26:48,611 INFO calibrate progress: 245/324 cells (75.6%, elapsed 696.1s)
+2026-05-13 14:26:51,638 INFO calibrate progress: 250/324 cells (77.2%, elapsed 699.2s)
+2026-05-13 14:26:58,741 INFO calibrate progress: 255/324 cells (78.7%, elapsed 706.3s)
+2026-05-13 14:27:06,546 INFO calibrate progress: 260/324 cells (80.2%, elapsed 714.1s)
+2026-05-13 14:27:16,182 INFO calibrate progress: 265/324 cells (81.8%, elapsed 723.7s)
+2026-05-13 14:27:21,833 INFO calibrate progress: 270/324 cells (83.3%, elapsed 729.3s)
+2026-05-13 14:27:28,396 INFO calibrate progress: 275/324 cells (84.9%, elapsed 735.9s)
+2026-05-13 14:27:43,326 INFO calibrate progress: 280/324 cells (86.4%, elapsed 750.8s)
+2026-05-13 14:28:09,408 INFO calibrate progress: 285/324 cells (88.0%, elapsed 776.9s)
+2026-05-13 14:29:04,241 INFO calibrate progress: 290/324 cells (89.5%, elapsed 831.8s)
+2026-05-13 14:29:38,157 INFO calibrate progress: 295/324 cells (91.0%, elapsed 865.7s)
+2026-05-13 14:30:09,134 INFO calibrate progress: 300/324 cells (92.6%, elapsed 896.6s)
+2026-05-13 14:31:11,752 INFO calibrate progress: 305/324 cells (94.1%, elapsed 959.3s)
+2026-05-13 14:31:40,421 INFO calibrate progress: 310/324 cells (95.7%, elapsed 987.9s)
+2026-05-13 14:32:48,397 INFO calibrate progress: 315/324 cells (97.2%, elapsed 1055.9s)
+2026-05-13 14:33:53,358 INFO calibrate progress: 320/324 cells (98.8%, elapsed 1120.9s)
+2026-05-13 14:35:36,185 INFO calibrate progress: 324/324 cells (100.0%, elapsed 1223.7s)
+2026-05-13 14:35:36,427 INFO calibrate calibration done: 324/324 cells succeeded (0 failed), 1223.9s wall
+2026-05-13 14:35:36,427 INFO calibrate rows written to logs/calibration/raw_measurements_v2_5_5.csv
+===
+Finished:    2026-05-13T11:35:36Z
+Exit code:   0
+Final rows:  973 / 973 expected
+DONE: calibration_v2_5_5

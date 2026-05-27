@@ -1,0 +1,29 @@
+# One-shot classical MAPF experiment
+# Each agent gets one goal at step 0. No pickup-delivery, no rolling horizon.
+# Simulation ends when all agents reach their goals or max steps.
+mode: "one_shot"
+
+map_path: "data/maps/random-32-32-20.map"
+
+steps: 500
+num_agents: 10
+num_humans: 0
+
+# Perception and safety
+fov_radius: 5
+safety_radius: 1
+
+# Global planning (one-shot: plans once, never replans)
+global_solver: "cbs"
+horizon: 200
+
+# Local execution (Tier 2)
+communication_mode: "token"
+local_planner: "astar"
+task_allocator: "congestion_avoidance"
+
+# Human behavior model (no humans in classical MAPF baseline)
+human_model: "random_walk"
+hard_safety: true
+
+seed: 42

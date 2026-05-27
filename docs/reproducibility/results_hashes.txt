@@ -1,0 +1,14 @@
+# Per-sweep results.csv SHA-256
+# generated: 2026-05-17T07:43:30.523817Z
+# format:    sha256  relpath
+
+e7b2e949fc8238f1905aaa3b9b159e9fcd8afc3b6776e7d3bd46b7687fef46b4  logs/paper/allocator_alternatives/results.csv
+2285973ebad5c44bf0265071e5fda55f0b999f79759ea06568b2658d1c672e7f  logs/paper/aux_h_r_decoupling/results.csv
+dcae5862499cbc75f45e20e9a6cc9c7307a2cc05ecde71c95814fac513805426  logs/paper/baseline_comparison/results.csv
+2f9dac4f1d8ef59260e0410e1edd9a03306fc56847f5113cae1de5829fdf8400  logs/paper/budget_sensitivity/results.csv
+1a988acc936d0159e03f58a24a556987971ddb8bc0401767467d0ac1b69a8b97  logs/paper/fov_safety/results.csv
+8055382ce574d53d3ff64fd810cfe5407b262cad4e2be2ee49022bf3ecd6ba9b  logs/paper/scaling_agents/results.csv
+f9a8de42946519285fe0a9cdc448dff239618141bab7eedd982787eff94bbff9  logs/paper/scaling_exogenous/results.csv
+c246d7c3ae2f2345565a51ea548eb1aaa49b76b992b5228526a7e26c1e6920c9  logs/paper/solver_sensitivity/results.csv
+9e783c04b61b38538eba8c6134d5ac95911c5438d457a96b27540dfc2290cd52  logs/paper/token_passing_ablation/results.csv
+76938ffc9fb4561870369c582ba181e1dd4ab6109e274cd05e77294d8ce89952  logs/tuning/horizon/2026-05-11_17-01-13/results.csv

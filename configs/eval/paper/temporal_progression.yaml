@@ -1,0 +1,43 @@
+# Paper Section 5.8 — Temporal progression of safety violations.
+#
+# Logs per-tick agent-attributable and exogenous-attributable
+# violation counts to sidecar JSONs at
+# ``<out>/timelines/<run_id>.json`` (see ``log_violations_timeline``
+# knob below).  The figure plots cumulative counts vs tick across
+# four methods.
+#
+#   warehouse-10-20-10-2-2 : |M| = 150, |X| = 100
+#
+# 4 methods x 1 cell x 10 seeds = 40 runs total.
+
+name: temporal_progression
+description: "Section 5.8 — temporal progression of safety violations"
+
+base:
+  steps: 2000
+  fov_radius: 4
+  safety_radius: 1
+  global_solver: lacam_official
+  horizon: 20
+  replan_every: 10
+  solver_timeout_s: 10.0
+  hard_safety: true
+  communication_mode: priority
+  local_planner: astar
+  human_model: random_walk
+  mode: lifelong
+  task_allocator: congestion_avoidance
+  log_violations_timeline: true   # §5.8 — opt-in per-tick logging
+  map_to_human_model:
+    random-64-64-10: random_walk
+    warehouse-10-20-10-2-1: aisle
+    warehouse-10-20-10-2-2: aisle
+
+groups:
+  - sweep:
+      method:     [ours, lacam_blind, pibt2_fr, no_buffer]   # rhcr deferred — see docs/RHCR_DEFERRED.md
+      map_path:   [data/maps/warehouse-10-20-10-2-2.map]
+      num_humans: [100]
+      num_agents: [150]
+
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

@@ -1,0 +1,49 @@
+# Mixed Human Population Configuration
+# Heterogeneous per-human behavior type assignment
+
+# Map and tasks
+map_path: "data/maps/warehouse-10-20-10-2-1.map"
+task_stream_path: null
+
+# Simulation length
+steps: 2000
+
+# Agents and humans
+num_agents: 20
+num_humans: 10
+
+# Perception and safety
+fov_radius: 5
+safety_radius: 1
+
+# Global planning (Tier 1)
+global_solver: "lacam"
+replan_every: 25
+horizon: 50
+
+# Local execution (Tier 2)
+communication_mode: "token"
+local_planner: "astar"
+
+# Human behavior model: mixed population
+# Each human is assigned a type sampled from categorical distribution.
+# Paper uses random walk (with inertia) and aisle-following only.
+# Adversarial model is available but excluded from paper experiments.
+human_model: "mixed"
+human_model_params:
+  weights:
+    random_walk: 0.5
+    aisle: 0.5
+  sub_params:
+    random_walk:
+      beta_go: 2.0
+      beta_wait: -1.0
+      beta_turn: 0.0
+    aisle:
+      alpha: 1.0
+      beta: 1.5
+
+# Safety: hard constraint per paper
+hard_safety: true
+
+seed: 1

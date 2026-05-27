@@ -1,0 +1,23 @@
+# Experiment: Ablation - No Conflict Resolution
+# Disables the conflict resolution mechanism to measure its impact on
+# collision rates and throughput. Agents proceed with their plans without
+# detecting or resolving inter-agent conflicts at execution time.
+
+map_path: "data/maps/warehouse-10-20-10-2-1.map"
+seed: 0
+steps: 2000
+num_agents: 20
+num_humans: 5
+fov_radius: 4
+safety_radius: 1
+global_solver: "lacam"
+replan_every: 25
+horizon: 50
+communication_mode: "token"
+local_planner: "astar"
+human_model: "random_walk"
+human_model_params: {}
+hard_safety: true
+mode: "lifelong"
+task_allocator: "congestion_avoidance"
+disable_conflict_resolution: true

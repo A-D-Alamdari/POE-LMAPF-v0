@@ -1,0 +1,14 @@
+# Sweep: horizon
+# Tests different global planning lookahead depths
+
+sweep_param: horizon
+sweep_values: [20, 30, 50, 75, 100]
+# replan_every is coupled at horizon/2 so it never exceeds horizon.
+# Without this coupling, horizon=20 with base replan_every=25 causes the
+# global plan to expire 5 steps before the next replan, leaving agents
+# without guidance and producing near-zero throughput.
+coupled_params:
+  replan_every: "max(1, horizon // 2)"
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

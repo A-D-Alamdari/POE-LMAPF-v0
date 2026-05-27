@@ -1,0 +1,11 @@
+# Sweep: execution_delay_prob
+# Tests robustness to actuation failures / execution noise
+
+sweep_param: execution_delay_prob
+sweep_values: [0.0, 0.05, 0.1, 0.15, 0.2, 0.3]
+# Probability that an agent's intended move is delayed by one step.
+# Range [0, 0.3] covers no-noise through high-noise environments.
+# Required for robustness analysis.
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

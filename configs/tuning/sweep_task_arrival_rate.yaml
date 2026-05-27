@@ -1,0 +1,11 @@
+# Sweep: task_arrival_rate
+# Tests performance under different task arrival intensities
+
+sweep_param: task_arrival_rate
+sweep_values: [2, 5, 10, 15, 20, 30, 50, 100]
+# rate=2  → task every 2 steps → very heavy load (agent saturation)
+# rate=100 → task every 100 steps → sparse, agents mostly idle
+# Full range reveals the saturation point and idle-to-busy transition.
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

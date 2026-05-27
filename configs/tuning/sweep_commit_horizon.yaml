@@ -1,0 +1,11 @@
+# Sweep: commit_horizon
+# Evaluates the effect of assignment commitment persistence
+
+sweep_param: commit_horizon
+sweep_values: [0, 5, 10, 15, 20, 25, 30, 40, 50, 100]
+# 0 = no commitment lock (memoryless allocator).
+# Higher values reduce assignment thrashing at the cost of slower reaction
+# to better opportunities. Controls anti-thrashing behaviour.
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

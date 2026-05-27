@@ -1,0 +1,11 @@
+# Sweep: delay_threshold
+# Tests the multiplier that triggers commitment breaking due to agent delay
+
+sweep_param: delay_threshold
+sweep_values: [1.5, 2.0, 2.5, 3.0, 4.0]
+# An agent's assignment is broken if its estimated arrival time exceeds
+# delay_threshold * initial_ETA.  Lower values respond faster to delays
+# but cause more churn; higher values are more stable but less adaptive.
+
+# Base config to inherit
+base_config: "configs/tuning/base.yaml"

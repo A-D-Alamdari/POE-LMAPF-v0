@@ -1,0 +1,37 @@
+2026-05-24 21:41:47,168 INFO paper_harness | manifest expanded: 720 runs (config=baseline_comparison.yaml)
+2026-05-24 21:41:47,168 INFO paper_harness | validate_config_consistency: baseline_comparison steps == 2000 (all 720 runs)
+2026-05-24 21:41:47,193 INFO paper_harness | resume: 25 runs remaining (695 already complete)
+2026-05-24 21:41:53,451 INFO paper_harness | [1/25] e910a1e3e6f6 status=ok wall=6.24s
+2026-05-24 21:41:53,576 INFO paper_harness | [2/25] 676749daec5d status=ok wall=6.37s
+2026-05-24 21:41:53,692 INFO paper_harness | [3/25] b29b58defe76 status=ok wall=6.49s
+2026-05-24 21:41:53,871 INFO paper_harness | [4/25] b6a81defb39c status=ok wall=6.67s
+2026-05-24 21:41:54,206 INFO paper_harness | [5/25] 49863adc3a23 status=ok wall=7.00s
+2026-05-24 21:41:54,622 INFO paper_harness | [6/25] 364c283bbf17 status=ok wall=7.41s
+2026-05-24 21:42:02,427 INFO paper_harness | [7/25] ae677e27c92b status=ok wall=15.21s
+2026-05-24 21:42:09,903 INFO paper_harness | [8/25] ae60b333bd95 status=ok wall=22.69s
+2026-05-24 21:42:17,011 WARNING ha_lmapf.global_tier.rolling_horizon | [rolling-horizon] solver 'LaCAMOfficialSolver' returned status=error at step 70 (error_msg='solver self-reported solved=0 (budget exhaustion: no initial solution within -t)'); reusing previous PlanBundle.
+2026-05-24 21:42:23,790 INFO paper_harness | [9/25] ca326e511bb0 status=ok wall=30.09s
+2026-05-24 21:42:23,860 INFO paper_harness | [10/25] 1b50fa88950d status=ok wall=36.65s
+2026-05-24 21:42:24,546 WARNING ha_lmapf.global_tier.rolling_horizon | [rolling-horizon] solver 'LaCAMOfficialSolver' returned status=error at step 10 (error_msg='solver self-reported solved=0 (budget exhaustion: no initial solution within -t)'); reusing previous PlanBundle.
+2026-05-24 21:42:24,649 INFO paper_harness | [11/25] 0c9f1f64acfc status=ok wall=37.44s
+2026-05-24 21:42:31,883 INFO paper_harness | [12/25] 0d4ce7effd0f status=ok wall=44.68s
+2026-05-24 21:42:32,361 INFO paper_harness | [13/25] 17095e77a7b6 status=ok wall=45.15s
+2026-05-24 21:42:34,902 INFO paper_harness | [14/25] a83697f5a339 status=ok wall=41.02s
+2026-05-24 21:42:39,356 WARNING ha_lmapf.global_tier.rolling_horizon | [rolling-horizon] solver 'LaCAMOfficialSolver' returned status=error at step 20 (error_msg='solver self-reported solved=0 (budget exhaustion: no initial solution within -t)'); reusing previous PlanBundle.
+2026-05-24 21:42:53,672 WARNING ha_lmapf.global_tier.rolling_horizon | [rolling-horizon] solver 'LaCAMOfficialSolver' returned status=error at step 30 (error_msg='solver self-reported solved=0 (budget exhaustion: no initial solution within -t)'); reusing previous PlanBundle.
+2026-05-24 21:43:05,828 INFO paper_harness | [15/25] 06c2dbaf5746 status=ok wall=55.91s
+2026-05-24 21:43:08,435 INFO paper_harness | [16/25] 277494312503 status=ok wall=74.86s
+2026-05-24 21:43:16,334 INFO paper_harness | [17/25] 2f1464035b0a status=ok wall=89.13s
+2026-05-24 21:43:20,388 WARNING ha_lmapf.global_tier.rolling_horizon | [rolling-horizon] solver 'LaCAMOfficialSolver' returned status=error at step 1340 (error_msg='solver self-reported solved=0 (budget exhaustion: no initial solution within -t)'); reusing previous PlanBundle.
+2026-05-24 21:43:25,125 INFO paper_harness | [18/25] d7ed62732a44 status=ok wall=97.92s
+2026-05-24 21:43:29,633 INFO paper_harness | [19/25] 189516b99d3a status=ok wall=102.43s
+2026-05-24 21:43:29,796 INFO paper_harness | [20/25] b75a1b6888cf status=ok wall=102.59s
+2026-05-24 21:43:35,417 WARNING ha_lmapf.global_tier.rolling_horizon | [rolling-horizon] solver 'LaCAMOfficialSolver' returned status=error at step 1350 (error_msg='solver self-reported solved=0 (budget exhaustion: no initial solution within -t)'); reusing previous PlanBundle.
+2026-05-24 21:43:35,690 INFO paper_harness | [21/25] fa0746f13e24 status=ok wall=102.23s
+2026-05-24 21:43:46,693 INFO paper_harness | [22/25] 1e93b3a111fe status=ok wall=82.90s
+2026-05-24 21:43:50,530 WARNING ha_lmapf.global_tier.rolling_horizon | [rolling-horizon] solver 'LaCAMOfficialSolver' returned status=error at step 1360 (error_msg='solver self-reported solved=0 (budget exhaustion: no initial solution within -t)'); reusing previous PlanBundle.
+2026-05-24 21:43:54,901 INFO paper_harness | [23/25] dae30b60084e status=ok wall=112.47s
+2026-05-24 21:43:58,265 INFO paper_harness | [24/25] 21c2ce950e10 status=ok wall=123.64s
+2026-05-24 21:44:01,958 INFO paper_harness | [25/25] 75e818f4b644 status=ok wall=127.75s
+2026-05-24 21:44:01,990 INFO paper_harness | done: 25 runs in 134.8s (results=logs/paper/baseline_comparison_v2/results.csv)
+2026-05-24 21:44:01,990 WARNING paper_harness | statistical_analysis import failed (No module named 'scripts'); skipping

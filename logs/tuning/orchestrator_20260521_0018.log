@@ -1,0 +1,21 @@
+[2026-05-21 00:18:57] ==========================================
+[2026-05-21 00:18:57] fov/safety orchestrator started
+[2026-05-21 00:18:57] Constraint: M=100, X=50 for both maps; H picked from data
+[2026-05-21 00:18:57] ==========================================
+[2026-05-21 00:18:57] Phase 1: waiting for horizon sweep to complete...
+[2026-05-21 00:18:57]   poll: completed=414/640, workers=17
+[2026-05-21 00:23:57]   poll: completed=414/640, workers=17
+[2026-05-21 00:28:57]   poll: completed=414/640, workers=17
+[2026-05-21 00:33:57]   poll: completed=414/640, workers=17
+[2026-05-21 00:38:57]   poll: completed=414/640, workers=17
+[2026-05-21 00:43:57]   poll: completed=414/640, workers=17
+[2026-05-21 00:48:57]   poll: completed=414/640, workers=17
+[2026-05-21 00:53:57]   poll: completed=414/640, workers=17
+[2026-05-21 00:58:57]   poll: completed=414/640, workers=17
+[2026-05-21 01:03:57]   poll: completed=414/640, workers=17
+[2026-05-21 01:08:57]   poll: completed=414/640, workers=17
+[2026-05-21 01:13:57]   poll: completed=414/640, workers=17
+[2026-05-21 01:18:57]   poll: completed=414/640, workers=17
+[2026-05-21 01:23:57]   poll: completed=414/640, workers=0
+[2026-05-21 01:23:57] ABORT: horizon sweep died with only 414/640 completed
+[2026-05-21 01:23:57] NOT launching fov/safety sweep. Investigate manually.

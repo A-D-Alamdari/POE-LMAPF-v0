@@ -1,0 +1,29 @@
+# Map and tasks
+map_path: "data/maps/warehouse-10-20-10-2-1.map"
+task_stream_path: null # data/task_streams/warehouse_small_seed2.json  # set to null to auto-generate tasks
+
+# Simulation length
+steps: 2000
+
+# Agents and humans
+num_agents: 20
+num_humans: 5
+
+# Perception and safety
+fov_radius: 5
+safety_radius: 1
+
+# Global planning (Tier 1)
+global_solver: "cbs"        # "cbs" or "lacam"
+replan_every: 25            # global replanning period (steps)
+horizon: 50                 # planning horizon
+
+# Local execution (Tier 2)
+comms_mode: "token"         # "token" or "priority"
+local_planner: "astar"
+
+# Human behavior model
+human_model: "random_walk"  # "random_walk" or "aisle"
+
+# Random seed (overridden by run_experiments.py)
+seed: 1

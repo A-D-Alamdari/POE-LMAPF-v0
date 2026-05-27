@@ -1,0 +1,14 @@
+=== Master calibration launcher ===
+Started:     2026-05-13T10:24:29Z
+Git commit:  c56f0fcd0ec7968d24253db17336970952445023
+Cohorts:     calibration_v1 calibration_v2_5_4 calibration_v2_5_5
+===
+
+=== Launching calibration_v1 at 2026-05-13T10:24:29Z ===
+
+=== Launching calibration_v2_5_4 at 2026-05-13T11:01:55Z ===
+
+=== Launching calibration_v2_5_5 at 2026-05-13T11:15:12Z ===
+
+=== All calibration cohorts complete in 71 min ===
+Next: bash scripts/run_calibration/regenerate_decomposition_reports.sh

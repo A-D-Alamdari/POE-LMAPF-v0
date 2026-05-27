@@ -1,0 +1,43 @@
+# Token Passing ablation (paper §4.3 hanging promise).
+#
+# Paper §4.3 says "Token Passing is treated as an ablation in §5.5",
+# but the Section 5.5 baseline matrix in the current paper text only
+# lists {Ours, RHCR, PIBT2-FR, No-Buffer} — there is no Token Passing
+# row.  This sweep stages the data the user needs to either (a) add a
+# Token Passing comparison to §5.5, or (b) remove the §4.3 forward
+# reference.  See ``docs/PAPER_TODO.md``.
+#
+# Cartesian: communication_mode x |M| x seeds  (60 runs).
+#   |modes| x |M-grid| x |seeds|   =   2 x 3 x 10   =   60
+#
+# Fixed: warehouse-10-20-10-2-2, |X|=100, simulation_steps = 1500
+# (same as §5.5 baseline_comparison.yaml so the bar charts are
+# directly comparable).
+
+name: token_passing_ablation
+description: "§4.3 hanging promise — Token Passing vs. Priority Rules"
+
+base:
+  steps: 1500                 # paper §5.5 run length
+  num_humans: 100
+  fov_radius: 4
+  safety_radius: 1
+  global_solver: lacam_official
+  horizon: 20
+  replan_every: 10
+  solver_timeout_s: 10.0
+  hard_safety: true
+  local_planner: astar
+  human_model: random_walk
+  mode: lifelong
+  task_allocator: congestion_avoidance
+  map_path: data/maps/warehouse-10-20-10-2-2.map
+  map_to_human_model:
+    warehouse-10-20-10-2-2: aisle
+
+groups:
+  - sweep:
+      communication_mode: [priority, token]
+      num_agents: [50, 150, 250]
+
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
