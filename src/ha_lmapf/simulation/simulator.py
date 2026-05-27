@@ -1058,6 +1058,7 @@ class Simulator:
             prev_pos: Dict[int, Cell],
             new_pos: Dict[int, Cell],
             humans_at_decision: Dict[int, HumanState],
+            humans_pre_move: Optional[Dict[int, HumanState]] = None,
     ) -> None:
         """
         Check for safety violations after movement.
@@ -1120,59 +1121,65 @@ class Simulator:
                     break
 
         # ----------------------------------------------------------------
-        # Safety-buffer violation classification — independent WAIT
-        # counterfactual (paper §3.4 attribution; revised from the
-        # FOV-gated rule that produced ``agent_attr ≡ 0`` by
-        # construction).
+        # Safety-buffer violation classification.
         #
-        # The previous classifier mirrored the local planner's
-        # forbidden-set logic: it only considered humans the agent
-        # observed at decision time.  Because the planner refuses to
-        # step into ANY observed buffer (the agent Safe-Waits instead),
-        # the moved-into-observed-buffer branch was unreachable on
-        # every shipped controller, and ``agent_attr_max = 0`` showed
-        # up in every scaling CSV.  The metric was re-testing the
-        # planner's own constraint rather than measuring an
-        # independent quantity.
+        # Two distinct rules emit two distinct counter pairs.  Both
+        # iterate the same set of violation events at t+1 (any
+        # (a_i, h) with ell_1(s_i(t+1), h_pos_at_t+1) <= r_safe under
+        # ``humans_at_decision``); they disagree on which events count
+        # as agent-attributable, and the dispatch order is:
         #
-        # The replacement rule is the WAIT counterfactual: for each
-        # (a_i, h) violation pair at t+1 (any human h with
-        # ell_1(s_i(t+1), h_pos_at_t+1) <= r_safe), check whether
-        # WAIT-respecting alternative action would have avoided THIS
-        # pair.  Concretely, "WAIT" means the agent stays at s_i(t):
+        # (A) Definition-1 attribution (paper §3, Theorem 1's empirical
+        #     witness).  FOV-gated, pre-move-h, two-clause:
         #
-        #   wait_safe_vs_h := ell_1(s_i(t), h_pos_at_t+1) > r_safe
+        #       there exists h' in X_t^{Phi_i} (humans observed by a_i
+        #       within r_fov of s_i(t) at decision time t, using h's
+        #       pre-step-4 position h_pos_at_t) such that
+        #         (a) ell_1(s_i(t),   h_pos_at_t) >  r_safe
+        #         (b) ell_1(s_i(t+1), h_pos_at_t) <= r_safe
+        #             AND s_i(t) != s_i(t+1)
         #
-        # * If wait_safe_vs_h AND the agent moved (s_i(t+1) != s_i(t)),
-        #   then a safe alternative existed and the agent's chosen
-        #   action put it inside the buffer => agent-attributable.
-        # * Otherwise (wait was unsafe vs h, OR the agent didn't move
-        #   so WAIT *was* the chosen action), the human's motion or
-        #   the geometry made every action unsafe vs this pair =>
-        #   exogenous-attributable.
+        #     Emits ``violations_def1_agent_attributable`` /
+        #     ``violations_def1_exogenous_attributable``; their sum is
+        #     ``violations_def1_safety_violations``.  This is the
+        #     canonical Theorem 1 quantity: Theorem 1 claims it
+        #     stays zero on every Algorithm 2 trajectory, and the
+        #     construction-level proof in ``docs/proposed_approach.md``
+        #     §F shows why (hard_safety + r_safe < r_fov +
+        #     Manhattan-1 moves => the forbidden set contains every
+        #     reachable buffer cell, so no Algorithm-2 action lands
+        #     inside an observed pre-move buffer).
         #
-        # The rule is purely positional: it does NOT consult the
-        # FOV / observed set, the planner's forbidden set, or the
-        # agent's task state.  This is what makes it an independent
-        # measurement rather than a tautology.  The paper's
-        # Definition 1 + Theorem 1 still hold for the FOV-gated
-        # quantity; that count is now ``violations_unsafe_observed``
-        # (Theorem 1 invariant) while ``violations_agent_attributable``
-        # carries the new WAIT-counterfactual count.  See
-        # ``docs/REVISION_AUDIT.md`` for the migration note.
+        # (B) WAIT-counterfactual diagnostic (P5 follow-up).  No FOV
+        #     gate, post-move-h, single-clause:
         #
-        # ``humans_at_decision`` is, by the simulator's human-first
-        # tick ordering, also the human position at t+1 (humans only
-        # move at step 4 and stay still through steps 5-7).  No
-        # additional snapshot is required.
+        #       moved AND ell_1(s_i(t), h_pos_at_t+1) > r_safe
         #
-        # Invariant maintained: each violation pair is counted exactly
-        # once across the two buckets, so
-        #     safety_violations == agent_attributable + exogenous_attributable
-        # always holds.  The invariant is asserted in
-        # ``MetricsTracker.finalize``.
+        #     Emits ``violations_agent_attributable`` /
+        #     ``violations_exogenous_attributable``.  This is the
+        #     "could WAIT have saved you from this specific h" metric
+        #     -- NOT a Theorem 1 invariant; on a healthy run it can
+        #     be nonzero (FOV-blind moves into emergent buffer
+        #     overlaps).  Kept as an independent measurement so a
+        #     planner that did NOT respect the forbidden set would
+        #     surface non-zero values here.
+        #
+        # The legacy ``safety_violations`` counter tracks the per-pair
+        # event count and equals the sum of bucket (B)'s two counters.
+        # Bucket (A)'s sum is exposed separately as
+        # ``violations_def1_safety_violations``.
+        #
+        # ``humans_pre_move`` is the snapshot the simulator captures
+        # at the top of step_once() before ``_update_humans`` runs.
+        # When the caller omits it (legacy unit-test paths that bypass
+        # step_once()), Definition 1 is skipped and only bucket (B)
+        # is emitted -- the unit tests that exercise the WAIT
+        # counterfactual continue to work, and the new
+        # tests/test_def1_violation_classifier.py drives Definition 1
+        # directly with both snapshots.
         # ----------------------------------------------------------------
         safety_r = int(getattr(self.config, "safety_radius", 1))
+        fov_r = int(getattr(self.config, "fov_radius", 4))
         disable_safety = bool(getattr(self, "_disable_safety", False))
 
         # Paper §5.8 — tick-local violation counters.  Always initialized;
@@ -1187,6 +1194,61 @@ class Simulator:
                 a_new = new_pos[aid]
                 a_prev = prev_pos[aid]
                 moved = a_new != a_prev
+
+                # ---- (A) Definition-1 attribution ------------------
+                # Pre-move humans, FOV-gated, two-clause.  Only
+                # computed when the caller supplied
+                # ``humans_pre_move``; the test-harness paths that
+                # bypass step_once() pass None and exercise (B) only.
+                if humans_pre_move is not None:
+                    # observed_set = pre-move humans within r_fov of
+                    # s_i(t).  Stored as (hid, pre_move_pos) pairs;
+                    # the cap on the loop body is the number of
+                    # OBSERVED humans, not the total exogenous-agent
+                    # population.
+                    observed_pairs: List[Tuple[int, Cell]] = [
+                        (hid, h.pos)
+                        for hid, h in humans_pre_move.items()
+                        if abs(a_prev[0] - h.pos[0])
+                            + abs(a_prev[1] - h.pos[1])
+                            <= fov_r
+                    ]
+                    # Iterate the violation pairs at t+1 -- the same
+                    # set bucket (B) iterates -- so the two buckets
+                    # are emitted in lockstep and the
+                    # def1-attribution result is checked AGAINST the
+                    # same pair set.
+                    for hid, h_post in humans_at_decision.items():
+                        d_new = (abs(a_new[0] - h_post.pos[0])
+                                 + abs(a_new[1] - h_post.pos[1]))
+                        if d_new > safety_r:
+                            continue  # not a violation at t+1
+                        # Definition-1 agent-attributable iff some
+                        # observed pre-move h' satisfies clauses
+                        # (a) and (b) -- against the SAME h' whose
+                        # pre-move position is consulted.  We do not
+                        # require the violating-at-t+1 h and the
+                        # def1 witness h' to be the same exogenous
+                        # agent; Definition 1 binds the witness h'
+                        # to the observed set, the violation pair to
+                        # the post-move snapshot.
+                        def1_attr = moved and any(
+                            (abs(a_prev[0] - hp[0])
+                             + abs(a_prev[1] - hp[1])) > safety_r
+                            and (abs(a_new[0] - hp[0])
+                                 + abs(a_new[1] - hp[1])) <= safety_r
+                            for _hid_obs, hp in observed_pairs
+                        )
+                        if def1_attr:
+                            self.metrics.add_def1_agent_attributable_violation(1)
+                        else:
+                            self.metrics.add_def1_exogenous_attributable_violation(1)
+
+                # ---- (B) WAIT-counterfactual diagnostic ------------
+                # Post-move humans, no FOV gate, single-clause.  This
+                # block runs UNCONDITIONALLY for the WAIT diagnostic
+                # so legacy callers that omit ``humans_pre_move``
+                # still get the (B) counters they were tracking.
                 for hid, h in humans_at_decision.items():
                     hp = h.pos
                     d_new = abs(a_new[0] - hp[0]) + abs(a_new[1] - hp[1])
@@ -1394,6 +1456,18 @@ class Simulator:
 
         # 3. Global Planning
         self.maybe_global_replan(assignments)
+
+        # Snapshot exogenous-agent positions at time t (BEFORE step 4
+        # advances them).  Definition 1 (paper §3) is stated against
+        # the pre-move human positions h_pos_at_t -- not the post-move
+        # h_pos_at_t+1 the WAIT-counterfactual classifier reads.  The
+        # two snapshots are kept separate so both classifiers compute
+        # exactly the quantity their docstring claims.  See
+        # ``_detect_collisions_and_near_misses`` for the
+        # construction-level invariant proof.
+        humans_pre_move: Dict[int, HumanState] = {
+            hid: replace(h) for hid, h in self.humans.items()
+        }
 
         # 4. Environment Dynamics (Humans)
         self._update_humans()
@@ -1642,7 +1716,10 @@ class Simulator:
 
         # 8. Safety Checks
         new_pos: Dict[int, Cell] = {aid: self.agents[aid].pos for aid in self.agents.keys()}
-        self._detect_collisions_and_near_misses(prev_pos, new_pos, humans_at_decision)
+        self._detect_collisions_and_near_misses(
+            prev_pos, new_pos, humans_at_decision,
+            humans_pre_move=humans_pre_move,
+        )
 
         # 9. Logic Update (task completion with makespan/SOC tracking)
         self._maybe_complete_tasks()

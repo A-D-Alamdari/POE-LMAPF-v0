@@ -81,6 +81,16 @@ class MetricsTracker:
         # (agent, human) violation pair; their sum equals _safety_violations.
         self._violations_agent_attributable: int = 0
         self._violations_exogenous_attributable: int = 0
+        # Definition-1 (paper §3) attribution counters.  Computed by
+        # the FOV-gated, pre-move, two-clause classifier in
+        # ``simulator.py::_detect_collisions_and_near_misses`` block
+        # (A).  These ARE the Theorem 1 invariant; see
+        # ``docs/proposed_approach.md`` §F for the construction-level
+        # proof.  Independent of the WAIT-counterfactual diagnostic
+        # counters above -- the two answer different questions and
+        # neither is the other's alias.
+        self._violations_def1_agent_attributable: int = 0
+        self._violations_def1_exogenous_attributable: int = 0
         # Event-debounced counters (P6 fix).  A "violation event" is a
         # maximal contiguous run of ticks where a specific (agent_id,
         # human_id) pair is inside r_safe; the counter ticks on the
@@ -310,6 +320,31 @@ class MetricsTracker:
         self._violations_exogenous_attributable += int(count)
 
     # ------------------------------------------------------------------
+    # Definition-1 attribution (paper §3 / Theorem 1)
+    # ------------------------------------------------------------------
+
+    def add_def1_agent_attributable_violation(self, count: int = 1) -> None:
+        """Count post-move violation pairs that the FOV-gated, pre-move,
+        two-clause Definition-1 classifier in ``simulator.py``
+        block (A) labels agent-attributable.  This is the canonical
+        Theorem 1 quantity (paper §3); the WAIT-counterfactual
+        ``add_agent_attributable_violation`` answers a different
+        question.  Theorem 1 (paper §F) is the claim that the count
+        this method receives stays zero on every Algorithm-2
+        trajectory -- enforced by the forbidden-set construction,
+        not by the metric."""
+        self._violations_def1_agent_attributable += int(count)
+
+    def add_def1_exogenous_attributable_violation(self, count: int = 1) -> None:
+        """Count post-move violation pairs that the Definition-1
+        classifier labels exogenous-attributable (the violation
+        exists at t+1 but no observed pre-move witness satisfied
+        both clauses of Definition 1).  Sum of this and
+        ``add_def1_agent_attributable_violation`` equals
+        ``violations_def1_safety_violations`` at finalize."""
+        self._violations_def1_exogenous_attributable += int(count)
+
+    # ------------------------------------------------------------------
     # Event-debounced violation accounting (P6 fix)
     # ------------------------------------------------------------------
 
@@ -526,6 +561,12 @@ class MetricsTracker:
             "violations_exogenous_attributable_agent_ticks",
             "violations_exogenous_attributable_events",
             "mean_task_completion_span",
+            # Definition-1 attribution (paper §3 / Theorem 1).  See
+            # ``simulator.py::_detect_collisions_and_near_misses``
+            # block (A).  Names are alphabetical within this block.
+            "violations_def1_agent_attributable",
+            "violations_def1_exogenous_attributable",
+            "violations_def1_safety_violations",
         ]
 
     def to_csv_row(self, metrics: Metrics) -> List[str]:
@@ -572,6 +613,9 @@ class MetricsTracker:
             str(metrics.violations_exogenous_attributable_agent_ticks),
             str(metrics.violations_exogenous_attributable_events),
             f"{metrics.mean_task_completion_span:.2f}",
+            str(metrics.violations_def1_agent_attributable),
+            str(metrics.violations_def1_exogenous_attributable),
+            str(metrics.violations_def1_safety_violations),
         ]
 
     def finalize(
@@ -599,6 +643,34 @@ class MetricsTracker:
                 f"agent_attributable + exogenous_attributable = "
                 f"{self._violations_agent_attributable} + "
                 f"{self._violations_exogenous_attributable} = {attr_sum}"
+            )
+
+        # Definition-1 invariant: the def1 buckets are computed from
+        # the same post-move violation-pair set as bucket (B), so
+        # their sum must equal the (B) sum -- i.e. the legacy
+        # ``safety_violations`` counter -- whenever Definition 1
+        # actually ran.  We compute the def1 sum and expose it as
+        # ``violations_def1_safety_violations``.  When the
+        # simulator-internal classifier ran (humans_pre_move passed),
+        # the two sums are equal by construction; when only legacy
+        # paths populated the WAIT counters (unit tests that call
+        # ``add_safety_violation`` directly without ``add_def1_*``),
+        # the def1 sum stays 0 and the assertion below scopes itself
+        # accordingly.
+        def1_attr_sum = (
+            int(self._violations_def1_agent_attributable)
+            + int(self._violations_def1_exogenous_attributable)
+        )
+        if def1_attr_sum > 0 and def1_attr_sum != int(self._safety_violations):
+            raise AssertionError(
+                f"Definition-1 attribution invariant broken: "
+                f"def1_safety_violations (= def1_agent + def1_exo = "
+                f"{self._violations_def1_agent_attributable} + "
+                f"{self._violations_def1_exogenous_attributable} = "
+                f"{def1_attr_sum}) != safety_violations="
+                f"{self._safety_violations}.  Both classifiers iterate "
+                f"the same post-move violation-pair set; this drift "
+                f"means one classifier saw fewer pairs than the other."
             )
         flowtimes: List[int] = []
         service_times: List[int] = []
@@ -680,6 +752,9 @@ class MetricsTracker:
             violations_exogenous_attributable=self._violations_exogenous_attributable,
             violations_exogenous_attributable_agent_ticks=self._violations_exogenous_attributable,
             violations_exogenous_attributable_events=self._violations_exogenous_attributable_events,
+            violations_def1_agent_attributable=self._violations_def1_agent_attributable,
+            violations_def1_exogenous_attributable=self._violations_def1_exogenous_attributable,
+            violations_def1_safety_violations=def1_attr_sum,
             global_replans=self._global_replans,
             local_replans=self._local_replans,
             intervention_rate=int_rate,
