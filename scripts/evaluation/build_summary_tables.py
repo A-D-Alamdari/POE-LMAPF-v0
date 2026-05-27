@@ -202,10 +202,43 @@ def _render_health_cell(
 
 COLS_T1 = [
     ("throughput",                       "Throughput",                3),
+    # P10 load-regime: throughput_utilization >= 1.0 (within a
+    # tolerance) means the cell is arrival-saturated and throughput
+    # here measures the task arrival cap, not planner capacity.
+    # Visual flagging (asterisk + ARRIVAL-SATURATED legend) is
+    # applied by ``_render_utilization_cell``.
+    ("throughput_utilization",           "Util.",                     2),
     ("violations_agent_attributable",    "Agent-attr. violations",    1),
     ("violations_exogenous_attributable", "Exo-attr. violations",     1),
     ("mean_planning_time_ms",            "Mean planning time (ms)",   1),
 ]
+
+
+# P10 visual-flag threshold.  A cell whose per-seed mean
+# throughput_utilization is at or above this value is considered
+# arrival-saturated; the renderer appends a trailing asterisk to
+# the cell string so the reader can scan the table for the marker
+# without recomputing the ratio.  The threshold is 0.95 (not 1.0)
+# because per-run utilization can land slightly below 1.0 due to
+# the initial task-batch warmup (one task per agent at step 0
+# inflates total_released_tasks for the first 100 ticks before
+# the exponential arrival catches up).
+ARRIVAL_SATURATION_THRESHOLD: float = 0.95
+
+
+def _render_utilization_cell(values: Sequence[float]) -> str:
+    """Render the throughput_utilization column for one cell.
+    Bootstrap mean ± CI; append a trailing asterisk when the mean
+    crosses ``ARRIVAL_SATURATION_THRESHOLD`` so a reader can scan
+    the table for arrival-saturated cells in O(eyeballs)."""
+    if not values:
+        return "—"
+    arr = [float(v) for v in values]
+    mean, lo, hi = _bootstrap_ci(arr)
+    cell = _fmt(mean, lo, hi, digits=2)
+    if mean >= ARRIVAL_SATURATION_THRESHOLD:
+        return f"{cell}*"
+    return cell
 
 
 def build_table1(rows: List[Dict[str, Any]]) -> Dict[str, List[List[str]]]:
@@ -227,6 +260,14 @@ def build_table1(rows: List[Dict[str, Any]]) -> Dict[str, List[List[str]]]:
             row_cells: List[str] = [SOLVER_DISPLAY.get(solver, solver)]
             for field, _, digits in COLS_T1:
                 values = [r.get(field) for r in rs if r.get(field) is not None]
+                # P10: route throughput_utilization through the
+                # arrival-saturation renderer (appends * to the
+                # cell string when mean util >= threshold).
+                if field == "throughput_utilization":
+                    row_cells.append(_render_utilization_cell(
+                        [float(v) for v in values if v is not None]
+                    ))
+                    continue
                 mean, lo, hi = _bootstrap_ci([float(v) for v in values
                                               if v is not None])
                 row_cells.append(_fmt(mean, lo, hi, digits=digits))
@@ -248,6 +289,8 @@ def build_table1(rows: List[Dict[str, Any]]) -> Dict[str, List[List[str]]]:
 
 COLS_T2 = [
     ("throughput",                       "Throughput",                3),
+    # P10 load-regime: see comment on COLS_T1.
+    ("throughput_utilization",           "Util.",                     2),
     ("violations_agent_attributable",    "Agent-attr.",               1),
     ("violations_exogenous_attributable", "Exo-attr.",                1),
     ("wait_fraction",                    "Wait fraction",             3),
@@ -272,6 +315,12 @@ def build_table2(rows: List[Dict[str, Any]]) -> Dict[int, List[List[str]]]:
             row_cells: List[str] = [METHOD_DISPLAY[method]]
             for field, _, digits in COLS_T2:
                 values = [r.get(field) for r in rs if r.get(field) is not None]
+                # P10: same routing as build_table1 -- see comment there.
+                if field == "throughput_utilization":
+                    row_cells.append(_render_utilization_cell(
+                        [float(v) for v in values if v is not None]
+                    ))
+                    continue
                 mean, lo, hi = _bootstrap_ci([float(v) for v in values
                                               if v is not None])
                 row_cells.append(_fmt(mean, lo, hi, digits=digits))

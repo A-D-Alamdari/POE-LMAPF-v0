@@ -520,6 +520,8 @@ class MetricsTracker:
         # mapping.
         return [
             "throughput",
+            "arrival_rate_per_step",       # P10 load-regime
+            "throughput_utilization",      # P10 load-regime
             "completed_tasks",
             "total_released_tasks",
             "task_completion",
@@ -572,6 +574,8 @@ class MetricsTracker:
     def to_csv_row(self, metrics: Metrics) -> List[str]:
         return [
             f"{metrics.throughput:.6f}",
+            f"{metrics.arrival_rate_per_step:.6f}",    # P10
+            f"{metrics.throughput_utilization:.6f}",   # P10
             str(metrics.completed_tasks),
             str(metrics.total_released_tasks),
             f"{metrics.task_completion:.4f}",
@@ -689,6 +693,24 @@ class MetricsTracker:
 
         task_completion = float(self._completed_tasks) / float(self.total_tasks) if self.total_tasks > 0 else 0.0
 
+        # Load-regime diagnostics (P10).  The system-wide arrival
+        # rate (released_tasks / steps) is what the throughput
+        # column is implicitly compared against in a lifelong
+        # stream.  ``throughput_utilization`` of 1.0 means the
+        # cell is arrival-saturated: throughput equals the arrival
+        # rate cap and is no longer measuring planner capacity.
+        # Reported in the CSV so paper-table builders can flag
+        # arrival-saturated cells visually (see
+        # ``scripts/evaluation/build_summary_tables.py``).
+        arrival_rate = (
+            float(self.total_tasks) / float(total_steps)
+            if total_steps > 0 else 0.0
+        )
+        throughput_util = (
+            float(throughput) / arrival_rate
+            if arrival_rate > 0.0 else 0.0
+        )
+
         sv_rate = (self._safety_violations / total_steps * 1000.0) if total_steps > 0 else 0.0
         # Agent-normalized rate (P6 fix).  Matches the normalization of
         # ``wait_fraction`` so cross-fleet comparisons in the §5.4
@@ -732,6 +754,8 @@ class MetricsTracker:
 
         m = Metrics(
             throughput=throughput,
+            arrival_rate_per_step=arrival_rate,
+            throughput_utilization=throughput_util,
             completed_tasks=self._completed_tasks,
             total_released_tasks=self.total_tasks,
             task_completion=task_completion,

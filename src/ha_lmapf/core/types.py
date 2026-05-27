@@ -341,6 +341,20 @@ class Metrics:
     completed_tasks: int = 0
     total_released_tasks: int = 0
     task_completion: float = 0.
+    # Load-regime diagnostics (P10).  ``arrival_rate_per_step`` is
+    # the system-wide task arrival rate (released_tasks /
+    # total_steps); under the simulator's default lifelong stream
+    # (``Simulator._generate_task_stream``) it equals |M|/(H+W),
+    # where H and W are the map height + width.
+    # ``throughput_utilization`` is throughput / arrival_rate;
+    # >= 1.0 means the cell is arrival-saturated and the throughput
+    # column measures the task arrival cap, NOT planner capacity.
+    # Used to flag arrival-saturated cells in paper tables; see
+    # ``paper/sections/05_1_load_regime.tex`` for the paper-text
+    # discussion and ``scripts/diagnostics/check_arrival_saturation.py``
+    # for the cross-cell audit.
+    arrival_rate_per_step: float = .0
+    throughput_utilization: float = .0
     mean_flowtime: float = .0
     collisions_agent_agent: int = 0
     collisions_agent_human: int = 0

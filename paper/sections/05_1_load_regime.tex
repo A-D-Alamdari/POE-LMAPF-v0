@@ -1,0 +1,68 @@
+% §5.1 Load regime
+%
+% Markdown companion: paper/sections/05_1_load_regime.md.
+% Inserted BEFORE Table 1 in the paper per the P10 task spec so the
+% reader sees the load-regime context before reading the throughput
+% column.
+
+\section{Load regime: what throughput actually measures}
+\label{sec:load_regime}
+
+\noindent\textbf{In the experimental regime studied here, the
+system-wide task arrival rate equals $|M|/(\text{height} +
+\text{width})$ per step, which is 0.781 on
+\texttt{random-64-64-10} and 0.394 on
+\texttt{warehouse-10-20-10-2-2} at $|M|=100$. Throughput in
+Table~\ref{tab:solver_subst_random-64-64-10} saturates at this
+arrival cap; the column therefore measures task-arrival-rate
+compliance, not planner capacity. Algorithm-discriminating
+comparisons in \S\ref{sec:system_health}, \S5.5 (baseline
+comparison), and \S5.6 (allocator study) operate at points where
+the planner becomes the bottleneck; those are the comparisons in
+which throughput is informative.}
+
+\medskip
+
+The simulator's default lifelong task stream
+(\texttt{Simulator.\_generate\_task\_stream}) draws inter-arrival
+times from an exponential with per-agent mean $H + W$ steps, where
+$H$ and $W$ are the map height and width.  The system-wide arrival
+rate is therefore $\lambda_{\text{sys}} = |M|/(H+W)$ tasks per
+step.  At the headline §5.2 conditions $|M|=100$:
+
+\begin{center}
+\small
+\begin{tabular}{lrr}
+\toprule
+Map & $H + W$ & $\lambda_{\text{sys}}$ at $|M|=100$ \\
+\midrule
+\texttt{random-64-64-10}        & $64 + 64 = 128$  & \textbf{0.781} \\
+\texttt{warehouse-10-20-10-2-2} & $84 + 170 = 254$ & \textbf{0.394} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{CSV emission.}
+\texttt{MetricsTracker.finalize} now emits
+\texttt{arrival\_rate\_per\_step}
+($= \text{total\_released\_tasks}/\text{steps}$) and
+\texttt{throughput\_utilization}
+($= \text{throughput}/\text{arrival\_rate\_per\_step}$).  Utilization
+$\ge 0.95$ is treated as arrival-saturated; the table builder
+(\texttt{scripts/evaluation/build\_summary\_tables.py}) appends a
+trailing asterisk to such cells so a reader can scan for them
+without recomputing the ratio.
+
+\paragraph{When throughput is informative.}
+At points where the planner is the bottleneck (\S5.3/\S5.4
+FoV/$r_{\text{safe}}$ sweeps, \S5.6 allocator study under a fixed
+arrival stream) throughput tracks the planner.  At points where
+arrival saturates -- the entire §5.2 Table~1, and high-density
+warehouse rows of \S5.5 -- the Util.\ column reads $1.00^{*}$ and
+throughput cannot tell two planners apart.  Reading the Util.\
+column \emph{plus} the \texttt{deadlock\_count} column from
+\S\ref{sec:system_health} catches the worst-case reading error of
+treating throughput as a planner-quality metric: LaCAM-blind
+deadlocks 100\% of agents in every $|M|=100$ warehouse run but
+reports throughput 0.205 vs Ours' 0.396 -- a 1:2 ratio that looks
+like a half-as-good planner rather than a catastrophic one.
