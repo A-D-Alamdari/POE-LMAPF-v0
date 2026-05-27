@@ -5,3 +5,21 @@ cbs-mapf>=0.4
 matplotlib
 scipy
 statsmodels
+
+# ---------------------------------------------------------------------------
+# System runtime dependency: the bundled Jiaoyang-Li Linux solver binaries
+# (eecbs, cbsh2_rtc, pbs, rhcr, mapf_lns under src/ha_lmapf/global_tier/solvers/)
+# are dynamically linked against Boost 1.74 — Ubuntu 22.04 LTS ABI.
+# Without those .so files, every invocation fails at ld.so load time and the
+# sweep silently degrades to all-WAIT plans.
+#
+# Install matching Boost runtime libraries (preferred):
+#     sudo apt install libboost-program-options1.74.0 libboost-filesystem1.74.0
+# or rebuild the five binaries with static Boost linkage; see
+#     src/ha_lmapf/global_tier/solvers/README_SOLVERS.md  # § "Boost runtime dependency"
+#
+# Detect missing libs with:
+#     python scripts/preflight_solvers.py [--solvers lacam3,pibt2,...]
+# The experiment runners call this automatically and abort the sweep if it
+# fails.  The Kei18 solvers (lacam, lacam3, mapf_pibt2, mapd_pibt2) are
+# statically clean and do not require any Boost runtime.

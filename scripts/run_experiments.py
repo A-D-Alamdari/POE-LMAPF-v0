@@ -11,6 +11,7 @@ Usage:
 import argparse
 import copy
 import csv
+import sys
 import time
 import yaml
 from pathlib import Path
@@ -18,6 +19,13 @@ from typing import Any, Dict
 
 from ha_lmapf.core.types import SimConfig
 from ha_lmapf.simulation.simulator import Simulator
+
+# Import the preflight helper.  ``scripts/`` has no ``__init__.py`` so
+# bring it in by adding the directory to ``sys.path``.
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+from preflight_solvers import abort_if_any_failed  # noqa: E402
 
 
 def load_config(path: str) -> SimConfig:
@@ -75,6 +83,11 @@ def main():
     except Exception as e:
         print(f"Error loading config: {e}")
         return
+
+    # Fail fast if the config's global solver binary won't load.
+    # Otherwise the sweep silently produces all-WAIT rows (see
+    # ``_base.py::_wrap_subprocess``'s ``binary_not_found`` branch).
+    abort_if_any_failed([config.global_solver], prefix="run_experiments")
 
     # Prepare CSV Writer
     # Initialize a dummy simulator just to get the header

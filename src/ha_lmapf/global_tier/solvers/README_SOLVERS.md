@@ -269,6 +269,77 @@ sudo apt install libboost-all-dev
 sudo apt install libeigen3-dev
 ```
 
+### Boost runtime dependency
+
+The five Jiaoyang-Li Linux binaries shipped in this directory
+(`eecbs`, `cbsh2_rtc`, `pbs`, `rhcr`, `mapf_lns`) are **dynamically
+linked** against Boost: `libboost_program_options.so.1.74.0` and
+`libboost_filesystem.so.1.74.0` (the ABI that ships with Ubuntu
+22.04 LTS).  Only the corresponding Windows `boost_*.dll` files are
+bundled — no Linux `.so` is shipped.  On a clean machine without the
+matching libraries installed, every invocation fails at `ld.so` load
+time with:
+
+```
+error while loading shared libraries: libboost_program_options.so.1.74.0:
+    cannot open shared object file: No such file or directory
+```
+
+`BaseSolverWrapper._wrap_subprocess` catches the non-zero exit and
+returns an all-WAIT bundle, so the sweep runs to completion but
+every row is meaningless.  Use `scripts/preflight_solvers.py` to
+detect this before the sweep starts; the experiment runners
+(`scripts/run_experiments.py`, `scripts/evaluation/run_paper_experiment.py`)
+call it automatically and abort if any required solver fails to load.
+
+**Run preflight manually:**
+
+```bash
+# Check every registered solver.
+python scripts/preflight_solvers.py
+
+# Check only the solvers a specific sweep uses.
+python scripts/preflight_solvers.py --solvers lacam3,pibt2,cbsh2
+```
+
+Lines are classified `OK` | `MISSING` | `LOAD_ERROR (<first stderr line>)`.
+The script exits non-zero if any requested solver is not OK.
+
+**Two supported remedies:**
+
+(a) **Install matching Boost runtime libraries (preferred).** On
+Ubuntu 22.04 the package version matches the binary ABI out of the
+box:
+
+```bash
+sudo apt install libboost-program-options1.74.0 libboost-filesystem1.74.0
+# or, equivalently:
+sudo apt install libboost-program-options-dev libboost-filesystem-dev
+```
+
+On other distributions or Ubuntu versions whose default Boost ABI is
+not `1.74.0`, you must either install a matching `libboost*1.74.0`
+backport or fall back to (b).  Verify the binary loads:
+
+```bash
+ldd src/ha_lmapf/global_tier/solvers/eecbs | grep boost
+```
+
+Every `boost_*` line must point to a real file rather than `not found`.
+
+(b) **Rebuild the five C++ solvers with static Boost linkage.**  Re-run
+the upstream CMake builds with `-DBoost_USE_STATIC_LIBS=ON` (or, for
+projects that don't honour that flag, pass
+`-DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++
+-Wl,-Bstatic -lboost_program_options -lboost_filesystem -Wl,-Bdynamic"`).
+Then copy the resulting binaries on top of the shipped ones at the
+paths listed in the "Installing Official Solvers" section below.
+Static linkage trades portability for a larger binary; the Kei18
+solvers (`lacam`, `lacam3`, `mapf_pibt2`, `mapd_pibt2`) already build
+without external Boost and demonstrate that this is viable for
+research-scale use.
+
+
 **Linux/macOS:**
 
 ```bash

@@ -71,6 +71,13 @@ from ha_lmapf.baselines import (  # noqa: E402
 from ha_lmapf.core.types import Metrics, SimConfig  # noqa: E402
 from ha_lmapf.simulation.simulator import Simulator  # noqa: E402
 
+# Sibling import: scripts/preflight_solvers.py.  ``scripts/`` has no
+# ``__init__.py`` so add it to sys.path directly.
+_SCRIPTS_DIR = Path(__file__).resolve().parent.parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+from preflight_solvers import abort_if_any_failed  # noqa: E402
+
 logger = logging.getLogger("paper_harness")
 
 
@@ -450,6 +457,28 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Fast-fail before any compute is spent: enforce paper-specified
     # ``steps`` per section.
     validate_config_consistency(args.config, rows)
+
+    # Fast-fail before any compute is spent: every solver the sweep
+    # will invoke must actually load.  Resolving the post-method
+    # dispatch ``global_solver`` per row matches what ``run_one``
+    # ultimately calls -- a method axis can swap solvers
+    # (e.g. ``method=pibt2_fr`` forces ``global_solver=pibt2``).
+    sweep_solvers: List[str] = []
+    seen_solvers: set = set()
+    for row in rows:
+        try:
+            sim_cfg = _build_sim_config(row["config"])
+        except Exception as exc:  # noqa: BLE001
+            raise SystemExit(
+                f"config build failed for run {row['run_id'][:12]}: "
+                f"{type(exc).__name__}: {exc}"
+            )
+        s = getattr(sim_cfg, "global_solver", None)
+        if s and s not in seen_solvers:
+            seen_solvers.add(s)
+            sweep_solvers.append(s)
+    if sweep_solvers:
+        abort_if_any_failed(sweep_solvers, prefix="paper_harness")
 
     # Apply optional shard.
     shard: Optional[Tuple[int, int]] = None
