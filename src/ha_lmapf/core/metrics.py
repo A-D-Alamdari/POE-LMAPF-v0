@@ -672,6 +672,7 @@ class MetricsTracker:
                 f"the same post-move violation-pair set; this drift "
                 f"means one classifier saw fewer pairs than the other."
             )
+
         flowtimes: List[int] = []
         service_times: List[int] = []
         for rec in self._tasks.values():
@@ -729,7 +730,7 @@ class MetricsTracker:
             cumulative += completions_per_step[s]
             throughput_timeline.append(cumulative / (s + 1))
 
-        return Metrics(
+        m = Metrics(
             throughput=throughput,
             completed_tasks=self._completed_tasks,
             total_released_tasks=self.total_tasks,
@@ -821,3 +822,40 @@ class MetricsTracker:
                 if self._guidance_covered_ticks > 0 else 0.0
             ),
         )
+
+        # Event-vs-agent-ticks contract (P6 follow-up).  The
+        # ``*_agent_ticks`` aliases must equal their legacy
+        # counterparts because the CSV writer reads both columns
+        # from this object; a drift here would surface as columns
+        # silently disagreeing in downstream plots.  ``*_events``
+        # is the leading-edge debounced count and is bounded above
+        # by the per-tick count -- every event consumes at least
+        # one tick, so events > agent_ticks would indicate the
+        # ``MetricsTracker.close_violation_tick`` state machine
+        # double-counted a leading edge.  Asserted here against
+        # the MATERIALIZED Metrics fields (the values the CSV
+        # writer will actually emit) so a future field rename
+        # that decouples the alias from its source fires
+        # immediately at run-end.
+        assert m.safety_violations == m.safety_violation_agent_ticks, (
+            f"safety_violation_agent_ticks alias drift: "
+            f"safety_violations={m.safety_violations} != "
+            f"safety_violation_agent_ticks={m.safety_violation_agent_ticks}"
+        )
+        assert m.violations_agent_attributable == m.violations_agent_attributable_agent_ticks, (
+            f"violations_agent_attributable_agent_ticks alias drift: "
+            f"violations_agent_attributable={m.violations_agent_attributable} != "
+            f"violations_agent_attributable_agent_ticks={m.violations_agent_attributable_agent_ticks}"
+        )
+        assert m.violations_exogenous_attributable == m.violations_exogenous_attributable_agent_ticks, (
+            f"violations_exogenous_attributable_agent_ticks alias drift: "
+            f"violations_exogenous_attributable={m.violations_exogenous_attributable} != "
+            f"violations_exogenous_attributable_agent_ticks={m.violations_exogenous_attributable_agent_ticks}"
+        )
+        assert m.safety_violations >= m.safety_violation_events, (
+            f"events > agent_ticks: "
+            f"safety_violation_events={m.safety_violation_events} > "
+            f"safety_violations={m.safety_violations}; the debounce "
+            f"state machine must have double-counted a leading edge."
+        )
+        return m
