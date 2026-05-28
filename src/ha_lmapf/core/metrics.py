@@ -598,6 +598,34 @@ class MetricsTracker:
             "violations_def1_agent_attributable",
             "violations_def1_exogenous_attributable",
             "violations_def1_safety_violations",
+            # P12 orphan-field gate.  Every scalar field on the
+            # Metrics dataclass must appear here AND in
+            # ``to_csv_row`` so the orphan test
+            # (``tests/test_paper_metric_invariants.py::
+            # test_no_orphaned_metric_field``) finds CSV
+            # provenance for it.  Added in lockstep with the
+            # writer below.
+            "safe_wait_steps",
+            "yield_wait_steps",
+            "physics_revert_wait_steps",
+            "delay_wait_steps",
+            "wait_fraction",
+            "collisions_agent_exogenous",
+            "solver_timeouts",
+            "solver_partial_returns",
+            "solver_errors",
+            "solver_fallback_reuses",
+            "deadlock_count",
+            "max_global_no_progress_streak",
+            "global_no_progress_steps",
+            "sum_assignment_path_overlap",
+            "mean_assignment_path_overlap",
+            "n_multiagent_allocation_rounds",
+            "guidance_eligible_ticks",
+            "guidance_covered_ticks",
+            "guidance_followed_ticks",
+            "guidance_coverage",
+            "guidance_follow_rate",
         ]
 
     def to_csv_row(self, metrics: Metrics) -> List[str]:
@@ -649,6 +677,28 @@ class MetricsTracker:
             str(metrics.violations_def1_agent_attributable),
             str(metrics.violations_def1_exogenous_attributable),
             str(metrics.violations_def1_safety_violations),
+            # P12: lockstep with the header additions above.
+            str(metrics.safe_wait_steps),
+            str(metrics.yield_wait_steps),
+            str(metrics.physics_revert_wait_steps),
+            str(metrics.delay_wait_steps),
+            f"{metrics.wait_fraction:.6f}",
+            str(metrics.collisions_agent_exogenous),
+            str(metrics.solver_timeouts),
+            str(metrics.solver_partial_returns),
+            str(metrics.solver_errors),
+            str(metrics.solver_fallback_reuses),
+            str(metrics.deadlock_count),
+            str(metrics.max_global_no_progress_streak),
+            str(metrics.global_no_progress_steps),
+            f"{metrics.sum_assignment_path_overlap:.6f}",
+            f"{metrics.mean_assignment_path_overlap:.6f}",
+            str(metrics.n_multiagent_allocation_rounds),
+            str(metrics.guidance_eligible_ticks),
+            str(metrics.guidance_covered_ticks),
+            str(metrics.guidance_followed_ticks),
+            f"{metrics.guidance_coverage:.6f}",
+            f"{metrics.guidance_follow_rate:.6f}",
         ]
 
     def finalize(
