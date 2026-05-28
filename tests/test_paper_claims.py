@@ -298,8 +298,16 @@ def test_synthetic_matching_results_yield_confirmed(tmp_path: Path):
         d.mkdir(parents=True, exist_ok=True)
         _write_csv(d / "results.csv", rows)
 
-    verdicts, _structural = run_validation(
+    # run_validation returns (verdicts, structural_claims, validity_report)
+    # since 812fc90 added the degenerate-run guard.
+    verdicts, _structural, validity_report = run_validation(
         CLAIMS_YAML, results_root, section_filter="all")
+
+    # Synth fixtures carry no failure counters / global_replans, so the
+    # degenerate-run guard should classify every row as valid.
+    assert validity_report.n_invalid == 0, (
+        f"Synth fixture unexpectedly tripped the degenerate-run guard: "
+        f"{validity_report.n_invalid}/{validity_report.total_rows} invalid")
 
     refuted = [(c["claim_id"], v) for c, v in verdicts if v.status == "Refuted"]
     weaker  = [(c["claim_id"], v) for c, v in verdicts if v.status == "Now weaker"]
@@ -357,8 +365,16 @@ def test_perturbation_flips_a_claim_to_refuted(tmp_path: Path):
     _write_csv(d / "results.csv", rows)
 
     # Run only the §5.3 section so we don't depend on other sources.
-    verdicts, _ = run_validation(CLAIMS_YAML, results_root,
-                                 section_filter="5.3")
+    # run_validation returns (verdicts, structural_claims, validity_report)
+    # since 812fc90; this test only inspects the verdicts list.
+    verdicts, _structural, validity_report = run_validation(
+        CLAIMS_YAML, results_root, section_filter="5.3")
+
+    # The perturbation alters values but does not introduce failure
+    # counters, so the degenerate-run guard should still pass everything.
+    assert validity_report.n_invalid == 0, (
+        f"Perturbed fixture unexpectedly tripped the degenerate-run guard: "
+        f"{validity_report.n_invalid}/{validity_report.total_rows} invalid")
 
     refuted = [(c, v) for c, v in verdicts if v.status == "Refuted"]
     refuted_ids = {c["claim_id"] for c, v in refuted}

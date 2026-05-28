@@ -80,7 +80,7 @@ def base_solver_budget_yaml(
 
 def base_validity_guard_yaml(
         max_invalid_fraction: float = 0.0,
-        indent: str = "  ",
+        indent: str = "",
 ) -> str:
     """Return the ``max_invalid_fraction: <value>`` YAML line plus
     its P2-tie-in comment block.  ``max_invalid_fraction: 0.0`` is
@@ -89,16 +89,27 @@ def base_validity_guard_yaml(
     ``scripts/evaluation/validate_paper_claims.py::classify_row_validity``)
     fails the sweep.  Sweeps that legitimately tolerate some loss
     (e.g. stress tests of the resolver fallback path) can raise it
-    explicitly with a justification comment."""
+    explicitly with a justification comment.
+
+    Audit step 07 moved this field from inside ``base:`` (indent
+    "  ") to the SPEC TOP LEVEL (indent "") so the runner's
+    top-level reader at ``run_paper_experiment.main`` actually
+    consumes it.  Callers splice the result between the closing
+    of the ``base:`` block and the ``seeds:`` declaration.  See
+    reports/audit/07_max_invalid_fraction.md.
+    """
     return (
-        f"{indent}# Degenerate-run guard — P2 / P7 follow-up.\n"
+        f"{indent}# Degenerate-run guard — P2 / P7 / audit step 07.\n"
         f"{indent}# A row is INVALID iff any of:\n"
         f"{indent}#   * run_valid == False,\n"
         f"{indent}#   * solver_fail_fraction > 0.05,\n"
         f"{indent}#   * global_replans == 0 (Tier-1 never ran).\n"
-        f"{indent}# This key documents the per-sweep tolerance; the\n"
-        f"{indent}# validator (validate_paper_claims.py) exits non-zero\n"
-        f"{indent}# if the actual invalid-row fraction exceeds it.\n"
+        f"{indent}# This key is the per-sweep tolerance; the runner\n"
+        f"{indent}# (scripts/evaluation/run_paper_experiment.py main())\n"
+        f"{indent}# fails with exit-code 3 if the observed invalid\n"
+        f"{indent}# fraction exceeds it.  MUST live at the SPEC TOP\n"
+        f"{indent}# LEVEL (peer of base: / seeds: / groups:); nesting\n"
+        f"{indent}# under base: now raises in expand_manifest.\n"
         f"{indent}# 0.0 = strict (zero degenerate runs tolerated).\n"
         f"{indent}max_invalid_fraction: {float(max_invalid_fraction)}\n"
     )

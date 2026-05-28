@@ -137,9 +137,10 @@ def _header() -> str:
         "  lambda_conflict: 0.5\n"
         "  max_rounds: 5\n"
         + base_solver_budget_yaml()
-        + base_validity_guard_yaml()
         +         "  log_violations_timeline: true\n"
         "\n"
+        + base_validity_guard_yaml()
+        + "\n"
         "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]\n"
         "\n"
         "groups:\n"

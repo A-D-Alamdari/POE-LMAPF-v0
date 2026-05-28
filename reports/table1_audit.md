@@ -101,42 +101,120 @@ the Theorem 1 quantity it claims to measure.
 `scripts/diagnostics/find_nx_source.py` against the printed
 values in `paper/tables/table1_solver_substitutability.{md,tex}`.)
 
-## Cross-section convention check (P13 + P14 follow-up)
+## Cross-section convention check — §5.1 source UNRESOLVED
 
 The paper uses the column name "N_x" in BOTH the §5.4 baseline
-comparison (this audit) AND the §5.1 horizon-tuning Table 1.  We
-ran the same diagnostic against the §5.1 dataset
-(`logs/tuning/horizon_replan_full/results.csv`, |M|=100, |X|=50,
-H ∈ {10..80}) with two cleanly separated panels (P14 follow-up
-to fix a column-dimension-collapse bug in the original P13
-search):
+comparison (this audit) AND the §5.1 horizon-tuning Table 1.
+The §5.4 audit above is sound (outcome (i), max rel err 0.007%).
 
-* **Panel A** — column × unary transform.  Every transform uses
-  its column argument; a runtime assert raises if two distinct
-  columns under the same transform tie to 1e-9 (the collapse
-  signature).  Best Panel A fit: `wait_fraction` under `x/T*1000`
-  at L2=0.0121, max per-cell rel err **32.16%**.
-* **Panel B** — named derived quantities, evaluated once per row,
-  with free-scaling constant `c = argmin_c L2(paper, c*q)`.  Best
-  shape match: `(safe_wait_steps + yield_wait_steps)/(2*M*T)`
-  with c=1.1918, L2=0.0079, max per-cell rel err **20.21%**.
+> **The §5.1 N_x source is UNRESOLVED (audit tool had a
+> column-binding bug; see `reports/nx_horizon_audit.md`).
+> Whether the §5.1 and §5.4 conventions agree is unknown.**
 
-Best across both panels: **20.21%** max per-cell relative error
--- four times the 5% threshold.  The §5.1 N_x values do not
-reproduce from any column in the post-Prompt-1 schema, and the
-free-scaling constant (1.19) is not a plausible canonical value.
-Full sorted candidates and per-cell breakdowns:
-`reports/nx_horizon_audit.md`.
+The earlier conclusion in this file ("The §5.1 N_x convention is
+different-from the §5.4 N_x convention") rested on a
+diagnostic whose original (P13) candidate search ignored its
+column argument: every column reported an identical fit.  A
+follow-up (P14) split the panel and added a runtime assert
+against column collapse; the post-fix search shows the §5.1
+values do not reproduce within 5% per cell on the current panel
+either.  But a finite candidate panel cannot enumerate every
+possible formula; the audit cannot demonstrate
+non-reproducibility, only "not reproduced by this panel".  The
+§5.1 source is open.
 
-> **The §5.1 N_x convention is different-from the §5.4 N_x convention.**
-
-See `reports/nx_horizon_audit.md` for the per-cell breakdown of
-the top three §5.1 fits and the formal outcome (ii) decision.
-The §5.1 sub-table is held STALE pending re-runs against the
-current schema; see
-`paper/sections/05_1_horizon_subtable_STALE.md` for the
-disposition note.
+Disposition + STALE marker for the horizon sub-table:
+`paper/sections/05_1_horizon_subtable_STALE.md`.
 
 The §5.4 audit above (this file) remains outcome (i): identity
 transform on `violations_exogenous_attributable` reproduces every
-§5.4 cell within 0.007%.
+§5.4 cell within 0.007%.  That part is sound.  The §5.1 source
+is open; see `reports/nx_horizon_audit.md` (STATUS block at the
+top) for the audit history.
+
+## §5 horizon-tuning Table 1 rebuild (Prompt B)
+
+The paper's §5 horizon-tuning Table 1 had at least two columns
+whose printed values did not match their header.  This appendix
+records the per-cell diff between the OLD (paper-text) values
+and the NEW (CSV-derived) values produced by
+`scripts/evaluation/build_table_horizon.py`.
+
+* The OLD "Number of Local Replanning" column showed
+  ``mean_service_time`` (60-150 step range), not ``local_replans``
+  (10^3-10^4 range).  The narrative paragraph beneath the table
+  quoted the correct ``local_replans`` numbers (19.5K, 8.5K),
+  contradicting the table.  The NEW values reproduce
+  ``local_replans`` straight from the CSV.
+* The OLD "N_x" column carried values 0.029-0.083 whose source
+  could not be reproduced from any (column, transform) tuple in
+  the candidate panel (see `reports/nx_horizon_audit.md` STATUS
+  block).  The NEW table shows ``--`` for N_x because the
+  committed horizon CSV
+  (`logs/tuning/horizon_replan_full/results.csv`) predates the
+  P1 Definition-1 columns (`violations_def1_*`); future re-runs
+  will populate the column and the rebuilt table will show
+  ``mean(violations_def1_exogenous_attributable) / (num_agents *
+  steps)`` per cell.
+
+### Per-cell diff
+
+(Source CSV: `logs/tuning/horizon_replan_full/results.csv`,
+filtered to `status=ok, num_agents=100, num_humans=50`,
+aggregated over 10 seeds per (H, map) cell.)
+
+| H | map | Column header | Old value (paper) | New value (CSV) | Source CSV column |
+|---:|---|---|---|---|---|
+| 10 | random | Number of Local Replanning | 66.0 (mean_service_time -- wrong column) | 19483 (local_replans) | local_replans |
+| 10 | random | N_x | 0.029 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 10 | warehouse | Number of Local Replanning | 133.3 (mean_service_time -- wrong column) | 8539 (local_replans) | local_replans |
+| 10 | warehouse | N_x | 0.033 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 20 | random | Number of Local Replanning | 68.8 (mean_service_time -- wrong column) | 16528 (local_replans) | local_replans |
+| 20 | random | N_x | 0.040 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 20 | warehouse | Number of Local Replanning | 135.5 (mean_service_time -- wrong column) | 5993 (local_replans) | local_replans |
+| 20 | warehouse | N_x | 0.044 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 30 | random | Number of Local Replanning | 70.8 (mean_service_time -- wrong column) | 16172 (local_replans) | local_replans |
+| 30 | random | N_x | 0.046 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 30 | warehouse | Number of Local Replanning | 138.5 (mean_service_time -- wrong column) | 5560 (local_replans) | local_replans |
+| 30 | warehouse | N_x | 0.050 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 40 | random | Number of Local Replanning | 72.4 (mean_service_time -- wrong column) | 15460 (local_replans) | local_replans |
+| 40 | random | N_x | 0.052 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 40 | warehouse | Number of Local Replanning | 142.3 (mean_service_time -- wrong column) | 4982 (local_replans) | local_replans |
+| 40 | warehouse | N_x | 0.057 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 50 | random | Number of Local Replanning | 76.4 (mean_service_time -- wrong column) | 15611 (local_replans) | local_replans |
+| 50 | random | N_x | 0.061 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 50 | warehouse | Number of Local Replanning | 143.2 (mean_service_time -- wrong column) | 5019 (local_replans) | local_replans |
+| 50 | warehouse | N_x | 0.058 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 60 | random | Number of Local Replanning | 78.8 (mean_service_time -- wrong column) | 15675 (local_replans) | local_replans |
+| 60 | random | N_x | 0.064 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 60 | warehouse | Number of Local Replanning | 143.8 (mean_service_time -- wrong column) | 4832 (local_replans) | local_replans |
+| 60 | warehouse | N_x | 0.063 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 70 | random | Number of Local Replanning | 83.1 (mean_service_time -- wrong column) | 15552 (local_replans) | local_replans |
+| 70 | random | N_x | 0.072 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 70 | warehouse | Number of Local Replanning | 144.8 (mean_service_time -- wrong column) | 4916 (local_replans) | local_replans |
+| 70 | warehouse | N_x | 0.066 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 80 | random | Number of Local Replanning | 86.9 (mean_service_time -- wrong column) | 15602 (local_replans) | local_replans |
+| 80 | random | N_x | 0.083 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 80 | warehouse | Number of Local Replanning | 146.9 (mean_service_time -- wrong column) | 4806 (local_replans) | local_replans |
+| 80 | warehouse | N_x | 0.067 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+
+### Other columns
+
+The Throughput, Util., Service time, Wait fraction, Deadlock
+count, and Wall (s) columns in the rebuilt table all source
+from the CSV columns named in the LaTeX provenance comment block
+at the top of `paper/tables/horizon_tuning.tex`.  These columns
+were not part of the original "wrong column" issue; they're
+reported in the rebuild for completeness.
+
+### Saturation note
+
+Every (H, map) cell in the rebuilt table is **arrival-saturated**
+(throughput utilization >= 0.95 -- the throughput column is
+marked with `*`).  Per `paper/sections/05_1_load_regime.md` the
+throughput column in these cells measures the task arrival cap
+$|M|/(H+W)$, not planner capacity.  The narrative paragraph that
+quoted "19.5K and 8.5K" local_replans values is now consistent
+with the rebuilt table; if the paper's interpretation of those
+numbers cited throughput as a planner-quality signal, the
+saturation footnote from §5.1 should be appended there as well.

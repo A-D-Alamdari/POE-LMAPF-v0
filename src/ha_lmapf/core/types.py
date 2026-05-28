@@ -851,6 +851,34 @@ class SimConfig:
     # checks; see ``docs/tier_handoff_diagnosis.md``.
     debug_guidance_trace: bool = False
 
+    def __post_init__(self) -> None:
+        # Construction-safety precondition (Theorem 1, paper §4.5):
+        # the safety buffer must be strictly inside the agent's field
+        # of view, otherwise the local controller cannot enforce the
+        # forbidden set on cells outside its observable region.  When
+        # this precondition is violated the Algorithm-2 invariant
+        # "no executed action enters an observed pre-move buffer"
+        # silently fails, so audit step 04 §4 demoted this from a
+        # documented assumption to an enforced invariant.  See
+        # ``docs/proposed_approach.md`` §F for the construction-level
+        # proof, ``src/ha_lmapf/simulation/simulator.py:1148-1151``
+        # for the corresponding code-side comment, and
+        # ``tests/test_config_preconditions.py`` for the regression
+        # test that proves this branch fires.
+        if int(self.safety_radius) >= int(self.fov_radius):
+            raise ValueError(
+                f"SimConfig violates the Theorem-1 precondition "
+                f"r_safe < r_fov: safety_radius={self.safety_radius} "
+                f">= fov_radius={self.fov_radius}.  The local "
+                f"controller cannot enforce a safety buffer on cells "
+                f"outside the agent's field of view, so this "
+                f"configuration cannot satisfy Algorithm 2's "
+                f"forbidden-set invariant.  Pick (fov, safe) such that "
+                f"safety_radius < fov_radius (e.g. defaults "
+                f"fov_radius=4, safety_radius=1).  See paper §4.5 "
+                f"Theorem 1 and docs/proposed_approach.md §F."
+            )
+
     def to_dict(self) -> Dict[str, Any]:
         """Serialize config to a dictionary."""
         return asdict(self)

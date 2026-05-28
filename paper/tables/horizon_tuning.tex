@@ -1,0 +1,51 @@
+%
+% Provenance block (P12 / Prompt B): every column in the
+% table below sources its value from the named CSV column
+% or derived formula.  Auditable from this file alone --
+% the P15 test tests/test_horizon_table_provenance.py
+% parses these lines and asserts every header appears.
+%
+% Column "Throughput" <- throughput
+% Column "Util." <- throughput_utilization
+% Column "Local replans" <- local_replans
+% Column "Service time (steps)" <- mean_service_time
+% Column "Wait fraction" <- wait_fraction
+% Column "Deadlock count" <- deadlock_count
+% Column "Wall (s)" <- wall_clock_s
+% Column "Def-1 agent-attr." <- violations_def1_agent_attributable
+% Column "N_x norm." <- derived: mean(violations_def1_exogenous_attributable) / (num_agents * steps)
+%
+% Source CSV: logs/tuning/horizon_replan_full/results.csv
+% Filter: status=ok, num_agents=100, num_humans=50
+% Aggregation: mean +/- seed-std across 10 seeds per (H, map).
+% Utilization marker (*): mean utilization >= 0.95 (P10 convention).
+%
+
+\begin{tabular}{llrrrrrrrrr}
+\toprule
+$H$ & Map & Throughput & Util. & Local replans & Service time (steps) & Wait fraction & Deadlock count & Wall (s) & Def-1 agent-attr. & N_x norm. \\
+\midrule
+10 & random & \num{0.754}* $\pm$ \num{0.015} & \num{1.00}* & \num{19483} $\pm$ \num{971} & \num{66.0} $\pm$ \num{1.5} & \num{0.039} $\pm$ \num{0.003} & \num{7.8} $\pm$ \num{3.3} & \num{2009} $\pm$ \num{238} & -- & -- \\
+10 & warehouse & \num{0.396}* $\pm$ \num{0.009} & \num{0.98}* & \num{8539} $\pm$ \num{1689} & \num{133.3} $\pm$ \num{2.9} & \num{0.046} $\pm$ \num{0.007} & \num{27.4} $\pm$ \num{3.9} & \num{1273} $\pm$ \num{440} & -- & -- \\
+20 & random & \num{0.754}* $\pm$ \num{0.015} & \num{1.00}* & \num{16528} $\pm$ \num{613} & \num{68.8} $\pm$ \num{1.7} & \num{0.057} $\pm$ \num{0.003} & \num{5.7} $\pm$ \num{2.3} & \num{1179} $\pm$ \num{166} & -- & -- \\
+20 & warehouse & \num{0.396}* $\pm$ \num{0.010} & \num{0.98}* & \num{5993} $\pm$ \num{864} & \num{135.5} $\pm$ \num{2.5} & \num{0.061} $\pm$ \num{0.008} & \num{28.5} $\pm$ \num{4.2} & \num{783} $\pm$ \num{225} & -- & -- \\
+30 & random & \num{0.755}* $\pm$ \num{0.014} & \num{1.00}* & \num{16172} $\pm$ \num{921} & \num{70.8} $\pm$ \num{1.7} & \num{0.071} $\pm$ \num{0.004} & \num{7.2} $\pm$ \num{2.7} & \num{998} $\pm$ \num{149} & -- & -- \\
+30 & warehouse & \num{0.396}* $\pm$ \num{0.009} & \num{0.98}* & \num{5560} $\pm$ \num{862} & \num{138.5} $\pm$ \num{3.2} & \num{0.071} $\pm$ \num{0.011} & \num{28.3} $\pm$ \num{5.6} & \num{683} $\pm$ \num{207} & -- & -- \\
+40 & random & \num{0.754}* $\pm$ \num{0.015} & \num{1.00}* & \num{15460} $\pm$ \num{636} & \num{72.4} $\pm$ \num{2.0} & \num{0.083} $\pm$ \num{0.007} & \num{6.3} $\pm$ \num{2.4} & \num{872} $\pm$ \num{94} & -- & -- \\
+40 & warehouse & \num{0.395}* $\pm$ \num{0.010} & \num{0.98}* & \num{4982} $\pm$ \num{437} & \num{142.3} $\pm$ \num{3.1} & \num{0.084} $\pm$ \num{0.009} & \num{29.6} $\pm$ \num{4.8} & \num{527} $\pm$ \num{101} & -- & -- \\
+50 & random & \num{0.754}* $\pm$ \num{0.014} & \num{1.00}* & \num{15611} $\pm$ \num{896} & \num{76.4} $\pm$ \num{4.3} & \num{0.105} $\pm$ \num{0.015} & \num{6.4} $\pm$ \num{2.6} & \num{762} $\pm$ \num{66} & -- & -- \\
+50 & warehouse & \num{0.396}* $\pm$ \num{0.009} & \num{0.98}* & \num{5019} $\pm$ \num{434} & \num{143.2} $\pm$ \num{1.9} & \num{0.087} $\pm$ \num{0.008} & \num{24.5} $\pm$ \num{3.8} & \num{533} $\pm$ \num{80} & -- & -- \\
+60 & random & \num{0.754}* $\pm$ \num{0.014} & \num{1.00}* & \num{15675} $\pm$ \num{1007} & \num{78.8} $\pm$ \num{4.7} & \num{0.118} $\pm$ \num{0.018} & \num{7.1} $\pm$ \num{2.5} & \num{692} $\pm$ \num{60} & -- & -- \\
+60 & warehouse & \num{0.395}* $\pm$ \num{0.009} & \num{0.98}* & \num{4832} $\pm$ \num{369} & \num{143.8} $\pm$ \num{3.1} & \num{0.093} $\pm$ \num{0.008} & \num{28.0} $\pm$ \num{5.6} & \num{496} $\pm$ \num{80} & -- & -- \\
+70 & random & \num{0.754}* $\pm$ \num{0.014} & \num{1.00}* & \num{15552} $\pm$ \num{1008} & \num{83.1} $\pm$ \num{6.3} & \num{0.143} $\pm$ \num{0.028} & \num{5.6} $\pm$ \num{2.1} & \num{671} $\pm$ \num{52} & -- & -- \\
+70 & warehouse & \num{0.395}* $\pm$ \num{0.010} & \num{0.98}* & \num{4916} $\pm$ \num{484} & \num{144.8} $\pm$ \num{3.1} & \num{0.095} $\pm$ \num{0.009} & \num{27.2} $\pm$ \num{5.9} & \num{505} $\pm$ \num{85} & -- & -- \\
+80 & random & \num{0.754}* $\pm$ \num{0.015} & \num{1.00}* & \num{15602} $\pm$ \num{1157} & \num{86.9} $\pm$ \num{8.5} & \num{0.167} $\pm$ \num{0.039} & \num{6.1} $\pm$ \num{2.9} & \num{609} $\pm$ \num{33} & -- & -- \\
+80 & warehouse & \num{0.396}* $\pm$ \num{0.010} & \num{0.98}* & \num{4806} $\pm$ \num{370} & \num{146.9} $\pm$ \num{3.3} & \num{0.102} $\pm$ \num{0.010} & \num{26.4} $\pm$ \num{7.1} & \num{401} $\pm$ \num{52} & -- & -- \\
+\bottomrule
+\end{tabular}
+
+% Saturation footnote.  See paper/sections/05_1_load_regime.md
+% for the canonical wording: at |M|=100 the system-wide
+% task arrival rate is |M|/(H+W) = 0.781 (random) / 0.394
+% (warehouse); throughput in cells marked with * saturates at
+% this arrival cap and does not measure planner capacity.

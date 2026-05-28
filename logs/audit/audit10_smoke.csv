@@ -1,0 +1,4 @@
+seed,wall_s,sv,legacy_agent,legacy_exo,def1_agent,def1_exo,def1_sum,completed,steps,wait_total,safe,yield,p_revert,delay,deadlock,arrival_rate,util,sv_events
+0,0.618588033999913,11,0,11,0,11,11,36,300,50,11,35,4,0,0,0.12,1.0,10
+1,0.2656208240000524,30,0,30,0,30,30,31,300,6,6,0,0,0,0,0.10333333333333333,1.0,27
+2,0.29072759800010317,24,0,24,0,24,24,35,300,19,6,10,3,0,0,0.12,0.9722222222222223,21

@@ -138,7 +138,11 @@ def test_scenario_C_exogenous_attributable(map5x5):
     exogenous agent: under the agent's decision-time information the
     chosen action (WAIT) was non-violating.
     """
-    sim = _make_sim(map5x5, fov_radius=1, safety_radius=2)
+    # Audit 06: r_safe < r_fov enforced; bumped fov 1 -> 3 to satisfy
+    # the precondition.  The WAIT-counterfactual classifier this test
+    # exercises ignores FoV (single-clause, no FoV gate -- see
+    # simulator.py:1247-1275), so the bucket assignment is unchanged.
+    sim = _make_sim(map5x5, fov_radius=3, safety_radius=2)
     sim.agents = {0: AgentState(agent_id=0, pos=(2, 2))}
     sim.humans = {0: HumanState(human_id=0, pos=(4, 2))}
 
@@ -302,9 +306,13 @@ def test_wait_counterfactual_fov_blind_move_is_agent_attributable(map5x5):
     This is the scenario that proves the new classifier is not
     tautological -- the old rule never returned a nonzero agent count
     for it, but the WAIT counterfactual does."""
-    # r_fov = 1 keeps the human at distance 2 outside the agent's
-    # observation set, exercising the old rule's blind spot.
-    sim = _make_sim(map5x5, fov_radius=1, safety_radius=1)
+    # Audit 06: r_safe < r_fov is now enforced; bumped fov 1 -> 2.
+    # The WAIT-counterfactual classifier (bucket B at simulator.py
+    # 1247-1275) has no FoV gate, so the test's bucket assignment
+    # is unchanged — the "FoV-blind" framing in the docstring
+    # above refers to the original Definition-1 design, not to a
+    # behavioural dependency of this classifier.
+    sim = _make_sim(map5x5, fov_radius=2, safety_radius=1)
     sim.agents = {0: AgentState(agent_id=0, pos=(1, 0))}
     sim.humans = {0: HumanState(human_id=0, pos=(2, 0))}
 

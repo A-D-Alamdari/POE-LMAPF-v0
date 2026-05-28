@@ -72,90 +72,51 @@ def test_baseline_identity_holds():
 
 
 def test_horizon_outcome_locked():
-    """§5.1 / horizon_replan_full: the diagnostic must continue
-    to report outcome (ii) -- no candidate reproduces the paper
-    N_x within 5% per cell -- AND the column dimension must not
-    collapse (the P13 bug that produced identical residuals
-    across every column).  If a future panel addition drops the
-    max per-cell rel err below 5%, the responder must update
-    ``paper/sections/05_1_horizon_subtable_STALE.md`` and
-    ``reports/nx_horizon_audit.md`` to reflect the new (i)
-    outcome.
+    """§5.1 / horizon_replan_full: the audit verdict is
+    **UNRESOLVED**, not outcome (ii).  An earlier version of
+    this test asserted "outcome (ii) holds" against the
+    diagnostic's max per-cell rel err threshold; that
+    assertion treated the question as closed even though the
+    underlying search had a column-binding bug and, even after
+    the P14 fix, a finite candidate panel cannot demonstrate
+    non-reproducibility.
+
+    The corrected lock-in is: the STALE doc must continue to
+    describe the §5.1 source as UNRESOLVED (not "deleted
+    source").  A future commit that flips the verdict back to
+    "outcome (ii)" without locating the formula, or claims
+    "outcome (i)" without documenting the matching formula,
+    must update the STALE doc; this test fires when the doc
+    no longer carries the UNRESOLVED status string.
     """
-    csv_path = REPO_ROOT / "logs" / "tuning" / "horizon_replan_full" / "results.csv"
-    if not csv_path.exists():
-        pytest.skip(f"{csv_path} missing")
-    rows = nx.load_rows(csv_path)
-    cells = dict(nx.filter_horizon_cells(rows))
-    paper_dict = dict(nx.PAPER_NX_HORIZON)
-    # Sanity: filter should produce all 16 cells (2 maps x 8 H).
-    assert len(cells) == 16, (
-        f"expected 16 horizon cells, got {len(cells)}; the "
-        f"|M|=100, |X|=50 filter may have drifted from the "
-        f"sweep config."
+    stale = REPO_ROOT / "paper" / "sections" / "05_1_horizon_subtable_STALE.md"
+    assert stale.exists(), (
+        f"{stale} missing -- the STALE marker has been deleted, "
+        f"silently re-opening the verifiability hole the audit "
+        f"closed.  Restore it or document the resolution in a "
+        f"replacement doc."
     )
-    # Panel A -- column x unary-transform grid.  Every transform
-    # MUST use its column argument; assert_no_column_collapse
-    # raises if two distinct columns share a residual to 1e-9
-    # under the same transform (the P14 collapse bug signature).
-    panel_a = []
-    for col in nx.numeric_columns(rows):
-        for label, fn in nx.UNARY_TRANSFORMS:
-            res = nx.fit_residual(col, label, fn, cells, paper_dict)
-            if res is None:
-                continue
-            l2, max_rel, n_cells, per_cell = res
-            panel_a.append((col, label, l2, max_rel, n_cells, per_cell))
-    # **The no-collapse property** -- the test that would have
-    # caught the P13 column-binding bug.  ``assert_no_column_collapse``
-    # raises RuntimeError if collapse is detected; we wrap it in a
-    # try / re-raise here so the failure mode is visible in pytest
-    # output as a test failure (not just an uncaught exception).
-    try:
-        nx.assert_no_column_collapse(panel_a)
-    except RuntimeError as exc:
-        raise AssertionError(
-            f"column dimension collapse detected in Panel A -- the "
-            f"P13 bug has regressed.  The diagnostic's unary "
-            f"transform panel must use its column argument on EVERY "
-            f"entry; reading named columns from the row instead "
-            f"belongs in NAMED_DERIVED (Panel B).  Detail: {exc}"
-        ) from exc
-
-    # Panel B -- named derived quantities with free scaling.
-    panel_b = []
-    for label, fn in nx.NAMED_DERIVED:
-        res = nx.fit_named_derived(label, fn, cells, paper_dict)
-        if res is None:
-            continue
-        c, l2, max_rel, n_cells, per_cell = res
-        panel_b.append((label, c, l2, max_rel, n_cells, per_cell))
-
-    panel_a.sort(key=lambda t: (t[2], t[3]))
-    panel_b.sort(key=lambda t: (t[3], t[2]))
-    best_max_rel = min(
-        (panel_a[0][3] if panel_a else float("inf")),
-        (panel_b[0][3] if panel_b else float("inf")),
+    txt = stale.read_text()
+    assert "UNRESOLVED" in txt, (
+        "STALE doc no longer describes the §5.1 N_x source as "
+        "UNRESOLVED.  If the source has been identified, update "
+        "this test and the doc to record the new verdict (and "
+        "remove the STALE marker).  If the doc was edited to "
+        "restore an over-claimed verdict (e.g. 'deleted source' "
+        "or 'outcome (ii)'), revert: a finite candidate panel "
+        "cannot demonstrate non-reproducibility."
     )
-    # The audit verdict requires max per-cell rel err >= 5%
-    # across BOTH panels.
-    assert best_max_rel >= nx.OUTCOME_I_THRESHOLD, (
-        f"horizon outcome flipped to (i): best max rel err across "
-        f"both panels {best_max_rel*100:.3f}% < "
-        f"{nx.OUTCOME_I_THRESHOLD*100:.0f}%.  A candidate formula "
-        f"now reproduces the paper §5.1 N_x values; update "
-        f"paper/sections/05_1_horizon_subtable_STALE.md and "
-        f"reports/nx_horizon_audit.md to reflect the new (i) "
-        f"verdict."
-    )
-    # Sanity-check the residual band the post-collapse-fix audit
-    # observed (best fit ~20%).  A drift above 50% would mean the
-    # |M|=100, |X|=50 slice no longer exists in the CSV.
-    assert best_max_rel < 0.50, (
-        f"horizon audit residual ({best_max_rel*100:.3f}%) above "
-        f"50%; the diagnostic may be reading the wrong slice of "
-        f"the horizon CSV.  Expected best-fit rel err ~20% per "
-        f"the post-collapse-fix audit."
+    # The doc must NOT assert the source was deleted as a
+    # positive verdict.  We allow the retraction language
+    # ("not shown to come from a deleted source") but reject
+    # affirmative claims.  The over-claim signature is the
+    # original P13 phrasing: "the values came from a deleted /
+    # external source" used as a CONCLUSION.
+    OVERCLAIM = "came from a deleted / external source"
+    assert OVERCLAIM not in txt, (
+        f"STALE doc has reintroduced the retracted over-claim "
+        f"{OVERCLAIM!r}.  The audit cannot demonstrate "
+        f"non-reproducibility; use 'UNRESOLVED' instead."
     )
 
 

@@ -1,14 +1,32 @@
 # Paper Section 5.3 — FoV / safety-radius sweep.
 #
-# Cartesian: r_fov x r_safe x map  (400 runs)
-#   |r_fov| x |r_safe| x |maps| x |seeds|
-#      5    x    4    x    2    x    10  = 400
+# Triangular: r_fov x r_safe x map  (340 runs, was 400)
+#   |valid (fov, safe) pairs| x |maps| x |seeds|
+#               17           x    2    x    10  = 340
+#
+# Theorem-1 precondition r_safe < r_fov (paper §4.5;
+# enforced at SimConfig construction by core/types.py
+# SimConfig.__post_init__).  The three (fov, safe)
+# pairs (2,2) (2,3) (3,3) are excluded — they would
+# crash at SimConfig construction since safety_radius
+# >= fov_radius cannot satisfy the Algorithm-2 forbidden-set
+# invariant.  Audit step 06 (reports/audit/06_preconditions.md)
+# moved this from a documented assumption to an enforced
+# invariant.
+#
+# Per fov_radius the valid safety_radius range is:
+#   fov=2 -> safe in {0, 1}        (2 pairs)
+#   fov=3 -> safe in {0, 1, 2}     (3 pairs)
+#   fov=4 -> safe in {0, 1, 2, 3}  (4 pairs)
+#   fov=5 -> safe in {0, 1, 2, 3}  (4 pairs; safe=4 not in original sweep)
+#   fov=6 -> safe in {0, 1, 2, 3}  (4 pairs; safe=4,5 not in original sweep)
+#                          total = 17 pairs
 #
 # Fixed: |M| = 50 controlled agents, |X| = 50 exogenous agents,
 # LaCAM* solver, 2000 steps.
 
 name: fov_safety
-description: "Section 5.3 — FoV radius x safety radius sweep"
+description: "Section 5.3 — FoV radius x safety radius sweep (Theorem-1-valid pairs only)"
 
 base:
   steps: 2000
@@ -29,9 +47,41 @@ base:
     warehouse-10-20-10-2-1: aisle
     warehouse-10-20-10-2-2: aisle
 
+# One group per fov_radius value so each group can pin the
+# valid safety_radius subset.  Maps are crossed inside each
+# group.
 groups:
-  - sweep:
-      fov_radius: [2, 3, 4, 5, 6]
+  - name: fov2
+    sweep:
+      fov_radius: [2]
+      safety_radius: [0, 1]
+      map_path:
+        - data/maps/random-64-64-10.map
+        - data/maps/warehouse-10-20-10-2-2.map
+  - name: fov3
+    sweep:
+      fov_radius: [3]
+      safety_radius: [0, 1, 2]
+      map_path:
+        - data/maps/random-64-64-10.map
+        - data/maps/warehouse-10-20-10-2-2.map
+  - name: fov4
+    sweep:
+      fov_radius: [4]
+      safety_radius: [0, 1, 2, 3]
+      map_path:
+        - data/maps/random-64-64-10.map
+        - data/maps/warehouse-10-20-10-2-2.map
+  - name: fov5
+    sweep:
+      fov_radius: [5]
+      safety_radius: [0, 1, 2, 3]
+      map_path:
+        - data/maps/random-64-64-10.map
+        - data/maps/warehouse-10-20-10-2-2.map
+  - name: fov6
+    sweep:
+      fov_radius: [6]
       safety_radius: [0, 1, 2, 3]
       map_path:
         - data/maps/random-64-64-10.map
