@@ -241,6 +241,19 @@ class Simulator:
         self._tasks_completed_since_last_plan: int = 0
         self._major_deviation_flag: bool = False  # optional trigger set by controllers/simulator
         self.deviation_threshold: float = float(getattr(config, "deviation_threshold", 1.0))
+        # Resume-prompt-3: one-tick memory of distance-0 human
+        # encroachment for Def-1 response attribution.  Populated
+        # by step 4a in ``step_once``; consulted by the Def-1
+        # classifier on the NEXT tick to route any (a_i, h)
+        # violation pair to ``violations_def1_response_attributable``
+        # instead of agent / exogenous.  The "copy then clear"
+        # promotion at the end of step_once enforces a one-tick
+        # depth -- two ticks after an encroachment, the agent is
+        # back in the ordinary attribution path.  Tests covering
+        # the persistence, takeover-from-agent, and clear-after-one
+        # semantics live in ``tests/test_response_attributable.py``.
+        self._encroached_last_tick: Set[int] = set()
+        self._encroached_this_tick: Set[int] = set()
 
         # 6. Initialize: Global Planner
         # Resolve solver timeout: paper Section 5.1 ``solver_timeout_s``
@@ -1069,6 +1082,22 @@ class Simulator:
         agent_positions: Set[Cell] = {a.pos for a in self.agents.values()}
         self.humans = self.human_model.step(self.env, self.humans, self.rng, agent_positions)
 
+    def _promote_encroachment_memory(self) -> None:
+        """Resume-prompt-3: promote this tick's encroachment set to
+        ``_encroached_last_tick`` so the NEXT tick's Def-1
+        classifier can consult it, then clear this tick's set.
+        Copy-then-clear gives a one-tick-deep memory: two ticks
+        after an encroachment, ``_encroached_last_tick`` is empty
+        again and the agent is back on the ordinary
+        agent/exogenous attribution path.  A sticky promotion
+        (e.g. ``last |= this``) would mis-attribute follow-up
+        buffer events as response forever; the regression test
+        ``test_response_bucket_clears_after_one_tick`` calls this
+        method directly so any drift between the contract and
+        the implementation surfaces immediately."""
+        self._encroached_last_tick = self._encroached_this_tick.copy()
+        self._encroached_this_tick = set()
+
     def _detect_collisions_and_near_misses(
             self,
             prev_pos: Dict[int, Cell],
@@ -1255,25 +1284,56 @@ class Simulator:
                                  + abs(a_new[1] - hp[1])) <= safety_r
                             for _hid_obs, hp in observed_pairs
                         )
-                        # Resume-prompt-2: split the def1 buckets by
-                        # post-move L1 distance.  ``d_new`` is
-                        # already L1(s_i(t+1), h_post) above; route
-                        # to ``_d0`` when 0 and ``_dgt0`` when in
-                        # (0, safety_r].  Both add_* calls fire in
-                        # lockstep with the parent so the
-                        # finalize-time invariant ``parent == d0 + dgt0``
-                        # holds by construction.  The d0 branch is
-                        # reachable only when the human moved INTO
-                        # the agent's t+1 cell -- in the True regime
-                        # ``_update_humans`` filters that out, and
-                        # the agent moving INTO a human-occupied cell
-                        # is independently blocked by the forbidden
-                        # set construction (any human's own cell is
-                        # inside its own r=0 buffer).  So d0 > 0
-                        # implies False regime AND the human-moves-
-                        # into-agent path; this is the schema's only
-                        # falsifiable distinction at this layer.
-                        if def1_attr:
+                        # Three-way Def-1 attribution
+                        # (resume-prompt-3).  Branches in order:
+                        #
+                        #  (1) RESPONSE -- ``aid`` was tagged in
+                        #      ``_encroached_last_tick`` by the
+                        #      previous tick's step-4a vertex-
+                        #      collision pass.  Any (a, *) violation
+                        #      pair this tick is a consequence of
+                        #      that encroachment, not a new agent or
+                        #      exogenous fact.  Covers both cases:
+                        #      (a) the agent moved this tick to
+                        #          escape the encroacher and stepped
+                        #          into another human's buffer; and
+                        #      (b) the agent stayed put (Safe Wait)
+                        #          and the original encroacher is
+                        #          still within ``r_safe``.  In both
+                        #      cases the cause-vs-consequence is
+                        #      "encroachment first, violation
+                        #      after," so the pair is routed to
+                        #      ``response_attributable`` REGARDLESS
+                        #      of geometry.  Response has no
+                        #      d0/dgt0 split (Decision 3 of the
+                        #      resume plan): response moves are
+                        #      always made FROM distance 0 to
+                        #      somewhere, so the destination's
+                        #      distance to ANOTHER human is not
+                        #      the meaningful axis.
+                        #
+                        #  (2) AGENT-ATTRIBUTABLE -- the canonical
+                        #      Theorem-1 clause: some observed
+                        #      pre-move witness h' simultaneously
+                        #      satisfies clauses (a) and (b)
+                        #      against the agent's actual move.
+                        #      Split by ``d_new`` into d0 / dgt0.
+                        #
+                        #  (3) EXOGENOUS-ATTRIBUTABLE -- the
+                        #      violation pair exists at t+1 but no
+                        #      observed witness implicates the
+                        #      agent's move.  Split by ``d_new``
+                        #      into d0 / dgt0.
+                        #
+                        # The response check fires FIRST so an
+                        # encroached agent's pair never reaches the
+                        # agent or exogenous buckets even when the
+                        # geometry would otherwise put it there
+                        # (the cause-vs-consequence ordering would
+                        # be inverted).
+                        if aid in self._encroached_last_tick:
+                            self.metrics.add_def1_response_attributable_violation(1)
+                        elif def1_attr:
                             self.metrics.add_def1_agent_attributable_violation(1)
                             if d_new == 0:
                                 self.metrics.add_def1_agent_attributable_d0_violation(1)
@@ -1540,6 +1600,10 @@ class Simulator:
             for hid in sorted(self.humans.keys()):
                 if self.humans[hid].pos == a_pos:
                     self.metrics.add_agent_human_vertex_collision(1)
+                    # Resume-prompt-3: tag this agent so the NEXT
+                    # tick's Def-1 classifier routes any (a, *)
+                    # violation pair into ``response_attributable``.
+                    self._encroached_this_tick.add(aid)
                     if _vc_logger is None:
                         import logging
                         _vc_logger = logging.getLogger(__name__)
@@ -1855,6 +1919,14 @@ class Simulator:
         # Record per-step decision time
         step_elapsed_ms = (_time.perf_counter() - step_t0) * 1000.0
         self.metrics.record_decision_time_ms(step_elapsed_ms)
+
+        # Resume-prompt-3: promote this tick's encroachment set so
+        # the NEXT tick's Def-1 classifier can route any (a, *)
+        # violation pair coming from an encroached agent into
+        # ``response_attributable``.  See
+        # ``_promote_encroachment_memory`` for the one-tick-deep
+        # copy-then-clear contract.
+        self._promote_encroachment_memory()
 
         # Advance Time
         self.step += 1
