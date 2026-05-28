@@ -100,3 +100,30 @@ the Theorem 1 quantity it claims to measure.
 `logs/paper/solver_sensitivity/results.csv`, audited by
 `scripts/diagnostics/find_nx_source.py` against the printed
 values in `paper/tables/table1_solver_substitutability.{md,tex}`.)
+
+## Cross-section convention check (P13 follow-up)
+
+The paper uses the column name "N_x" in BOTH the §5.4 baseline
+comparison (this audit) AND the §5.1 horizon-tuning Table 1.  We
+ran the same diagnostic against the §5.1 dataset
+(`logs/tuning/horizon_replan_full/results.csv`, |M|=100, |X|=50,
+H ∈ {10..80}) with an expanded candidate-transform panel including
+`safe_wait/(M*T)`, `(safe+yield)/(2*M*T)`, `human_passive_wait/(X*T)`,
+`global_replans/1000`, `local_replans/100000`, and
+`wait_fraction*c` for c ∈ {0.40, 0.50, 0.60, 0.70, 0.74}.  Best
+fit reached **21.035%** max per-cell relative error -- four times
+the 5% threshold.  The §5.1 N_x values do not reproduce from any
+column in the post-Prompt-1 schema.
+
+> **The §5.1 N_x convention is different-from the §5.4 N_x convention.**
+
+See `reports/nx_horizon_audit.md` for the per-cell breakdown of
+the top three §5.1 fits and the formal outcome (ii) decision.
+The §5.1 sub-table is held STALE pending re-runs against the
+current schema; see
+`paper/sections/05_1_horizon_subtable_STALE.md` for the
+disposition note.
+
+The §5.4 audit above (this file) remains outcome (i): identity
+transform on `violations_exogenous_attributable` reproduces every
+§5.4 cell within 0.007%.

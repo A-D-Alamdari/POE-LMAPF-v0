@@ -384,6 +384,39 @@ def test_no_orphaned_metric_field():
 # ---------------------------------------------------------------------------
 
 
+def test_horizon_stale_marker_doc_exists():
+    """P13 guard: the STALE marker file recording the §5.1
+    horizon-table outcome-(ii) verdict must remain in
+    paper/sections/.  Deleting it silently re-opens the
+    verifiability hole the audit closed."""
+    p = REPO_ROOT / "paper" / "sections" / "05_1_horizon_subtable_STALE.md"
+    assert p.exists(), (
+        f"{p} missing -- the §5.1 horizon N_x sub-table STALE "
+        f"marker has been deleted.  Re-introducing the sub-table "
+        f"in the paper without first re-running the horizon sweep "
+        f"against the current schema is a regression."
+    )
+    txt = p.read_text()
+    assert "Outcome (ii)" in txt
+    assert "horizon_replan_full" in txt
+
+
+def test_table1_audit_carries_convention_phrase():
+    """P13 guard: ``reports/table1_audit.md`` must carry the
+    canonical cross-section convention sentence so a paper editor
+    reading the audit sees the §5.1 / §5.4 divergence."""
+    p = REPO_ROOT / "reports" / "table1_audit.md"
+    assert p.exists()
+    txt = p.read_text()
+    assert (
+        "The §5.1 N_x convention is different-from the §5.4 N_x convention."
+        in txt
+    ), (
+        "reports/table1_audit.md must carry the P13 acceptance "
+        "phrase verbatim."
+    )
+
+
 def test_definition1_documentation_matches_implementation():
     """P1 guard: a future edit that quietly swaps the Definition-1
     classifier back for the WAIT-counterfactual rule must also
