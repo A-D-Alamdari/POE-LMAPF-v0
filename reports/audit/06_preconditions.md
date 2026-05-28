@@ -243,3 +243,133 @@ against future re-introduction.
 - Audit 04 §1.1 GAP "`RollingHorizonPlanner` does not enforce
   `R = floor(H/2)`": closed by §2 of this step (downgraded to "default,
   not required" with a regression test pinning the decoupling).
+
+---
+
+## 5. Mutation verification — does `test_def1_unobserved_witness_is_exogenous` still exercise the FoV gate?
+
+The §1 work bumped `fov_radius` from 1 to 2 in
+`test_def1_unobserved_witness_is_exogenous` (to satisfy the now-
+enforced `r_safe < r_fov` precondition) AND pushed the human's
+pre-move position out by one cell ((2,0) → (3,0)) to "keep it
+FOV-blind".  Two-knob adjustments that keep a test green are the
+exact pattern this audit series learned to distrust (cf. the
+P17 physics-revert test).  This section re-checks whether the
+adjusted test still has teeth.
+
+### Mutation experiment
+
+A detached worktree (`/tmp/scratch-fov` from HEAD `2e60b69`) was
+patched to drop the FoV filter from the Definition-1 classifier
+in `src/ha_lmapf/simulation/simulator.py`:
+
+```python
+# BEFORE (simulator.py:1209-1215)
+observed_pairs: List[Tuple[int, Cell]] = [
+    (hid, h.pos)
+    for hid, h in humans_pre_move.items()
+    if abs(a_prev[0] - h.pos[0])
+        + abs(a_prev[1] - h.pos[1])
+        <= fov_r
+]
+
+# AFTER (mutation)
+observed_pairs: List[Tuple[int, Cell]] = [
+    (hid, h.pos)
+    for hid, h in humans_pre_move.items()
+]
+```
+
+Result: `pytest tests/test_def1_violation_classifier.py -k
+"test_def1_unobserved_witness_is_exogenous"` — **1 passed** under
+the mutation.  Running the whole file: **7 passed**.  No test in
+the Definition-1 classifier file detects the dropped FoV gate.
+
+### Why the test does not exercise the FoV gate
+
+Trace the adjusted scenario by hand:
+
+| symbol | value |
+|---|---|
+| `a_prev` | `(0,0)` |
+| `a_new`  | `(1,0)` |
+| `pre`    | `(3,0)` |
+| `post`   | `(2,0)` |
+| `r_fov`  | `2` |
+| `r_safe` | `1` |
+
+Without the FoV filter, `observed_pairs == [(0, (3,0))]`.  Walk
+clauses (a) and (b) against the witness `h'_pre = (3,0)`:
+
+- clause (a): `|a_prev - h'_pre|₁ = 3 > r_safe=1`  ✓
+- clause (b): `|a_new  - h'_pre|₁ = 3 ≤ r_safe=1` ✗
+
+Clause (b) fails on the pre-move position, so `def1_attr=False`
+regardless of FoV gating.  The test passes whether or not the
+gate is applied.  **Outcome (b) per the task spec: the adjusted
+test does NOT exercise the FoV boundary.**
+
+### Why a single-step move cannot exercise the FoV gate under `r_safe < r_fov`
+
+This is structural, not an accident of fixture choice.  Definition
+1's witness `h'` contributes both clauses against its pre-move
+position `hp`.  For the FoV gate to make any difference, there
+must exist `hp` such that:
+
+1. `|a_prev - hp|₁ > r_fov`                       (FoV-blind ⇒ filtered out)
+2. `|a_prev - hp|₁ > r_safe`                      (clause a)
+3. `|a_new  - hp|₁ ≤ r_safe`                      (clause b)
+4. `a_prev ≠ a_new`                                (moved)
+
+The new precondition `r_safe < r_fov` enforced in §1 means
+`r_fov ≥ r_safe + 1` on integers.  Triangle inequality on the
+`ℓ¹` metric gives
+
+```
+|a_prev - hp|₁  ≤  |a_prev - a_new|₁ + |a_new - hp|₁
+                ≤  |a_prev - a_new|₁ + r_safe        (from (3))
+```
+
+For a single-step agent move `|a_prev - a_new|₁ = 1`, so
+`|a_prev - hp|₁ ≤ r_safe + 1 ≤ r_fov`, which directly contradicts
+(1).  No witness can be simultaneously FoV-blind from `a_prev`
+and inside `r_safe` of `a_new` when the agent moves only one
+cell.  The original audit-02 fixture worked because `r_fov = 1`
+made `r_safe + 1 = 2 > r_fov`; the new precondition closes that
+window.
+
+### Proposed adjustment that restores FoV sensitivity
+
+The simplest construction that escapes the bound is to make the
+agent hop **two cells** in one tick.  `_detect_collisions_and_near_misses`
+is driven directly with synthetic `prev_pos` / `new_pos` dicts in
+this unit test, so non-physical hops are legal here:
+
+```python
+prev_pos = {0: (0, 0)}
+new_pos  = {0: (2, 0)}                            # 2-cell hop
+pre  = {0: HumanState(human_id=0, pos=(3, 0))}    # L1((0,0),(3,0))=3 > fov=2
+post = {0: HumanState(human_id=0, pos=(2, 0))}    # L1((2,0),(2,0))=0 ≤ safe=1
+```
+
+Under this fixture:
+
+- clause (a): `|(0,0) - (3,0)|₁ = 3 > 1`  ✓
+- clause (b): `|(2,0) - (3,0)|₁ = 1 ≤ 1`  ✓
+- FoV gate:   `|(0,0) - (3,0)|₁ = 3 > 2`  ⇒ witness filtered out
+
+Pristine source: `safety=1, agent=0, exo=1` (exogenous, as
+expected).  Mutation (FoV filter removed): `safety=1, agent=1,
+exo=0` — the FoV filter is the **only** thing keeping this case
+out of the agent-attributable bucket.  The test would have teeth
+under the proposed construction.
+
+### Disposition
+
+The adjusted test is harmless (it still pins exogenous-vs-agent
+divergence between Definition-1 and the WAIT-counterfactual
+diagnostic) but it no longer probes the FoV boundary it claims
+to.  A follow-up is added to `RESUME_DECISION.md` Tier 3 to
+either rewrite the fixture using the 2-cell-hop construction
+above or split it into a separate test that does.  No source
+change in this audit step; the only artifact is this §5.

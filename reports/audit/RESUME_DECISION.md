@@ -114,6 +114,7 @@ proved.  None of these needs re-litigation in the resume work.
 | 3.4 | **`PIBTResolver._safe_side_step` ignores `forbidden` when `allow_side_step=True`.**  Default is `False`, so not active in any committed config. | `03_local_tier.md` §3; `06_preconditions.md` §3 | Plumb `forbidden` through when allow_side_step is set, matching `priority_rules.py:115` |
 | 3.5 | **Dead module `global_tier/task_allocator.py`** (orphan, carries stale `PersistentTaskAllocator`). | `00_dependency_map.md`; `04_global_humans.md` §2.1 | Delete or move to `_archive/` |
 | 3.6 | **22 `SimConfig` fields untunable from any YAML.**  Most by design (`seed` injected from `seeds:`, ablation toggles pinned); a few (`eta_w`, `deadlock_streak_threshold`, `execution_delay_prob`) are arguably worth a knob. | `05_io_runners.md` §1 | Add YAML knobs case by case if a future sweep needs them |
+| 3.7 | **`test_def1_unobserved_witness_is_exogenous` no longer exercises the FoV gate.**  Audit 06 §1 bumped `fov_radius` 1 → 2 and pushed the human pre-move out one cell; mutation verification in audit 06 §5 showed dropping the FoV filter still leaves the test green — clause (b) of Definition 1 is what fails, not the FoV gate.  Triangle inequality proves no single-step agent move can exercise the FoV gate under the now-enforced `r_safe < r_fov`. | `06_preconditions.md` §5 | Rewrite the fixture with a 2-cell agent hop (`prev=(0,0)`, `new=(2,0)`, `pre=(3,0)`, `post=(2,0)`) per the proposal in 06 §5; pristine: exogenous, mutation: agent-attributable — restores FoV sensitivity |
 
 ---
 
