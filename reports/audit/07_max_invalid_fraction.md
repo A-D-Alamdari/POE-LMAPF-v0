@@ -1,5 +1,18 @@
 # Audit step 07 — `max_invalid_fraction` placement + enforcement
 
+> **STATUS: SUPERSEDED by audits 09 and 11.** This report closed
+> BUG #1 on the basis of a status-only retroactive check
+> (`status == 'ok'` as the validity predicate). Audit 09
+> reopened the bug under the YAML-verbatim predicate; audit 11
+> hardened that finding on the solver clause alone (14/14
+> sweeps fail, minimum invalid fraction 0.591, arithmetic hand-
+> verified to 1e-12). **The "no committed result is invalidated"
+> verdict in §3 of this report is incorrect.** Read
+> `09_strong_validity_predicate.md` and `11_solver_fail_hardened.md`
+> before acting on anything written here. The placement fix in §1
+> and the enforcement wiring in §2 remain valid; only the
+> retroactive verdict in §3 is superseded.
+
 Audit step 05 BUG #1 documented that `max_invalid_fraction` was a
 two-level no-op:
 
@@ -238,3 +251,5 @@ inert guard happened to gate over already-clean data.
 ## CLOSED
 
 - Audit 05 BUG #1: closed by §1 + §2 + §3 of this step.
+
+Closure superseded by audit 09 §6 (REOPENED) and audit 11 §5 (HARDENED).
