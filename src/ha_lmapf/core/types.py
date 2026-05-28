@@ -75,6 +75,28 @@ class AgentState:
     wait_steps: int = 0
     last_action_was_safe_wait: bool = False
     last_action_was_yield_wait: bool = False
+    # P11 wait-kind extension.  Two more disjoint flags that cover
+    # WAITs the controller did NOT choose:
+    #
+    #   * ``last_action_was_physics_revert_wait`` -- the controller
+    #     decided to MOVE but ``Simulator.step_once`` step 7a
+    #     reverted the move to WAIT because of a residual
+    #     vertex/edge conflict the resolver could not eliminate.
+    #   * ``last_action_was_delay_wait``         -- the controller
+    #     decided to MOVE but ``Simulator.step_once`` step 6
+    #     (execution-delay injection, robust-MAPF) forced WAIT.
+    #
+    # Disjoint with the controller-chosen flags by construction:
+    # step 6 / step 7a only override actions that were NOT already
+    # WAIT, so an agent that the controller already buckets as
+    # safe/yield never reaches either of these branches.
+    # Bucketed into ``Metrics.physics_revert_wait_steps`` /
+    # ``Metrics.delay_wait_steps`` so the extended invariant
+    #   total_wait_steps == safe_wait_steps + yield_wait_steps
+    #                       + physics_revert_wait_steps + delay_wait_steps
+    # holds.
+    last_action_was_physics_revert_wait: bool = False
+    last_action_was_delay_wait: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize state to a dictionary for logging/JSON export."""
@@ -484,6 +506,23 @@ class Metrics:
     # conflict-induced WAIT (resolver yielded after losing).
     safe_wait_steps: int = 0
     yield_wait_steps: int = 0
+    # P11 wait-kind extension.  See ``AgentState`` docs for the
+    # disjointness contract; the extended invariant asserted by
+    # ``MetricsTracker.finalize`` is
+    #   total_wait_steps == safe_wait_steps + yield_wait_steps
+    #                       + physics_revert_wait_steps
+    #                       + delay_wait_steps.
+    # ``physics_revert_wait_steps`` counts ticks where the resolver
+    # forced WAIT because intended next position lost the
+    # vertex/edge conflict check.  ``delay_wait_steps`` counts
+    # ticks forced to WAIT by execution-delay injection.  Both
+    # are typically zero in §5.x sweeps (no exec_delay_prob, no
+    # contention left after the Tier-2 resolver); the new fields
+    # exist so the wait_fraction metric measures what the paper
+    # claims -- "how often does a controlled agent fail to make
+    # progress" -- not just controller-chosen waits.
+    physics_revert_wait_steps: int = 0
+    delay_wait_steps: int = 0
     # Fraction of (agent x step) pairs spent waiting:
     #   wait_fraction = total_wait_steps / (num_agents * steps).
     # Computed in ``MetricsTracker.finalize``.  Reflects "how often does

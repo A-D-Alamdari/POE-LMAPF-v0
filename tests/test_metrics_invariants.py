@@ -102,9 +102,19 @@ def test_invariant_holds_on_end_to_end_run(map5x5):
     sim = Simulator(cfg)
     metrics = sim.run()
 
-    assert metrics.total_wait_steps == metrics.safe_wait_steps + metrics.yield_wait_steps, (
+    # P11 extended wait-kind invariant.  WAITs forced by the
+    # simulator's step 6 (delay injection) or step 7a (physics
+    # revert) now count too -- the old two-bucket assertion
+    # missed them.  See ``docs/REVISION_AUDIT.md`` §15 if added,
+    # or the docstrings on ``AgentState.last_action_was_*_wait``.
+    assert metrics.total_wait_steps == (
+        metrics.safe_wait_steps + metrics.yield_wait_steps
+        + metrics.physics_revert_wait_steps + metrics.delay_wait_steps
+    ), (
         f"Wait-kind invariant violated: total={metrics.total_wait_steps}, "
-        f"safe={metrics.safe_wait_steps}, yield={metrics.yield_wait_steps}"
+        f"safe={metrics.safe_wait_steps}, yield={metrics.yield_wait_steps}, "
+        f"physics_revert={metrics.physics_revert_wait_steps}, "
+        f"delay={metrics.delay_wait_steps}"
     )
     # Sanity: wait_fraction is well-defined and within [0, 1].
     assert 0.0 <= metrics.wait_fraction <= 1.0

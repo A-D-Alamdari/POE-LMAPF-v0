@@ -1448,6 +1448,17 @@ class Simulator:
         step_t0 = _time.perf_counter()
         self.step_events.clear()
 
+        # P11 wait-kind reset.  Clear the two simulator-set wait
+        # flags at the start of every tick so they only mark the
+        # CURRENT step's overrides.  The agent_controller resets
+        # the controller-set flags (safe / yield) inside
+        # ``decide_action``; the two reset paths together
+        # guarantee the flags reflect at most one tick's worth of
+        # state when the post-physics bucketing block reads them.
+        for _aid in self.agents.keys():
+            self.agents[_aid].last_action_was_physics_revert_wait = False
+            self.agents[_aid].last_action_was_delay_wait = False
+
         # 1. Task Management
         self._release_tasks()
 
@@ -1562,17 +1573,29 @@ class Simulator:
             self._decided_next_positions[aid] = next_pos
 
         # 6. Execution Delay Injection (robust-MAPF)
+        #
+        # When this branch overrides a controller decision with
+        # WAIT, the agent's ``last_action_was_delay_wait`` flag is
+        # set so the post-physics wait-bucketing block (below)
+        # adds the tick to ``delay_wait_steps``.  Without the flag
+        # the WAIT would be silently uncounted -- the existing
+        # safe/yield bucketing block at step 5b has already run
+        # against the controller's PRE-override (move) action.
+        # See ``AgentState.last_action_was_delay_wait`` for the
+        # disjointness contract.
         if self._exec_delay_prob > 0:
             for aid in sorted(self.agents.keys()):
                 # Decrement existing delays
                 if self._agent_delay[aid] > 0:
                     self._agent_delay[aid] -= 1
                     actions[aid] = StepAction.WAIT  # force wait during delay
+                    self.agents[aid].last_action_was_delay_wait = True
                     continue
                 # Probabilistically inject new delay
                 if self.rng.random() < self._exec_delay_prob:
                     self._agent_delay[aid] = self._exec_delay_steps
                     actions[aid] = StepAction.WAIT
+                    self.agents[aid].last_action_was_delay_wait = True
                     self.metrics.add_delay_event(1)
                     self.controllers[aid].clear_path(self)  # Clear the path when delay occurs
 
@@ -1621,8 +1644,16 @@ class Simulator:
 
                 if conflict:
                     if intended[aid] != prev_pos[aid]:
-                        # Revert this agent to WAIT
+                        # Revert this agent to WAIT.
+                        # P11: tag the agent so the post-physics
+                        # wait-bucketing block adds the tick to
+                        # ``physics_revert_wait_steps``.  Without
+                        # this tag the WAIT goes silently
+                        # uncounted -- the step-5b bucketing
+                        # block already ran against the
+                        # controller's PRE-revert (move) action.
                         actions[aid] = StepAction.WAIT
+                        self.agents[aid].last_action_was_physics_revert_wait = True
                         intended[aid] = prev_pos[aid]
                         changed = True  # Re-check since this change may resolve/create others
 
@@ -1631,6 +1662,35 @@ class Simulator:
         # 7b. Apply validated actions
         for aid in sorted_aids:
             self.agents[aid] = apply_agent_action(self.env, self.agents[aid], actions[aid])
+
+        # 7c. P11 post-physics wait-kind bucketing.
+        #
+        # WAITs forced by step 6 (delay injection) or step 7a
+        # (physics revert) bypass the step-5b bucketing block --
+        # by the time those branches fire, the step-5b block has
+        # already counted (or not counted) the controller's
+        # ORIGINAL decision.  Count them here so the extended
+        # invariant
+        #   total_wait_steps == safe_wait_steps + yield_wait_steps
+        #                       + physics_revert_wait_steps
+        #                       + delay_wait_steps
+        # asserted in ``MetricsTracker.finalize`` holds.
+        #
+        # The same "active task" guard the step-5b block uses
+        # (``a.goal is not None and a.task_id is not None``)
+        # applies here: idle-at-goal WAITs represent completed
+        # progress, not stalled progress, and do not count toward
+        # the wait_fraction metric.
+        for aid in sorted_aids:
+            a = self.agents[aid]
+            if a.goal is None or a.task_id is None:
+                continue
+            if a.last_action_was_physics_revert_wait:
+                self.metrics.add_wait_steps(1)
+                self.metrics.add_physics_revert_wait_step(1)
+            elif a.last_action_was_delay_wait:
+                self.metrics.add_wait_steps(1)
+                self.metrics.add_delay_wait_step(1)
 
         # Tier-1 -> Tier-2 guidance handoff post-physics evaluation.
         # An agent is "eligible" iff it had an active task at decision

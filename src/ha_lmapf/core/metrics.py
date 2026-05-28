@@ -56,9 +56,19 @@ class MetricsTracker:
         self._replans: int = 0
         self._total_wait_steps: int = 0
         # Wait-kind decomposition.  Invariant:
-        #   total_wait_steps == safe_wait_steps + yield_wait_steps.
+        #   total_wait_steps == safe_wait_steps + yield_wait_steps
+        #                       + physics_revert_wait_steps
+        #                       + delay_wait_steps   (P11 extension).
         self._safe_wait_steps: int = 0
         self._yield_wait_steps: int = 0
+        # P11 wait-kind extension.  Counts ticks where the
+        # simulator's step 6 / step 7a forced WAIT after the
+        # controller had already decided to move.  Disjoint from
+        # safe / yield by construction (the override branches only
+        # rewrite non-WAIT actions); see
+        # ``simulator.py::step_once`` for the two callsites.
+        self._physics_revert_wait_steps: int = 0
+        self._delay_wait_steps: int = 0
         # Solver returned None (timeout / crash) — RollingHorizon reused
         # the previous plan bundle.
         self._solver_timeouts: int = 0
@@ -250,6 +260,25 @@ class MetricsTracker:
         :meth:`add_safe_wait_step`.
         """
         self._yield_wait_steps += int(count)
+
+    def add_physics_revert_wait_step(self, count: int = 1) -> None:
+        """Record a WAIT forced by the simulator's physics-revert
+        step (step 7a in ``step_once``): the controller had decided
+        to move but the resolver re-checked for vertex / edge
+        conflicts and reverted the move to WAIT.  Caller must also
+        call ``add_wait_steps`` to keep the extended invariant
+        ``total_wait_steps == safe_wait_steps + yield_wait_steps
+        + physics_revert_wait_steps + delay_wait_steps``."""
+        self._physics_revert_wait_steps += int(count)
+
+    def add_delay_wait_step(self, count: int = 1) -> None:
+        """Record a WAIT forced by execution-delay injection
+        (step 6 in ``step_once``, robust-MAPF feature).  Distinct
+        from ``delay_events`` -- that counts when delays are
+        INJECTED, this counts ticks the agent SPENT under a
+        delay-induced WAIT.  See contract on
+        :meth:`add_physics_revert_wait_step`."""
+        self._delay_wait_steps += int(count)
 
     def add_solver_timeout(self, count: int = 1) -> None:
         """Count a ``timeout_no_result`` SolverResult — solver hit its
@@ -807,6 +836,8 @@ class MetricsTracker:
             throughput_timeline=throughput_timeline,
             safe_wait_steps=self._safe_wait_steps,
             yield_wait_steps=self._yield_wait_steps,
+            physics_revert_wait_steps=self._physics_revert_wait_steps,
+            delay_wait_steps=self._delay_wait_steps,
             wait_fraction=(
                 self._total_wait_steps / float(num_agents * total_steps)
                 if (num_agents and total_steps > 0)
@@ -881,5 +912,31 @@ class MetricsTracker:
             f"safety_violation_events={m.safety_violation_events} > "
             f"safety_violations={m.safety_violations}; the debounce "
             f"state machine must have double-counted a leading edge."
+        )
+
+        # P11 wait-kind extended invariant.  Every counted wait
+        # tick must land in exactly one of the four buckets; a
+        # drift here means a new wait-kind callsite was added to
+        # the simulator without bumping ``total_wait_steps`` in
+        # lockstep, or one of the override branches (step 6 /
+        # step 7a) ran on an action the controller had already
+        # bucketed as safe / yield.
+        wait_kind_sum = (
+            int(m.safe_wait_steps)
+            + int(m.yield_wait_steps)
+            + int(m.physics_revert_wait_steps)
+            + int(m.delay_wait_steps)
+        )
+        assert m.total_wait_steps == wait_kind_sum, (
+            f"wait-kind invariant broken: "
+            f"total_wait_steps={m.total_wait_steps} != "
+            f"safe+yield+physics_revert+delay = "
+            f"{m.safe_wait_steps}+{m.yield_wait_steps}+"
+            f"{m.physics_revert_wait_steps}+{m.delay_wait_steps} "
+            f"= {wait_kind_sum}.  See "
+            f"simulator.py::step_once for the wait-bucketing blocks; "
+            f"if a new override callsite was added, it must call "
+            f"add_wait_steps in lockstep with the appropriate "
+            f"add_*_wait_step method."
         )
         return m
