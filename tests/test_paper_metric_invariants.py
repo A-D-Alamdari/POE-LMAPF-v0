@@ -214,10 +214,21 @@ def test_table1_columns_match_csv():
 
     # Combined CSV-column whitelist: everything csv_header emits
     # plus the canonical raw-Metrics field names (some tables
-    # surface fields the simple csv_header doesn't carry yet).
+    # surface fields the simple csv_header doesn't carry yet)
+    # plus the harness-provenance fields the paper-harness adds
+    # to per-run results.csv via run_paper_experiment.py
+    # (asdict of the row config, not via MetricsTracker).
     csv_cols = set(MetricsTracker.csv_header())
     metrics_fields = {f.name for f in fields(Metrics)}
     csv_cols |= metrics_fields
+    # Harness-side columns (run_paper_experiment.py / shared
+    # _BASE_COLUMNS / run_validity_gate).  These are not on the
+    # Metrics dataclass but appear in every per-run CSV.
+    HARNESS_COLUMNS = {
+        "wall_clock_s", "run_id", "seed", "experiment",
+        "status", "error_msg",
+    }
+    csv_cols |= HARNESS_COLUMNS
     # Per-builder label -> field map.  Mirrors COLS_T1 / COLS_T2
     # + HEALTH_COLS in scripts/evaluation/build_summary_tables.py.
     label_to_field: Dict[str, str] = {}
@@ -229,7 +240,9 @@ def test_table1_columns_match_csv():
     # Display-name aliases the builder applies to the leftmost
     # column (Solver / Method names).  These are not CSV fields
     # but they're not metric headers either -- whitelist them.
-    PRIMARY_COLUMNS = {"Solver", "Method"}
+    # ``$H$`` and ``Map`` are the row-index columns of the
+    # horizon-tuning table.
+    PRIMARY_COLUMNS = {"Solver", "Method", "$H$", "Map"}
     # Human-friendly headers used in committed paper tables.
     # ``mean_planning_time_ms`` is the canonical CSV name.
     EXTRA_KNOWN_HEADERS = {
@@ -241,6 +254,17 @@ def test_table1_columns_match_csv():
         "Mean planning time (ms)": "mean_planning_time_ms",
         "Wait fraction": "wait_fraction",
         "Util.": "throughput_utilization",
+        # Horizon-tuning rebuild (Prompt B) -- the per-cell
+        # provenance comment block at the top of
+        # paper/tables/horizon_tuning.tex documents these
+        # mappings authoritatively; the entries here mirror
+        # them so this test's cross-file check stays in sync.
+        "Local replans": "local_replans",
+        "Service time (steps)": "mean_service_time",
+        "Deadlock count": "deadlock_count",
+        "Wall (s)": "wall_clock_s",
+        "Def-1 agent-attr.": "violations_def1_agent_attributable",
+        "N_x norm.": "violations_def1_exogenous_attributable",
     }
     label_to_field.update(EXTRA_KNOWN_HEADERS)
 

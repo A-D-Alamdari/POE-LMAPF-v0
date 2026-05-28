@@ -89,6 +89,48 @@ quantity introduced by Prompt 1), the H-sweep N_x sub-table
    pending re-runs against the post-Prompt-1 schema; see
    `paper/sections/05_1_horizon_subtable_STALE.md`."
 
+### Rebuilt table available (Prompt B)
+
+In parallel with the disposition options above,
+`scripts/evaluation/build_table_horizon.py` now rebuilds the §5
+horizon-tuning Table 1 from the per-run CSV.  The rebuilt
+artifact lives at:
+
+* `paper/tables/horizon_tuning.tex` (booktabs, with provenance
+  comments mapping every column header to its source CSV
+  column),
+* `paper/tables/horizon_tuning.csv` (flat data, pandas-loadable).
+
+Every saturated cell carries the standard `*` marker (per the
+P10 convention in `paper/sections/05_1_load_regime.md`).  The
+N_x column shows `--` because the committed horizon CSV
+predates the P1 Def-1 columns; on the next re-run those cells
+populate automatically.  The Local Replanning column now
+correctly sources `local_replans` (the original mismatch with
+`mean_service_time` is fixed).  See the "§5 horizon-tuning
+Table 1 rebuild (Prompt B)" appendix at the bottom of
+`reports/table1_audit.md` for the per-cell diff against the
+old paper-text values.
+
+### Narrative paragraph reconciliation
+
+The paper's narrative paragraph beneath the old Table 1 quoted
+``local_replans`` values of 19.5K (random) and 8.5K (warehouse)
+at $H=10$.  Those numbers are correct; the table's "Number of
+Local Replanning" column was the mismatch (it printed
+`mean_service_time`).  After the Prompt B rebuild the narrative
+and the table agree:
+
+* H=10 random:     local_replans mean = 19,483 (cited as 19.5K).
+* H=10 warehouse:  local_replans mean =  8,539 (cited as 8.5K).
+
+If the narrative paragraph cited any throughput numbers as
+planner-quality signals, those citations need the saturation
+footnote from `paper/sections/05_1_load_regime.md`: at $|M|=100$
+every (H, map) cell in the rebuilt table is arrival-saturated
+(utilization $\ge 0.95$), so throughput in those cells measures
+the task arrival cap $|M|/(H+W)$, not planner capacity.
+
 ## Why this file is committed
 
 The paper text lives in a separate repository; this file is the

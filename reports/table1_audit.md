@@ -131,3 +131,90 @@ transform on `violations_exogenous_attributable` reproduces every
 §5.4 cell within 0.007%.  That part is sound.  The §5.1 source
 is open; see `reports/nx_horizon_audit.md` (STATUS block at the
 top) for the audit history.
+
+## §5 horizon-tuning Table 1 rebuild (Prompt B)
+
+The paper's §5 horizon-tuning Table 1 had at least two columns
+whose printed values did not match their header.  This appendix
+records the per-cell diff between the OLD (paper-text) values
+and the NEW (CSV-derived) values produced by
+`scripts/evaluation/build_table_horizon.py`.
+
+* The OLD "Number of Local Replanning" column showed
+  ``mean_service_time`` (60-150 step range), not ``local_replans``
+  (10^3-10^4 range).  The narrative paragraph beneath the table
+  quoted the correct ``local_replans`` numbers (19.5K, 8.5K),
+  contradicting the table.  The NEW values reproduce
+  ``local_replans`` straight from the CSV.
+* The OLD "N_x" column carried values 0.029-0.083 whose source
+  could not be reproduced from any (column, transform) tuple in
+  the candidate panel (see `reports/nx_horizon_audit.md` STATUS
+  block).  The NEW table shows ``--`` for N_x because the
+  committed horizon CSV
+  (`logs/tuning/horizon_replan_full/results.csv`) predates the
+  P1 Definition-1 columns (`violations_def1_*`); future re-runs
+  will populate the column and the rebuilt table will show
+  ``mean(violations_def1_exogenous_attributable) / (num_agents *
+  steps)`` per cell.
+
+### Per-cell diff
+
+(Source CSV: `logs/tuning/horizon_replan_full/results.csv`,
+filtered to `status=ok, num_agents=100, num_humans=50`,
+aggregated over 10 seeds per (H, map) cell.)
+
+| H | map | Column header | Old value (paper) | New value (CSV) | Source CSV column |
+|---:|---|---|---|---|---|
+| 10 | random | Number of Local Replanning | 66.0 (mean_service_time -- wrong column) | 19483 (local_replans) | local_replans |
+| 10 | random | N_x | 0.029 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 10 | warehouse | Number of Local Replanning | 133.3 (mean_service_time -- wrong column) | 8539 (local_replans) | local_replans |
+| 10 | warehouse | N_x | 0.033 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 20 | random | Number of Local Replanning | 68.8 (mean_service_time -- wrong column) | 16528 (local_replans) | local_replans |
+| 20 | random | N_x | 0.040 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 20 | warehouse | Number of Local Replanning | 135.5 (mean_service_time -- wrong column) | 5993 (local_replans) | local_replans |
+| 20 | warehouse | N_x | 0.044 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 30 | random | Number of Local Replanning | 70.8 (mean_service_time -- wrong column) | 16172 (local_replans) | local_replans |
+| 30 | random | N_x | 0.046 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 30 | warehouse | Number of Local Replanning | 138.5 (mean_service_time -- wrong column) | 5560 (local_replans) | local_replans |
+| 30 | warehouse | N_x | 0.050 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 40 | random | Number of Local Replanning | 72.4 (mean_service_time -- wrong column) | 15460 (local_replans) | local_replans |
+| 40 | random | N_x | 0.052 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 40 | warehouse | Number of Local Replanning | 142.3 (mean_service_time -- wrong column) | 4982 (local_replans) | local_replans |
+| 40 | warehouse | N_x | 0.057 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 50 | random | Number of Local Replanning | 76.4 (mean_service_time -- wrong column) | 15611 (local_replans) | local_replans |
+| 50 | random | N_x | 0.061 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 50 | warehouse | Number of Local Replanning | 143.2 (mean_service_time -- wrong column) | 5019 (local_replans) | local_replans |
+| 50 | warehouse | N_x | 0.058 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 60 | random | Number of Local Replanning | 78.8 (mean_service_time -- wrong column) | 15675 (local_replans) | local_replans |
+| 60 | random | N_x | 0.064 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 60 | warehouse | Number of Local Replanning | 143.8 (mean_service_time -- wrong column) | 4832 (local_replans) | local_replans |
+| 60 | warehouse | N_x | 0.063 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 70 | random | Number of Local Replanning | 83.1 (mean_service_time -- wrong column) | 15552 (local_replans) | local_replans |
+| 70 | random | N_x | 0.072 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 70 | warehouse | Number of Local Replanning | 144.8 (mean_service_time -- wrong column) | 4916 (local_replans) | local_replans |
+| 70 | warehouse | N_x | 0.066 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 80 | random | Number of Local Replanning | 86.9 (mean_service_time -- wrong column) | 15602 (local_replans) | local_replans |
+| 80 | random | N_x | 0.083 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+| 80 | warehouse | Number of Local Replanning | 146.9 (mean_service_time -- wrong column) | 4806 (local_replans) | local_replans |
+| 80 | warehouse | N_x | 0.067 (source UNRESOLVED) | -- (CSV predates Prompt 1; def1 columns absent) | violations_def1_exogenous_attributable / (M*T) |
+
+### Other columns
+
+The Throughput, Util., Service time, Wait fraction, Deadlock
+count, and Wall (s) columns in the rebuilt table all source
+from the CSV columns named in the LaTeX provenance comment block
+at the top of `paper/tables/horizon_tuning.tex`.  These columns
+were not part of the original "wrong column" issue; they're
+reported in the rebuild for completeness.
+
+### Saturation note
+
+Every (H, map) cell in the rebuilt table is **arrival-saturated**
+(throughput utilization >= 0.95 -- the throughput column is
+marked with `*`).  Per `paper/sections/05_1_load_regime.md` the
+throughput column in these cells measures the task arrival cap
+$|M|/(H+W)$, not planner capacity.  The narrative paragraph that
+quoted "19.5K and 8.5K" local_replans values is now consistent
+with the rebuilt table; if the paper's interpretation of those
+numbers cited throughput as a planner-quality signal, the
+saturation footnote from §5.1 should be appended there as well.
