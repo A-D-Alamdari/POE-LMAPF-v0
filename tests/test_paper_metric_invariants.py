@@ -122,7 +122,7 @@ def map3x3(tmp_path):
     return str(p)
 
 
-def test_wait_fraction_includes_physics_reverts(map3x3):
+def test_wait_fraction_includes_physics_reverts(tmp_path):
     """P11 (Prompt C) guard: a WAIT forced by the simulator's
     physics-revert step (step 7a in ``step_once``) must
     increment ``physics_revert_wait_steps`` AND contribute to
@@ -133,81 +133,72 @@ def test_wait_fraction_includes_physics_reverts(map3x3):
     invariant asserted in ``MetricsTracker.finalize`` then fires
     -- either way this test detects it.
 
-    Implementation note: the Tier-2 resolver inside the full
-    simulator routes around most vertex conflicts at decision
-    time, so a ``Simulator.run()`` rarely reaches step 7a's
-    revert branch.  To pin the P11 wiring directly, we drive
-    step 7a's logic manually -- same approach as
-    ``tests/test_wait_kind_invariant_extended.py::
-    test_physics_revert_wait_counts_into_invariant``.  This
-    keeps the assertion robust against scheduling-noise
-    differences in the resolver while still locking the
-    physics-revert -> add_physics_revert_wait_step contract.
+    Reachability: the empirical probe
+    ``scripts/diagnostics/probe_physics_revert.py`` (see
+    ``reports/audit/physics_revert_reachability.md``) shows that
+    step 7a's revert path IS reachable in normal
+    ``Simulator.run()`` operation whenever
+    ``execution_delay_prob > 0``.  Step 6 (delay injection) runs
+    AFTER step 5b (decentralised decision making), so the
+    resolver cannot anticipate a delay-induced WAIT; the
+    downstream agent that planned to move into the delayed
+    agent's cell gets reverted at step 7a.
+
+    The configuration below is the seed-8 configuration from the
+    probe (5x5 open map, 4 agents, 50 steps,
+    ``execution_delay_prob=0.5``), which produced
+    ``physics_revert_wait_steps=11`` end-to-end.  Lifting the
+    delay probability from the probe's 0.3 to 0.5 gives the
+    test ~3-4x headroom over the seed-6 zero outlier so the
+    assertion is robust to scheduler noise across Python
+    versions and lacam timings.
     """
-    sim = _make_sim(map3x3, fov_radius=1, safety_radius=1)
-    # Two agents at (0,0) and (0,2) both targeting (1,1) -- a
-    # canonical vertex-conflict scenario on a 3x3 grid.
-    sim.agents = {
-        0: AgentState(agent_id=0, pos=(0, 0), goal=(1, 1), task_id="t0"),
-        1: AgentState(agent_id=1, pos=(0, 2), goal=(1, 1), task_id="t1"),
-    }
-    prev_pos = {aid: a.pos for aid, a in sim.agents.items()}
-    intended = {0: (1, 1), 1: (1, 1)}                  # both target (1,1)
-    sorted_aids = sorted(sim.agents.keys())
-    # Reproduce step 7a's vertex-conflict resolver loop.  The
-    # lower-id agent wins; the higher-id agent is reverted to
-    # WAIT and tagged.
-    claimed: dict = {}
-    for aid in sorted_aids:
-        nxt = intended[aid]
-        if nxt in claimed and claimed[nxt] != aid:
-            # Conflict: revert.
-            if intended[aid] != prev_pos[aid]:
-                sim.agents[aid].last_action_was_physics_revert_wait = True
-                intended[aid] = prev_pos[aid]
-        else:
-            claimed[nxt] = aid
-    reverted = [aid for aid in sorted_aids
-                if sim.agents[aid].last_action_was_physics_revert_wait]
-    assert reverted, (
-        "step 7a resolver did not revert any agent on a "
-        "two-agent same-goal scenario; the test fixture is "
-        "broken, not the production code"
+    map_path = tmp_path / "5x5.map"
+    map_path.write_text("type octile\nheight 5\nwidth 5\nmap\n" + ".....\n" * 5)
+    cfg = SimConfig(
+        map_path=str(map_path),
+        num_agents=4,
+        num_humans=0,
+        steps=50,
+        fov_radius=2,
+        safety_radius=1,
+        seed=8,
+        execution_delay_prob=0.5,
+        execution_delay_steps=1,
     )
+    sim = Simulator(cfg)
+    m = sim.run()
 
-    # Now run the simulator's post-physics bucketing block by
-    # hand (the same block at step 7c in step_once).
-    for aid in sorted_aids:
-        a = sim.agents[aid]
-        if a.goal is None or a.task_id is None:
-            continue
-        if a.last_action_was_physics_revert_wait:
-            sim.metrics.add_wait_steps(1)
-            sim.metrics.add_physics_revert_wait_step(1)
-
-    m = sim.metrics.finalize(total_steps=1, num_agents=2)
-
-    # Spec assertions: physics_revert_wait_steps == 1 after one
-    # tick, total_wait_steps >= 1, wait_fraction > 0.
-    assert m.physics_revert_wait_steps == 1, (
-        f"two agents racing for (1,1) on a 3x3 must produce "
-        f"exactly one physics-revert WAIT after one tick; got "
-        f"physics_revert_wait_steps={m.physics_revert_wait_steps}.  "
-        f"The override branch at simulator.py step 7a is no longer "
-        f"tagging the reverted agent."
+    assert m.physics_revert_wait_steps > 0, (
+        f"physics_revert_wait_steps == 0 after a normal run with "
+        f"execution_delay_prob=0.5 -- step 7a's revert branch is no "
+        f"longer tagging the reverted agent, or step 7c's "
+        f"post-physics bucketing block no longer calls "
+        f"add_physics_revert_wait_step.  See "
+        f"reports/audit/physics_revert_reachability.md for the "
+        f"reachability evidence (this scenario produces ~11 reverts "
+        f"per episode on the audit's reference Python build).  "
+        f"metrics={m}"
     )
-    assert m.total_wait_steps >= 1, m
+    assert m.total_wait_steps >= m.physics_revert_wait_steps, m
     assert m.wait_fraction > 0.0, (
         f"wait_fraction is zero despite physics_revert_wait_steps="
         f"{m.physics_revert_wait_steps}.  The post-physics "
         f"bucketing block at step 7c is no longer calling "
-        f"add_wait_steps in lockstep."
+        f"add_wait_steps in lockstep with "
+        f"add_physics_revert_wait_step."
     )
-    # Four-bucket invariant.
+    # Four-bucket invariant, on real Simulator.run() output.
     assert m.total_wait_steps == (
         m.safe_wait_steps + m.yield_wait_steps
         + m.physics_revert_wait_steps + m.delay_wait_steps
-    ), m
+    ), (
+        f"four-bucket wait invariant broken on real run: "
+        f"total={m.total_wait_steps} != "
+        f"safe({m.safe_wait_steps}) + yield({m.yield_wait_steps}) + "
+        f"physics_revert({m.physics_revert_wait_steps}) + "
+        f"delay({m.delay_wait_steps})"
+    )
 
 
 # ---------------------------------------------------------------------------
