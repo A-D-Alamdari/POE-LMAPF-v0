@@ -101,19 +101,32 @@ the Theorem 1 quantity it claims to measure.
 `scripts/diagnostics/find_nx_source.py` against the printed
 values in `paper/tables/table1_solver_substitutability.{md,tex}`.)
 
-## Cross-section convention check (P13 follow-up)
+## Cross-section convention check (P13 + P14 follow-up)
 
 The paper uses the column name "N_x" in BOTH the §5.4 baseline
 comparison (this audit) AND the §5.1 horizon-tuning Table 1.  We
 ran the same diagnostic against the §5.1 dataset
 (`logs/tuning/horizon_replan_full/results.csv`, |M|=100, |X|=50,
-H ∈ {10..80}) with an expanded candidate-transform panel including
-`safe_wait/(M*T)`, `(safe+yield)/(2*M*T)`, `human_passive_wait/(X*T)`,
-`global_replans/1000`, `local_replans/100000`, and
-`wait_fraction*c` for c ∈ {0.40, 0.50, 0.60, 0.70, 0.74}.  Best
-fit reached **21.035%** max per-cell relative error -- four times
-the 5% threshold.  The §5.1 N_x values do not reproduce from any
-column in the post-Prompt-1 schema.
+H ∈ {10..80}) with two cleanly separated panels (P14 follow-up
+to fix a column-dimension-collapse bug in the original P13
+search):
+
+* **Panel A** — column × unary transform.  Every transform uses
+  its column argument; a runtime assert raises if two distinct
+  columns under the same transform tie to 1e-9 (the collapse
+  signature).  Best Panel A fit: `wait_fraction` under `x/T*1000`
+  at L2=0.0121, max per-cell rel err **32.16%**.
+* **Panel B** — named derived quantities, evaluated once per row,
+  with free-scaling constant `c = argmin_c L2(paper, c*q)`.  Best
+  shape match: `(safe_wait_steps + yield_wait_steps)/(2*M*T)`
+  with c=1.1918, L2=0.0079, max per-cell rel err **20.21%**.
+
+Best across both panels: **20.21%** max per-cell relative error
+-- four times the 5% threshold.  The §5.1 N_x values do not
+reproduce from any column in the post-Prompt-1 schema, and the
+free-scaling constant (1.19) is not a plausible canonical value.
+Full sorted candidates and per-cell breakdowns:
+`reports/nx_horizon_audit.md`.
 
 > **The §5.1 N_x convention is different-from the §5.4 N_x convention.**
 

@@ -4,126 +4,219 @@ Searches every numeric column in `logs/tuning/horizon_replan_full/results.csv` (
 
 **Paper cells**: 16.
 
-**Outcome (ii)** -- best fit has max per-cell relative error 21.035% >= 5%.  The paper N_x values do not reproduce from any (column, transform) tuple in the candidate panel; they came from a deleted / external source.
+**Outcome (ii)** -- best fit across both panels has max per-cell relative error 20.210% >= 5%.  The paper N_x values do not reproduce from any (column, transform) tuple in Panel A or any named-derived quantity (with free scaling) in Panel B.
+
+## Panel A — column × unary transform
+
+Every numeric column in the CSV (57 columns) is paired with every unary transform (15 transforms) and the per-cell mean across seeds is compared to the paper N_x dict.  Sorted ascending by L2 residual; top 50 rows.
 
 | Column | Transform | L2 residual | Max rel err | Cells matched |
 |---|---|---:|---:|---:|
-| `applied_fov_radius` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `applied_horizon` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `applied_replan_every` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `applied_safety_radius` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `assignments_broken` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `assignments_kept` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `collisions_agent_agent` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `collisions_agent_exogenous` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `collisions_agent_human` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `completed_tasks` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `deadlock_count` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `delay_events` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `fov_radius` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `global_replans` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `horizon` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `human_passive_wait_steps` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `immediate_assignments` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `intervention_rate` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `local_replans` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `makespan` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `max_flowtime` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `max_planning_time_ms` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `mean_decision_time_ms` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `mean_flowtime` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `mean_planning_time_ms` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `mean_service_time` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `median_flowtime` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `near_misses` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `num_agents` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `num_humans` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `p95_decision_time_ms` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `p95_planning_time_ms` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `replan_every` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `replans` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `safe_wait_steps` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `safety_radius` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `safety_violation_rate` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `safety_violations` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `seed` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `solver_errors` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `solver_partial_returns` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `solver_timeout_s` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `solver_timeouts` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `steps` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `sum_of_costs` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `task_completion` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `throughput` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `throughput_timeline_len` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `total_released_tasks` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
-| `total_wait_steps` | `wait_fraction*0.60` | 0.0080 | 21.035% | 16/16 |
+| `wait_fraction` | `x/T * 1000` | 0.0121 | 32.163% | 16/16 |
+| `applied_safety_radius` | `x/T * 100` | 0.0150 | 72.414% | 16/16 |
+| `num_agents` | `x/T` | 0.0150 | 72.414% | 16/16 |
+| `num_agents` | `x/2000` | 0.0150 | 72.414% | 16/16 |
+| `safety_radius` | `x/T * 100` | 0.0150 | 72.414% | 16/16 |
+| `task_completion` | `x/T * 100` | 0.0152 | 71.843% | 16/16 |
+| `seed` | `x/M` | 0.0174 | 55.172% | 16/16 |
+| `seed` | `x/100` | 0.0174 | 55.172% | 16/16 |
+| `p95_planning_time_ms` | `x/(M*T)` | 0.0191 | 143.566% | 16/16 |
+| `median_flowtime` | `x/T` | 0.0203 | 84.848% | 16/16 |
+| `median_flowtime` | `x/2000` | 0.0203 | 84.848% | 16/16 |
+| `mean_flowtime` | `x/T` | 0.0203 | 103.340% | 16/16 |
+| `mean_flowtime` | `x/2000` | 0.0203 | 103.340% | 16/16 |
+| `mean_service_time` | `x/T` | 0.0204 | 101.980% | 16/16 |
+| `mean_service_time` | `x/2000` | 0.0204 | 101.980% | 16/16 |
+| `seed` | `x/global_replans` | 0.0207 | 65.909% | 16/16 |
+| `applied_fov_radius` | `x/M` | 0.0208 | 51.807% | 16/16 |
+| `applied_fov_radius` | `x/100` | 0.0208 | 51.807% | 16/16 |
+| `fov_radius` | `x/M` | 0.0208 | 51.807% | 16/16 |
+| `fov_radius` | `x/100` | 0.0208 | 51.807% | 16/16 |
+| `num_humans` | `x/completed_tasks` | 0.0221 | 91.229% | 16/16 |
+| `applied_horizon` | `x/completed_tasks` | 0.0227 | 77.133% | 16/16 |
+| `horizon` | `x/completed_tasks` | 0.0227 | 77.133% | 16/16 |
+| `max_planning_time_ms` | `x/(M*T)` | 0.0232 | 159.461% | 16/16 |
+| `applied_fov_radius` | `x/global_replans` | 0.0245 | 69.697% | 16/16 |
+| `fov_radius` | `x/global_replans` | 0.0245 | 69.697% | 16/16 |
+| `mean_planning_time_ms` | `x/(X*T)` | 0.0269 | 67.736% | 16/16 |
+| `applied_fov_radius` | `x/X` | 0.0284 | 175.862% | 16/16 |
+| `fov_radius` | `x/X` | 0.0284 | 175.862% | 16/16 |
+| `throughput` | `x/T * 100` | 0.0312 | 70.440% | 16/16 |
+| `yield_wait_steps` | `x/(M*T)` | 0.0312 | 85.396% | 16/16 |
+| `solver_timeout_s` | `x/global_replans` | 0.0320 | 91.304% | 16/16 |
+| `local_replans` | `x/(M*T)` | 0.0325 | 235.919% | 16/16 |
+| `replans` | `x/(M*T)` | 0.0328 | 242.838% | 16/16 |
+| `applied_horizon` | `x/T` | 0.0331 | 84.848% | 16/16 |
+| `applied_horizon` | `x/2000` | 0.0331 | 84.848% | 16/16 |
+| `horizon` | `x/T` | 0.0331 | 84.848% | 16/16 |
+| `horizon` | `x/2000` | 0.0331 | 84.848% | 16/16 |
+| `num_humans` | `x/T` | 0.0334 | 69.880% | 16/16 |
+| `num_humans` | `x/2000` | 0.0334 | 69.880% | 16/16 |
+| `applied_replan_every` | `x/completed_tasks` | 0.0352 | 88.567% | 16/16 |
+| `replan_every` | `x/completed_tasks` | 0.0352 | 88.567% | 16/16 |
+| `safety_violations` | `x/(X*T)` | 0.0368 | 82.613% | 16/16 |
+| `violations_exogenous_attributable` | `x/(X*T)` | 0.0368 | 82.613% | 16/16 |
+| `seed` | `x/X` | 0.0374 | 210.345% | 16/16 |
+| `applied_safety_radius` | `x/X` | 0.0380 | 75.904% | 16/16 |
+| `safety_radius` | `x/X` | 0.0380 | 75.904% | 16/16 |
+| `steps` | `x/(X*T)` | 0.0380 | 75.904% | 16/16 |
+| `throughput_timeline_len` | `x/(X*T)` | 0.0380 | 75.904% | 16/16 |
+| `task_completion` | `x/X` | 0.0382 | 75.988% | 16/16 |
 
-## Rank-1 fit: `applied_fov_radius` under transform `wait_fraction*0.60`
+### Panel A rank-1: `wait_fraction` under `x/T * 1000`
 
-L2 residual = 0.0080; max per-cell relative error = 21.035%; cells matched = 16/16.
-
-| H | map | Paper N_x | Actual mean | Δ (%) |
-|---|---|---:|---:|---:|
-| 10 | random | 0.029 | 0.0236 | 18.596% |
-| 10 | warehouse | 0.033 | 0.0275 | 16.575% |
-| 20 | random | 0.04 | 0.0344 | 13.894% |
-| 20 | warehouse | 0.044 | 0.0366 | 16.775% |
-| 30 | random | 0.046 | 0.0428 | 6.900% |
-| 30 | warehouse | 0.05 | 0.0427 | 14.687% |
-| 40 | random | 0.052 | 0.0495 | 4.794% |
-| 40 | warehouse | 0.057 | 0.0507 | 11.108% |
-| 50 | random | 0.061 | 0.0629 | 3.049% |
-| 50 | warehouse | 0.058 | 0.0522 | 9.980% |
-| 60 | random | 0.064 | 0.0711 | 11.055% |
-| 60 | warehouse | 0.063 | 0.0558 | 11.461% |
-| 70 | random | 0.072 | 0.0860 | 19.409% |
-| 70 | warehouse | 0.066 | 0.0570 | 13.680% |
-| 80 | random | 0.083 | 0.1005 | 21.035% |
-| 80 | warehouse | 0.067 | 0.0609 | 9.053% |
-
-## Rank-2 fit: `applied_horizon` under transform `wait_fraction*0.60`
-
-L2 residual = 0.0080; max per-cell relative error = 21.035%; cells matched = 16/16.
+L2 residual = 0.0121; max per-cell relative error = 32.163%; cells matched = 16/16.
 
 | H | map | Paper N_x | Actual mean | Δ (%) |
 |---|---|---:|---:|---:|
-| 10 | random | 0.029 | 0.0236 | 18.596% |
-| 10 | warehouse | 0.033 | 0.0275 | 16.575% |
-| 20 | random | 0.04 | 0.0344 | 13.894% |
-| 20 | warehouse | 0.044 | 0.0366 | 16.775% |
-| 30 | random | 0.046 | 0.0428 | 6.900% |
-| 30 | warehouse | 0.05 | 0.0427 | 14.687% |
-| 40 | random | 0.052 | 0.0495 | 4.794% |
-| 40 | warehouse | 0.057 | 0.0507 | 11.108% |
-| 50 | random | 0.061 | 0.0629 | 3.049% |
-| 50 | warehouse | 0.058 | 0.0522 | 9.980% |
-| 60 | random | 0.064 | 0.0711 | 11.055% |
-| 60 | warehouse | 0.063 | 0.0558 | 11.461% |
-| 70 | random | 0.072 | 0.0860 | 19.409% |
-| 70 | warehouse | 0.066 | 0.0570 | 13.680% |
-| 80 | random | 0.083 | 0.1005 | 21.035% |
-| 80 | warehouse | 0.067 | 0.0609 | 9.053% |
+| 10 | random | 0.029 | 0.0197 | 32.163% |
+| 10 | warehouse | 0.033 | 0.0229 | 30.480% |
+| 20 | random | 0.04 | 0.0287 | 28.245% |
+| 20 | warehouse | 0.044 | 0.0305 | 30.645% |
+| 30 | random | 0.046 | 0.0357 | 22.417% |
+| 30 | warehouse | 0.05 | 0.0355 | 28.905% |
+| 40 | random | 0.052 | 0.0413 | 20.662% |
+| 40 | warehouse | 0.057 | 0.0422 | 25.924% |
+| 50 | random | 0.061 | 0.0524 | 14.126% |
+| 50 | warehouse | 0.058 | 0.0435 | 24.984% |
+| 60 | random | 0.064 | 0.0592 | 7.454% |
+| 60 | warehouse | 0.063 | 0.0465 | 26.218% |
+| 70 | random | 0.072 | 0.0716 | 0.492% |
+| 70 | warehouse | 0.066 | 0.0475 | 28.067% |
+| 80 | random | 0.083 | 0.0837 | 0.863% |
+| 80 | warehouse | 0.067 | 0.0508 | 24.210% |
 
-## Rank-3 fit: `applied_replan_every` under transform `wait_fraction*0.60`
+### Panel A rank-2: `applied_safety_radius` under `x/T * 100`
 
-L2 residual = 0.0080; max per-cell relative error = 21.035%; cells matched = 16/16.
+L2 residual = 0.0150; max per-cell relative error = 72.414%; cells matched = 16/16.
 
 | H | map | Paper N_x | Actual mean | Δ (%) |
 |---|---|---:|---:|---:|
-| 10 | random | 0.029 | 0.0236 | 18.596% |
-| 10 | warehouse | 0.033 | 0.0275 | 16.575% |
-| 20 | random | 0.04 | 0.0344 | 13.894% |
-| 20 | warehouse | 0.044 | 0.0366 | 16.775% |
-| 30 | random | 0.046 | 0.0428 | 6.900% |
-| 30 | warehouse | 0.05 | 0.0427 | 14.687% |
-| 40 | random | 0.052 | 0.0495 | 4.794% |
-| 40 | warehouse | 0.057 | 0.0507 | 11.108% |
-| 50 | random | 0.061 | 0.0629 | 3.049% |
-| 50 | warehouse | 0.058 | 0.0522 | 9.980% |
-| 60 | random | 0.064 | 0.0711 | 11.055% |
-| 60 | warehouse | 0.063 | 0.0558 | 11.461% |
-| 70 | random | 0.072 | 0.0860 | 19.409% |
-| 70 | warehouse | 0.066 | 0.0570 | 13.680% |
-| 80 | random | 0.083 | 0.1005 | 21.035% |
-| 80 | warehouse | 0.067 | 0.0609 | 9.053% |
+| 10 | random | 0.029 | 0.0500 | 72.414% |
+| 10 | warehouse | 0.033 | 0.0500 | 51.515% |
+| 20 | random | 0.04 | 0.0500 | 25.000% |
+| 20 | warehouse | 0.044 | 0.0500 | 13.636% |
+| 30 | random | 0.046 | 0.0500 | 8.696% |
+| 30 | warehouse | 0.05 | 0.0500 | 0.000% |
+| 40 | random | 0.052 | 0.0500 | 3.846% |
+| 40 | warehouse | 0.057 | 0.0500 | 12.281% |
+| 50 | random | 0.061 | 0.0500 | 18.033% |
+| 50 | warehouse | 0.058 | 0.0500 | 13.793% |
+| 60 | random | 0.064 | 0.0500 | 21.875% |
+| 60 | warehouse | 0.063 | 0.0500 | 20.635% |
+| 70 | random | 0.072 | 0.0500 | 30.556% |
+| 70 | warehouse | 0.066 | 0.0500 | 24.242% |
+| 80 | random | 0.083 | 0.0500 | 39.759% |
+| 80 | warehouse | 0.067 | 0.0500 | 25.373% |
+
+### Panel A rank-3: `num_agents` under `x/T`
+
+L2 residual = 0.0150; max per-cell relative error = 72.414%; cells matched = 16/16.
+
+| H | map | Paper N_x | Actual mean | Δ (%) |
+|---|---|---:|---:|---:|
+| 10 | random | 0.029 | 0.0500 | 72.414% |
+| 10 | warehouse | 0.033 | 0.0500 | 51.515% |
+| 20 | random | 0.04 | 0.0500 | 25.000% |
+| 20 | warehouse | 0.044 | 0.0500 | 13.636% |
+| 30 | random | 0.046 | 0.0500 | 8.696% |
+| 30 | warehouse | 0.05 | 0.0500 | 0.000% |
+| 40 | random | 0.052 | 0.0500 | 3.846% |
+| 40 | warehouse | 0.057 | 0.0500 | 12.281% |
+| 50 | random | 0.061 | 0.0500 | 18.033% |
+| 50 | warehouse | 0.058 | 0.0500 | 13.793% |
+| 60 | random | 0.064 | 0.0500 | 21.875% |
+| 60 | warehouse | 0.063 | 0.0500 | 20.635% |
+| 70 | random | 0.072 | 0.0500 | 30.556% |
+| 70 | warehouse | 0.066 | 0.0500 | 24.242% |
+| 80 | random | 0.083 | 0.0500 | 39.759% |
+| 80 | warehouse | 0.067 | 0.0500 | 25.373% |
+
+## Panel B — named derived quantities, free-scaled
+
+Each derived quantity ``q`` is evaluated once per row.  For each, the script reports the free-scaling constant ``c = argmin_c L2(paper, c*q)`` (closed-form ``c = sum(p*q) / sum(q*q)``) and the residual after scaling.  A *shape match* (low residual after free scaling) with c close to a plausible constant suggests a real formula; a low residual with an implausible c means the quantity is Pearson-correlated but not the source.
+
+| Quantity | c | L2 (after scaling) | Max rel err | Cells matched |
+|---|---:|---:|---:|---:|
+| `(safe_wait_steps + yield_wait_steps)/(2*M*T)` | 1.1918 | 0.0079 | 20.210% | 16/16 |
+| `wait_fraction` | 0.5959 | 0.0079 | 20.210% | 16/16 |
+| `(safe_wait_steps + 2*yield_wait_steps)/(M*T)` | 0.3116 | 0.0078 | 29.072% | 16/16 |
+| `yield_wait_steps/(M*T)` | 0.6520 | 0.0081 | 40.056% | 16/16 |
+| `(total_wait_steps - safe_wait_steps)/(M*T)` | 0.6520 | 0.0081 | 40.056% | 16/16 |
+| `safe_wait_steps/(M*T)` | 4.8591 | 0.0316 | 112.543% | 16/16 |
+| `safe_wait_steps/completed_tasks` | 0.0377 | 0.0232 | 118.524% | 16/16 |
+| `violations_exogenous_attributable/completed_tasks` | 0.0273 | 0.0195 | 135.113% | 16/16 |
+| `human_passive_wait_steps/(X*T)` | 23.7979 | 0.0221 | 138.061% | 16/16 |
+| `violations_exogenous_attributable/(X*steps)` | 1.8716 | 0.0288 | 142.901% | 16/16 |
+| `local_replans/100000` | 0.3975 | 0.0300 | 167.048% | 16/16 |
+| `global_replans/1000` | 0.2162 | 0.0397 | 199.117% | 16/16 |
+| `global_replans/completed_tasks` | 0.2104 | 0.0416 | 221.889% | 16/16 |
+
+### Panel B rank-1: `(safe_wait_steps + yield_wait_steps)/(2*M*T)` (c = 1.191817)
+
+L2 (after scaling) = 0.0079; max per-cell relative error = 20.210%; cells matched = 16/16.
+
+| H | map | Paper N_x | q | c*q | Δ (%) |
+|---|---|---:|---:|---:|---:|
+| 10 | random | 0.029 | 0.0197 | 0.0234 | 19.151% |
+| 10 | warehouse | 0.033 | 0.0229 | 0.0273 | 17.144% |
+| 20 | random | 0.04 | 0.0287 | 0.0342 | 14.481% |
+| 20 | warehouse | 0.044 | 0.0305 | 0.0364 | 17.342% |
+| 30 | random | 0.046 | 0.0357 | 0.0425 | 7.535% |
+| 30 | warehouse | 0.05 | 0.0355 | 0.0424 | 15.268% |
+| 40 | random | 0.052 | 0.0413 | 0.0492 | 5.443% |
+| 40 | warehouse | 0.057 | 0.0422 | 0.0503 | 11.715% |
+| 50 | random | 0.061 | 0.0524 | 0.0624 | 2.346% |
+| 50 | warehouse | 0.058 | 0.0435 | 0.0519 | 10.594% |
+| 60 | random | 0.064 | 0.0592 | 0.0706 | 10.298% |
+| 60 | warehouse | 0.063 | 0.0465 | 0.0554 | 12.065% |
+| 70 | random | 0.072 | 0.0716 | 0.0854 | 18.595% |
+| 70 | warehouse | 0.066 | 0.0475 | 0.0566 | 14.269% |
+| 80 | random | 0.083 | 0.0837 | 0.0998 | 20.210% |
+| 80 | warehouse | 0.067 | 0.0508 | 0.0605 | 9.673% |
+
+### Panel B rank-2: `wait_fraction` (c = 0.595909)
+
+L2 (after scaling) = 0.0079; max per-cell relative error = 20.210%; cells matched = 16/16.
+
+| H | map | Paper N_x | q | c*q | Δ (%) |
+|---|---|---:|---:|---:|---:|
+| 10 | random | 0.029 | 0.0393 | 0.0234 | 19.151% |
+| 10 | warehouse | 0.033 | 0.0459 | 0.0273 | 17.144% |
+| 20 | random | 0.04 | 0.0574 | 0.0342 | 14.481% |
+| 20 | warehouse | 0.044 | 0.0610 | 0.0364 | 17.342% |
+| 30 | random | 0.046 | 0.0714 | 0.0425 | 7.535% |
+| 30 | warehouse | 0.05 | 0.0711 | 0.0424 | 15.268% |
+| 40 | random | 0.052 | 0.0825 | 0.0492 | 5.443% |
+| 40 | warehouse | 0.057 | 0.0844 | 0.0503 | 11.715% |
+| 50 | random | 0.061 | 0.1048 | 0.0624 | 2.346% |
+| 50 | warehouse | 0.058 | 0.0870 | 0.0519 | 10.594% |
+| 60 | random | 0.064 | 0.1185 | 0.0706 | 10.298% |
+| 60 | warehouse | 0.063 | 0.0930 | 0.0554 | 12.065% |
+| 70 | random | 0.072 | 0.1433 | 0.0854 | 18.595% |
+| 70 | warehouse | 0.066 | 0.0950 | 0.0566 | 14.269% |
+| 80 | random | 0.083 | 0.1674 | 0.0998 | 20.210% |
+| 80 | warehouse | 0.067 | 0.1016 | 0.0605 | 9.673% |
+
+### Panel B rank-3: `(safe_wait_steps + 2*yield_wait_steps)/(M*T)` (c = 0.311627)
+
+L2 (after scaling) = 0.0078; max per-cell relative error = 29.072%; cells matched = 16/16.
+
+| H | map | Paper N_x | q | c*q | Δ (%) |
+|---|---|---:|---:|---:|---:|
+| 10 | random | 0.029 | 0.0660 | 0.0206 | 29.072% |
+| 10 | warehouse | 0.033 | 0.0888 | 0.0277 | 16.104% |
+| 20 | random | 0.04 | 0.1024 | 0.0319 | 20.253% |
+| 20 | warehouse | 0.044 | 0.1195 | 0.0373 | 15.336% |
+| 30 | random | 0.046 | 0.1287 | 0.0401 | 12.819% |
+| 30 | warehouse | 0.05 | 0.1389 | 0.0433 | 13.406% |
+| 40 | random | 0.052 | 0.1509 | 0.0470 | 9.588% |
+| 40 | warehouse | 0.057 | 0.1658 | 0.0517 | 9.381% |
+| 50 | random | 0.061 | 0.1961 | 0.0611 | 0.197% |
+| 50 | warehouse | 0.058 | 0.1713 | 0.0534 | 7.984% |
+| 60 | random | 0.064 | 0.2231 | 0.0695 | 8.611% |
+| 60 | warehouse | 0.063 | 0.1824 | 0.0568 | 9.775% |
+| 70 | random | 0.072 | 0.2731 | 0.0851 | 18.187% |
+| 70 | warehouse | 0.066 | 0.1863 | 0.0581 | 12.026% |
+| 80 | random | 0.083 | 0.3213 | 0.1001 | 20.638% |
+| 80 | warehouse | 0.067 | 0.1998 | 0.0623 | 7.051% |
