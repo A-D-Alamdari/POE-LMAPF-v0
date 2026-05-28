@@ -18,7 +18,7 @@ from typing import Dict, List, Literal, Optional, Tuple
 
 import numpy as np
 
-from ha_lmapf.core.types import Metrics
+from ha_lmapf.core.types import Metrics, SimConfig
 
 
 @dataclass
@@ -45,7 +45,14 @@ class MetricsTracker:
     Tracks system efficiency, safety, timing, and cost metrics.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config: Optional[SimConfig] = None) -> None:
+        # ``config`` is optional so legacy unit-test callers that
+        # exercise the tracker in isolation keep working.  When
+        # supplied, ``finalize`` echoes the SimConfig regime fields
+        # (``humans_block_on_agent_cells``, ``algorithm_variant``)
+        # into the returned Metrics; when None, the Metrics
+        # defaults are used.
+        self._config: Optional[SimConfig] = config
         self._tasks: Dict[str, _TaskRecord] = {}
         self._completed_tasks: int = 0
         self.total_tasks: int = 0
@@ -101,6 +108,19 @@ class MetricsTracker:
         # neither is the other's alias.
         self._violations_def1_agent_attributable: int = 0
         self._violations_def1_exogenous_attributable: int = 0
+        # Resume-prompt-1: distance-0 / distance>0 split of the two
+        # existing Def-1 buckets, and the new third bucket for
+        # response-triggered moves under the γ-extension.  All zero
+        # in the baseline regime; the simulator wires them in a
+        # later prompt.
+        self._violations_def1_agent_attributable_d0: int = 0
+        self._violations_def1_agent_attributable_dgt0: int = 0
+        self._violations_def1_exogenous_attributable_d0: int = 0
+        self._violations_def1_exogenous_attributable_dgt0: int = 0
+        self._violations_def1_response_attributable: int = 0
+        # Distance-0 agent-human vertex collisions (only nonzero
+        # when ``SimConfig.humans_block_on_agent_cells`` is False).
+        self._collisions_agent_human_vertex: int = 0
         # Event-debounced counters (P6 fix).  A "violation event" is a
         # maximal contiguous run of ticks where a specific (agent_id,
         # human_id) pair is inside r_safe; the counter ticks on the
@@ -373,6 +393,49 @@ class MetricsTracker:
         ``violations_def1_safety_violations`` at finalize."""
         self._violations_def1_exogenous_attributable += int(count)
 
+    # Resume-prompt-1 splits: distance-0 vs distance>0 destinations.
+    # The simulator's classifier wires these in a later prompt.  In
+    # this prompt they are inert; the two split counters per bucket
+    # must each sum to their parent bucket (asserted at finalize).
+
+    def add_def1_agent_attributable_d0_violation(self, count: int = 1) -> None:
+        """Count Def-1 agent-attributable pairs whose post-move
+        ell_1(s_i(t+1), h_post) == 0 (distance-0 vertex encroachment;
+        only possible when humans may enter agent cells)."""
+        self._violations_def1_agent_attributable_d0 += int(count)
+
+    def add_def1_agent_attributable_dgt0_violation(self, count: int = 1) -> None:
+        """Count Def-1 agent-attributable pairs whose post-move
+        0 < ell_1(s_i(t+1), h_post) <= r_safe (buffer-ring overlap)."""
+        self._violations_def1_agent_attributable_dgt0 += int(count)
+
+    def add_def1_exogenous_attributable_d0_violation(self, count: int = 1) -> None:
+        """Count Def-1 exogenous-attributable pairs whose post-move
+        ell_1(s_i(t+1), h_post) == 0."""
+        self._violations_def1_exogenous_attributable_d0 += int(count)
+
+    def add_def1_exogenous_attributable_dgt0_violation(self, count: int = 1) -> None:
+        """Count Def-1 exogenous-attributable pairs whose post-move
+        0 < ell_1(s_i(t+1), h_post) <= r_safe."""
+        self._violations_def1_exogenous_attributable_dgt0 += int(count)
+
+    def add_def1_response_attributable_violation(self, count: int = 1) -> None:
+        """Count Def-1 violation pairs triggered by a distance-0
+        human encroachment at the previous tick (γ-extension under
+        ``algorithm_variant == 'evade'``).  Disjoint from
+        ``add_def1_agent_attributable_violation`` and
+        ``add_def1_exogenous_attributable_violation``; the three
+        buckets together sum to ``violations_def1_safety_violations``."""
+        self._violations_def1_response_attributable += int(count)
+
+    def add_agent_human_vertex_collision(self, count: int = 1) -> None:
+        """Count a tick where a human occupies the same cell as an
+        agent (distance-0 collision).  Only possible when
+        ``SimConfig.humans_block_on_agent_cells`` is False; under
+        the default True regime the human-step physics suppresses
+        these and this counter stays at 0."""
+        self._collisions_agent_human_vertex += int(count)
+
     # ------------------------------------------------------------------
     # Event-debounced violation accounting (P6 fix)
     # ------------------------------------------------------------------
@@ -626,6 +689,19 @@ class MetricsTracker:
             "guidance_followed_ticks",
             "guidance_coverage",
             "guidance_follow_rate",
+            # Resume-prompt-1 additions: Def-1 splits + response
+            # bucket + distance-0 vertex collisions + per-row
+            # regime echoes.  Schema-only here; the classifier and
+            # human-step physics wire actual increments in a later
+            # prompt.  See ``core/types.py::Metrics`` for invariants.
+            "violations_def1_agent_attributable_d0",
+            "violations_def1_agent_attributable_dgt0",
+            "violations_def1_exogenous_attributable_d0",
+            "violations_def1_exogenous_attributable_dgt0",
+            "violations_def1_response_attributable",
+            "collisions_agent_human_vertex",
+            "humans_block_on_agent_cells",
+            "algorithm_variant",
         ]
 
     def to_csv_row(self, metrics: Metrics) -> List[str]:
@@ -699,6 +775,15 @@ class MetricsTracker:
             str(metrics.guidance_followed_ticks),
             f"{metrics.guidance_coverage:.6f}",
             f"{metrics.guidance_follow_rate:.6f}",
+            # Resume-prompt-1 additions; order matches csv_header.
+            str(metrics.violations_def1_agent_attributable_d0),
+            str(metrics.violations_def1_agent_attributable_dgt0),
+            str(metrics.violations_def1_exogenous_attributable_d0),
+            str(metrics.violations_def1_exogenous_attributable_dgt0),
+            str(metrics.violations_def1_response_attributable),
+            str(metrics.collisions_agent_human_vertex),
+            str(metrics.humans_block_on_agent_cells),
+            str(metrics.algorithm_variant),
         ]
 
     def finalize(
@@ -740,16 +825,26 @@ class MetricsTracker:
         # ``add_safety_violation`` directly without ``add_def1_*``),
         # the def1 sum stays 0 and the assertion below scopes itself
         # accordingly.
+        # Resume-prompt-1: Def-1 total is now three buckets
+        # (agent + exogenous + response).  Response is always 0
+        # until the γ-extension is wired, so the legacy two-bucket
+        # equality against ``safety_violations`` still holds in the
+        # baseline regime; the three-bucket invariant is the
+        # canonical form going forward and is also asserted against
+        # the materialized Metrics fields below.
         def1_attr_sum = (
             int(self._violations_def1_agent_attributable)
             + int(self._violations_def1_exogenous_attributable)
+            + int(self._violations_def1_response_attributable)
         )
         if def1_attr_sum > 0 and def1_attr_sum != int(self._safety_violations):
             raise AssertionError(
                 f"Definition-1 attribution invariant broken: "
-                f"def1_safety_violations (= def1_agent + def1_exo = "
+                f"def1_safety_violations (= def1_agent + def1_exo "
+                f"+ def1_response = "
                 f"{self._violations_def1_agent_attributable} + "
-                f"{self._violations_def1_exogenous_attributable} = "
+                f"{self._violations_def1_exogenous_attributable} + "
+                f"{self._violations_def1_response_attributable} = "
                 f"{def1_attr_sum}) != safety_violations="
                 f"{self._safety_violations}.  Both classifiers iterate "
                 f"the same post-move violation-pair set; this drift "
@@ -926,6 +1021,25 @@ class MetricsTracker:
                 float(self._guidance_followed_ticks) / float(self._guidance_covered_ticks)
                 if self._guidance_covered_ticks > 0 else 0.0
             ),
+            # Resume-prompt-1: Def-1 destination splits + response
+            # bucket + distance-0 vertex collisions.
+            violations_def1_agent_attributable_d0=int(self._violations_def1_agent_attributable_d0),
+            violations_def1_agent_attributable_dgt0=int(self._violations_def1_agent_attributable_dgt0),
+            violations_def1_exogenous_attributable_d0=int(self._violations_def1_exogenous_attributable_d0),
+            violations_def1_exogenous_attributable_dgt0=int(self._violations_def1_exogenous_attributable_dgt0),
+            violations_def1_response_attributable=int(self._violations_def1_response_attributable),
+            collisions_agent_human_vertex=int(self._collisions_agent_human_vertex),
+            # Echo SimConfig regime fields when available; default
+            # to the Metrics-dataclass defaults for legacy callers
+            # that constructed the tracker without a config.
+            humans_block_on_agent_cells=(
+                bool(self._config.humans_block_on_agent_cells)
+                if self._config is not None else True
+            ),
+            algorithm_variant=(
+                str(self._config.algorithm_variant)
+                if self._config is not None else "baseline"
+            ),
         )
 
         # Event-vs-agent-ticks contract (P6 follow-up).  The
@@ -988,5 +1102,58 @@ class MetricsTracker:
             f"if a new override callsite was added, it must call "
             f"add_wait_steps in lockstep with the appropriate "
             f"add_*_wait_step method."
+        )
+
+        # Resume-prompt-1 invariants (schema-level; behavior wired
+        # in a later prompt).  The split counters and the response
+        # bucket are inert in this prompt -- the simulator still
+        # calls only ``add_def1_{agent,exogenous}_attributable_violation``
+        # which feeds the parent buckets but not the destination
+        # splits.  Each assert below mirrors the existing
+        # ``def1_attr_sum > 0`` guard a few blocks above: it has
+        # teeth as soon as either side of the equality starts
+        # incrementing, and stays dormant in the meantime so a
+        # baseline-regime run does not trip it.
+        agent_split_sum = (
+            m.violations_def1_agent_attributable_d0
+            + m.violations_def1_agent_attributable_dgt0
+        )
+        if agent_split_sum > 0:
+            assert m.violations_def1_agent_attributable == agent_split_sum, (
+                f"def1 agent-attributable split broken: "
+                f"agent={m.violations_def1_agent_attributable} != "
+                f"d0+dgt0 = {m.violations_def1_agent_attributable_d0}+"
+                f"{m.violations_def1_agent_attributable_dgt0}"
+            )
+        exo_split_sum = (
+            m.violations_def1_exogenous_attributable_d0
+            + m.violations_def1_exogenous_attributable_dgt0
+        )
+        if exo_split_sum > 0:
+            assert m.violations_def1_exogenous_attributable == exo_split_sum, (
+                f"def1 exogenous-attributable split broken: "
+                f"exo={m.violations_def1_exogenous_attributable} != "
+                f"d0+dgt0 = {m.violations_def1_exogenous_attributable_d0}+"
+                f"{m.violations_def1_exogenous_attributable_dgt0}"
+            )
+        # The three-bucket sum is true by construction (def1_attr_sum
+        # was computed as agent + exo + response above and is what
+        # we stored in violations_def1_safety_violations), so this
+        # assert has no gating -- a drift here is a programming bug
+        # in finalize itself.
+        assert (m.violations_def1_safety_violations
+                == m.violations_def1_agent_attributable
+                + m.violations_def1_exogenous_attributable
+                + m.violations_def1_response_attributable), (
+            f"def1 three-bucket invariant broken: "
+            f"safety={m.violations_def1_safety_violations} != "
+            f"agent+exo+response = "
+            f"{m.violations_def1_agent_attributable}+"
+            f"{m.violations_def1_exogenous_attributable}+"
+            f"{m.violations_def1_response_attributable}"
+        )
+        assert m.collisions_agent_human_vertex >= 0, (
+            f"collisions_agent_human_vertex must be non-negative; "
+            f"got {m.collisions_agent_human_vertex}"
         )
         return m

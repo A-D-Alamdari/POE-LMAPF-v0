@@ -456,6 +456,41 @@ class Metrics:
     violations_def1_agent_attributable: int = 0
     violations_def1_exogenous_attributable: int = 0
     violations_def1_safety_violations: int = 0
+    # Resume-prompt-1 additions.  The two existing Def-1 buckets
+    # split by destination distance: ``_d0`` counts pairs whose
+    # post-move ell_1(s_i(t+1), h_post) == 0 (distance-0 vertex
+    # encroachment, only possible when
+    # ``humans_block_on_agent_cells`` is False); ``_dgt0`` counts
+    # 0 < ell_1 <= r_safe (the buffer ring).  Invariants asserted
+    # in ``MetricsTracker.finalize``:
+    #   violations_def1_agent_attributable
+    #       == violations_def1_agent_attributable_d0
+    #          + violations_def1_agent_attributable_dgt0
+    #   violations_def1_exogenous_attributable
+    #       == violations_def1_exogenous_attributable_d0
+    #          + violations_def1_exogenous_attributable_dgt0
+    # ``violations_def1_response_attributable`` is the new third
+    # bucket for moves triggered by a distance-0 human encroachment
+    # at the previous tick (γ-extension under
+    # ``algorithm_variant == "evade"``).  Response moves are always
+    # made FROM distance 0, so the d0/dgt0 split of the destination
+    # is not meaningful; the bucket has no split.  Three-bucket
+    # invariant:
+    #   violations_def1_safety_violations
+    #       == violations_def1_agent_attributable
+    #          + violations_def1_exogenous_attributable
+    #          + violations_def1_response_attributable
+    violations_def1_agent_attributable_d0: int = 0
+    violations_def1_agent_attributable_dgt0: int = 0
+    violations_def1_exogenous_attributable_d0: int = 0
+    violations_def1_exogenous_attributable_dgt0: int = 0
+    violations_def1_response_attributable: int = 0
+    # Distance-0 agent-human vertex collisions.  Only nonzero when
+    # ``SimConfig.humans_block_on_agent_cells`` is False; counts
+    # ticks where a human occupies the same cell as an agent
+    # (distinct from ``collisions_agent_human`` which counts the
+    # legacy near-miss notion).
+    collisions_agent_human_vertex: int = 0
     global_replans: int = 0
     local_replans: int = 0
     intervention_rate: float = .0
@@ -627,6 +662,13 @@ class Metrics:
     guidance_followed_ticks: int = 0
     guidance_coverage: float = 0.0
     guidance_follow_rate: float = 0.0
+    # Resume-prompt-1: per-row echo of the SimConfig regime fields
+    # so every CSV row carries the regime it was produced under.
+    # Populated in ``MetricsTracker.finalize`` from the SimConfig
+    # passed to the tracker constructor; falls back to the dataclass
+    # defaults when no config was supplied (legacy callers).
+    humans_block_on_agent_cells: bool = True
+    algorithm_variant: str = "baseline"
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize metrics to a dictionary."""
@@ -727,6 +769,26 @@ class SimConfig:
     num_humans: int = 0
     fov_radius: int = 4
     safety_radius: int = 1
+    # Resume-prompt-1 additions (foundation; no behavior wired yet).
+    # ``humans_block_on_agent_cells`` toggles the externals model:
+    #   True (default) -- current behavior; humans cannot enter
+    #                     agent-occupied cells (vertex-coordinated,
+    #                     audit 04 §3.3).
+    #   False -- humans may enter agent-occupied cells.  A distance-0
+    #            collision is then a recordable event in
+    #            ``Metrics.collisions_agent_human_vertex``.
+    # ``algorithm_variant`` toggles the agent's response to
+    # distance-0 encroachment:
+    #   "baseline" (default) -- current Algorithm 2; no evade.
+    #   "evade" -- γ-extension: prioritize moving out of a cell about
+    #              to be entered by a human at the next tick.  Moves
+    #              triggered by this clause are bucketed into the new
+    #              ``violations_def1_response_attributable`` total
+    #              rather than the agent-attributable bucket.
+    # Both fields are echoed into Metrics so every CSV row carries
+    # the regime it was produced under (resume four-way grid).
+    humans_block_on_agent_cells: bool = True
+    algorithm_variant: Literal["baseline", "evade"] = "baseline"
     # Paper Section 5.1 default global solver = LaCAM (Okumura 2023 AAAI,
     # Kei18/lacam).  In ``GlobalPlannerFactory`` the LaCAM wrapper
     # (``LaCAMOfficialSolver``) is registered under ``"lacam_official"``
@@ -865,6 +927,17 @@ class SimConfig:
         # for the corresponding code-side comment, and
         # ``tests/test_config_preconditions.py`` for the regression
         # test that proves this branch fires.
+        # Resume-prompt-1: algorithm_variant whitelist.  The
+        # ``Literal[...]`` annotation is documentation only; runtime
+        # YAML loaders will happily pass through any string, so the
+        # check has to live here.
+        if self.algorithm_variant not in ("baseline", "evade"):
+            raise ValueError(
+                f"SimConfig.algorithm_variant must be 'baseline' or "
+                f"'evade', got {self.algorithm_variant!r}.  See "
+                f"core/types.py::SimConfig for the regime semantics."
+            )
+
         if int(self.safety_radius) >= int(self.fov_radius):
             raise ValueError(
                 f"SimConfig violates the Theorem-1 precondition "

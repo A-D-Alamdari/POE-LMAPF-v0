@@ -492,3 +492,32 @@ class TestSimConfig:
             human_model_params=params,
         )
         assert cfg.human_model_params["beta_go"] == 3.0
+
+
+# ===========================================================================
+# Resume-prompt-1 — schema additions
+# ===========================================================================
+
+
+class TestResumeRegimeFields:
+    """Schema-only validation for the four-way grid regime toggles."""
+
+    def test_humans_block_on_agent_cells_default_true(self):
+        cfg = SimConfig(map_path="test.map")
+        assert cfg.humans_block_on_agent_cells is True
+
+    def test_algorithm_variant_default_baseline(self):
+        cfg = SimConfig(map_path="test.map")
+        assert cfg.algorithm_variant == "baseline"
+
+    def test_algorithm_variant_evade_accepted(self):
+        cfg = SimConfig(map_path="test.map", algorithm_variant="evade")
+        assert cfg.algorithm_variant == "evade"
+
+    def test_algorithm_variant_invalid_raises(self):
+        with pytest.raises(ValueError, match="algorithm_variant"):
+            SimConfig(map_path="test.map", algorithm_variant="bogus")
+
+    def test_humans_block_field_accepts_false(self):
+        cfg = SimConfig(map_path="test.map", humans_block_on_agent_cells=False)
+        assert cfg.humans_block_on_agent_cells is False

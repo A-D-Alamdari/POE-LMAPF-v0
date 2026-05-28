@@ -386,7 +386,7 @@ class Simulator:
 
         # 9. Setup Logging
         # Metrics and Replay
-        self.metrics = MetricsTracker()
+        self.metrics = MetricsTracker(config=config)
 
         for t in self.tasks:
             self.metrics.on_task_released(task_id=t.task_id, release_step=t.release_step)

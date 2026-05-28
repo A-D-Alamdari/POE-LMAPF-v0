@@ -413,3 +413,140 @@ class TestMetricsIntegration:
         assert metrics.sum_of_costs == 225  # 15 * 15
         assert metrics.makespan == 120
         assert metrics.throughput == 15 / 200
+
+
+# ===========================================================================
+# Resume-prompt-1 — schema additions
+# ===========================================================================
+
+
+class TestResumeSchemaAdditions:
+    """Schema-only invariants for the new Def-1 splits + response
+    bucket + distance-0 vertex collisions + regime echoes.  Behavior
+    is wired in a later prompt; this test pins the bookkeeping."""
+
+    def test_def1_three_bucket_invariant(self):
+        """d0=2 + dgt0=3 in agent bucket; d0=1 + dgt0=4 in exo
+        bucket; response=5; safety totals must sum to 5 + 5 + 5 = 15
+        and the materialized Metrics splits must agree."""
+        from ha_lmapf.core.metrics import MetricsTracker
+
+        tracker = MetricsTracker()
+        # Parent buckets receive the per-pair count; the d0/dgt0
+        # splits receive the same pairs partitioned by destination
+        # distance.  Caller is responsible for the split sum
+        # matching the parent.
+        for _ in range(5):
+            tracker.add_safety_violation()
+            tracker.add_agent_attributable_violation()
+            tracker.add_def1_agent_attributable_violation()
+        tracker.add_def1_agent_attributable_d0_violation(2)
+        tracker.add_def1_agent_attributable_dgt0_violation(3)
+
+        for _ in range(5):
+            tracker.add_safety_violation()
+            tracker.add_exogenous_attributable_violation()
+            tracker.add_def1_exogenous_attributable_violation()
+        tracker.add_def1_exogenous_attributable_d0_violation(1)
+        tracker.add_def1_exogenous_attributable_dgt0_violation(4)
+
+        for _ in range(5):
+            tracker.add_safety_violation()
+            # response pairs need a parent bucket so the legacy
+            # safety_violations sum stays consistent; the
+            # WAIT-counterfactual splits don't have a response bucket
+            # so we put them in the agent bucket (the simulator will
+            # do the same when wiring response moves).
+            tracker.add_agent_attributable_violation()
+            tracker.add_def1_response_attributable_violation()
+
+        m = tracker.finalize(total_steps=1)
+
+        assert m.violations_def1_agent_attributable == 5
+        assert m.violations_def1_agent_attributable_d0 == 2
+        assert m.violations_def1_agent_attributable_dgt0 == 3
+        assert m.violations_def1_exogenous_attributable == 5
+        assert m.violations_def1_exogenous_attributable_d0 == 1
+        assert m.violations_def1_exogenous_attributable_dgt0 == 4
+        assert m.violations_def1_response_attributable == 5
+        assert m.violations_def1_safety_violations == 15
+
+    def test_def1_agent_split_mismatch_raises(self):
+        """If the d0/dgt0 split does not sum to the parent bucket
+        count, finalize must raise."""
+        from ha_lmapf.core.metrics import MetricsTracker
+
+        tracker = MetricsTracker()
+        tracker.add_safety_violation()
+        tracker.add_agent_attributable_violation()
+        tracker.add_def1_agent_attributable_violation()
+        tracker.add_def1_agent_attributable_d0_violation()
+        # No dgt0; parent (1) != d0 (1) + dgt0 (0) is FALSE here -- 1==1 holds.
+        # Force a mismatch: add an extra d0.
+        tracker.add_def1_agent_attributable_d0_violation()
+
+        with pytest.raises(AssertionError, match="agent-attributable split"):
+            tracker.finalize(total_steps=1)
+
+    def test_collisions_agent_human_vertex_default_zero(self):
+        from ha_lmapf.core.metrics import MetricsTracker
+
+        m = MetricsTracker().finalize(total_steps=1)
+        assert m.collisions_agent_human_vertex == 0
+
+    def test_collisions_agent_human_vertex_increments(self):
+        from ha_lmapf.core.metrics import MetricsTracker
+
+        tracker = MetricsTracker()
+        tracker.add_agent_human_vertex_collision()
+        tracker.add_agent_human_vertex_collision(3)
+        m = tracker.finalize(total_steps=1)
+        assert m.collisions_agent_human_vertex == 4
+
+    def test_regime_echo_defaults(self):
+        """Tracker constructed without a SimConfig must produce the
+        dataclass defaults in the regime echo fields."""
+        from ha_lmapf.core.metrics import MetricsTracker
+
+        m = MetricsTracker().finalize(total_steps=1)
+        assert m.humans_block_on_agent_cells is True
+        assert m.algorithm_variant == "baseline"
+
+    def test_regime_echo_picks_up_simconfig(self):
+        from ha_lmapf.core.metrics import MetricsTracker
+        from ha_lmapf.core.types import SimConfig
+
+        cfg = SimConfig(
+            map_path="test.map",
+            humans_block_on_agent_cells=False,
+            algorithm_variant="evade",
+        )
+        m = MetricsTracker(config=cfg).finalize(total_steps=1)
+        assert m.humans_block_on_agent_cells is False
+        assert m.algorithm_variant == "evade"
+
+    def test_new_columns_in_csv(self):
+        """All eight resume-prompt-1 columns appear in csv_header."""
+        from ha_lmapf.core.metrics import MetricsTracker
+
+        header = set(MetricsTracker.csv_header())
+        for col in (
+            "violations_def1_agent_attributable_d0",
+            "violations_def1_agent_attributable_dgt0",
+            "violations_def1_exogenous_attributable_d0",
+            "violations_def1_exogenous_attributable_dgt0",
+            "violations_def1_response_attributable",
+            "collisions_agent_human_vertex",
+            "humans_block_on_agent_cells",
+            "algorithm_variant",
+        ):
+            assert col in header, f"{col} missing from csv_header"
+
+    def test_csv_header_row_length_match(self):
+        """The orphan-test length invariant must still hold with
+        the new columns."""
+        from ha_lmapf.core.metrics import MetricsTracker
+
+        tracker = MetricsTracker()
+        m = tracker.finalize(total_steps=1)
+        assert len(MetricsTracker.csv_header()) == len(tracker.to_csv_row(m))
