@@ -1,3 +1,18 @@
+% Provenance: each cell is mean +/- std over 40 seeds of the §5.2
+% solver-sensitivity sweep (logs/paper/solver_sensitivity/results.csv).
+% The "Exo-attr. violations" column is
+%   mean_over_seeds(violations_exogenous_attributable)
+% per (map, global_solver, horizon=20) cell -- no transform, no
+% normalisation.  Audited in reports/table1_audit.md; reproduces
+% within 0.007% per cell.  When the §5.2 sweep is re-run on the
+% current head it will also emit
+% ``violations_def1_exogenous_attributable'' (paper §3 Definition-1
+% quantity); the paper text should switch to that column at re-run
+% time so the reproduced number matches the Theorem 1 invariant 1:1.
+%
+% Known issue: the §5.2 sweep CSV is missing lacam3, so the LaCAM*
+% rows below duplicate the LaCAM (lacam_official) rows verbatim.
+% See reports/table1_audit.md.
 \begin{table}[t]
 \centering
 \small
@@ -35,3 +50,21 @@ PIBT2 & 0.249 $\pm$ 0.034 & 0.0 $\pm$ 0.0 & 759.0 $\pm$ 117.2 & 28.7 $\pm$ 2.6 \
 \caption{Tier-1 Solver Substitutability at $H = 20$ on warehouse-10-20-10-2-2.}
 \label{tab:solver_subst_warehouse-10-20-10-2-2}
 \end{table}
+
+% System-health footnote -- required by the P9 task spec so the
+% reader sees agent-level progress alongside throughput.  The §5.2
+% sweep CSV predates the deadlock instrumentation, so the
+% deadlock_count column is empty in the tables above; the
+% headline-cell number cited here comes from the §5.5
+% baseline_comparison_v2 sweep at the same warehouse / |M|=100
+% point.  See \S\ref{sec:system_health} for the full table.
+
+\paragraph{System-health footnote (Table~\ref{tab:solver_subst_warehouse-10-20-10-2-2}).}
+At $|M| = 100$ on the warehouse map, an average of 16.10 agents per
+run cross the deadlock threshold (Ours, mean across 10 seeds;
+baselines fare worse -- No-Buffer 29.30, PIBT2-FR 43.00,
+LaCAM-blind 100.00).  This is consistent with the system being
+task-arrival-limited: throughput saturates near the arrival rate
+regardless of how many agents are stuck.  See
+\S\ref{sec:system_health} (System Health Indicators) for the
+cross-density table and the per-method comparison.

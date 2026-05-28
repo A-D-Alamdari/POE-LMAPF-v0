@@ -208,17 +208,57 @@ $\ell_1(s_i(t+1), h_{\mathrm{pos\;at\;}t}) \le r_{\mathit{safe}}$.
 **Theorem 1 (Conditional Safety).** Under Algorithm 2 and the
 F-respecting loser fallback in the resolver, no executed action is
 agent-attributable to a buffer violation; equivalently, the
-``violations_agent_attributable`` counter is exactly zero at all
-times.
+``violations_def1_agent_attributable`` counter is exactly zero at
+all times.
 
-The proof (paper §4.5) walks every controller / resolver branch and
-shows each one either picks a cell outside $F$ or commits Safe Wait
-($s_i(t+1) = s_i(t)$ with $s_i(t) \notin F$ by upstream invariant).
-The empirical version is locked in by
+This is a **construction-level invariant**, not an empirical
+hypothesis.  Five-line proof, using the simulator's tick ordering
+(step 4 = humans move, step 5 = agents sense + decide, step 7 =
+agents execute):
 
-- ``tests/test_safety_classification.py`` (per-pair classification);
+1. At decision time $t$ (step 5), agent $i$ has observed every
+   exogenous agent within $\ell_1$ distance $r_{\mathit{fov}}$ of
+   $s_i(t)$.  The observed set $X^{\Phi_i}_t$ uses pre-step-4
+   positions $h'_{\mathrm{pos\;at\;}t}$ (the snapshot the simulator
+   takes immediately before $\_$update_humans).
+2. Because $r_{\mathit{safe}} < r_{\mathit{fov}}$ (paper §5.1
+   default) and agent moves are Manhattan-1, every cell whose
+   $r_{\mathit{safe}}$-buffer the agent could enter in one step
+   from $s_i(t)$ lies within $\ell_1$ distance
+   $r_{\mathit{safe}} + 1 \le r_{\mathit{fov}}$ of $s_i(t)$.
+3. The local controller's forbidden set $F$ is exactly the union
+   of $r_{\mathit{safe}}$-buffers around every $h' \in
+   X^{\Phi_i}_t$.  Step 2 gives $F \supseteq$ every reachable
+   buffer cell.
+4. With $\mathit{hard\_safety}=\mathit{true}$ (Algorithm 2) the
+   controller refuses every cell in $F$ and commits Safe Wait if
+   no other action remains; the resolver's loser fallback also
+   respects $F$.
+5. Therefore the executed cell $s_i(t+1)$ is either $s_i(t)$
+   (Safe Wait, clause (b) of Definition 1 fails on moved) or a
+   cell outside $F$ (and therefore outside every buffer of any
+   $h' \in X^{\Phi_i}_t$, so clause (b) fails on
+   $\ell_1(s_i(t+1), h'_{\mathrm{pos\;at\;}t}) > r_{\mathit{safe}}$).
+   No (a_i, h') pair satisfies Definition 1 clauses (a) and (b)
+   simultaneously, so $\mathit{violations\_def1\_agent\_attributable} = 0$.
+
+The empirical witness counter is locked in by
+
+- ``tests/test_safety_classification.py`` (WAIT-counterfactual diagnostic);
+- ``tests/test_def1_violation_classifier.py`` (Definition-1 classifier);
 - ``tests/test_theorem1_resolver.py`` (loser fallback respects $F$);
 - ``tests/test_theorem1_stress.py`` (200-step end-to-end).
+
+A note on the WAIT-counterfactual diagnostic
+``violations_agent_attributable`` (P5 follow-up): that counter
+implements a different rule -- no FOV gate, post-step-4 human
+positions, single clause "WAIT would have been safe vs this
+specific $h$".  It is NOT a Theorem 1 invariant and CAN be nonzero
+on a healthy run (FOV-blind moves into emergent buffer overlaps).
+Do not cite it as evidence for or against Theorem 1.  See
+``docs/REVISION_AUDIT.md`` §13 for the migration note and
+``simulator.py::_detect_collisions_and_near_misses`` for the
+side-by-side classifier code.
 
 ---
 

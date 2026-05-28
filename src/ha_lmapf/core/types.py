@@ -75,6 +75,28 @@ class AgentState:
     wait_steps: int = 0
     last_action_was_safe_wait: bool = False
     last_action_was_yield_wait: bool = False
+    # P11 wait-kind extension.  Two more disjoint flags that cover
+    # WAITs the controller did NOT choose:
+    #
+    #   * ``last_action_was_physics_revert_wait`` -- the controller
+    #     decided to MOVE but ``Simulator.step_once`` step 7a
+    #     reverted the move to WAIT because of a residual
+    #     vertex/edge conflict the resolver could not eliminate.
+    #   * ``last_action_was_delay_wait``         -- the controller
+    #     decided to MOVE but ``Simulator.step_once`` step 6
+    #     (execution-delay injection, robust-MAPF) forced WAIT.
+    #
+    # Disjoint with the controller-chosen flags by construction:
+    # step 6 / step 7a only override actions that were NOT already
+    # WAIT, so an agent that the controller already buckets as
+    # safe/yield never reaches either of these branches.
+    # Bucketed into ``Metrics.physics_revert_wait_steps`` /
+    # ``Metrics.delay_wait_steps`` so the extended invariant
+    #   total_wait_steps == safe_wait_steps + yield_wait_steps
+    #                       + physics_revert_wait_steps + delay_wait_steps
+    # holds.
+    last_action_was_physics_revert_wait: bool = False
+    last_action_was_delay_wait: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize state to a dictionary for logging/JSON export."""
@@ -341,6 +363,20 @@ class Metrics:
     completed_tasks: int = 0
     total_released_tasks: int = 0
     task_completion: float = 0.
+    # Load-regime diagnostics (P10).  ``arrival_rate_per_step`` is
+    # the system-wide task arrival rate (released_tasks /
+    # total_steps); under the simulator's default lifelong stream
+    # (``Simulator._generate_task_stream``) it equals |M|/(H+W),
+    # where H and W are the map height + width.
+    # ``throughput_utilization`` is throughput / arrival_rate;
+    # >= 1.0 means the cell is arrival-saturated and the throughput
+    # column measures the task arrival cap, NOT planner capacity.
+    # Used to flag arrival-saturated cells in paper tables; see
+    # ``paper/sections/05_1_load_regime.tex`` for the paper-text
+    # discussion and ``scripts/diagnostics/check_arrival_saturation.py``
+    # for the cross-cell audit.
+    arrival_rate_per_step: float = .0
+    throughput_utilization: float = .0
     mean_flowtime: float = .0
     collisions_agent_agent: int = 0
     collisions_agent_human: int = 0
@@ -377,12 +413,49 @@ class Metrics:
     # Per-tick agent-tick counts (one increment per (agent, human)
     # violating pair per tick); ``*_events`` counterparts apply the
     # leading-edge debounce.
+    #
+    # IMPORTANT.  These are the **WAIT-counterfactual diagnostic**
+    # (P5 follow-up), NOT the Theorem 1 invariant from paper §3.
+    # The classifier consults post-step-4 human positions and skips
+    # the FOV gate; agent-attributable means "the agent moved AND
+    # WAIT would have left the agent safe vs this specific h".  This
+    # quantity can be nonzero on a healthy run (FOV-blind moves into
+    # emergent buffer overlaps) and is kept as an independent
+    # measurement so a planner that ignored the forbidden set would
+    # surface nonzero values here.
+    #
+    # The canonical Theorem 1 quantity is the ``violations_def1_*``
+    # block below.  Do NOT cite these fields as evidence for or
+    # against Theorem 1; they answer a different question.
     violations_agent_attributable: int = 0
     violations_agent_attributable_agent_ticks: int = 0
     violations_agent_attributable_events: int = 0
     violations_exogenous_attributable: int = 0
     violations_exogenous_attributable_agent_ticks: int = 0
     violations_exogenous_attributable_events: int = 0
+    # Paper §3 Definition 1 attribution -- the canonical Theorem 1
+    # quantity.  Classifier reads pre-step-4 human positions,
+    # FOV-gates the witness set X_t^{Phi_i} by r_fov, and applies
+    # both clauses (a) ell_1(s_i(t), h_pos_at_t) > r_safe and
+    # (b) ell_1(s_i(t+1), h_pos_at_t) <= r_safe AND moved.
+    #
+    # Theorem 1 (paper §F): on every Algorithm-2 trajectory,
+    # ``violations_def1_agent_attributable`` stays zero -- the
+    # forbidden set the local controller respects contains every
+    # reachable pre-move buffer cell, so no executed action can
+    # land inside a buffer the agent observed.  This is a
+    # construction-level invariant (hard_safety + r_safe < r_fov +
+    # Manhattan-1 moves => the forbidden set covers every reachable
+    # buffer cell), proved in ``docs/proposed_approach.md`` §F.
+    #
+    # ``violations_def1_safety_violations`` is the sum of the two
+    # buckets (asserted in ``MetricsTracker.finalize``); it equals
+    # the count of post-move violation pairs that pass through
+    # classifier (A) in
+    # ``simulator.py::_detect_collisions_and_near_misses``.
+    violations_def1_agent_attributable: int = 0
+    violations_def1_exogenous_attributable: int = 0
+    violations_def1_safety_violations: int = 0
     global_replans: int = 0
     local_replans: int = 0
     intervention_rate: float = .0
@@ -433,6 +506,23 @@ class Metrics:
     # conflict-induced WAIT (resolver yielded after losing).
     safe_wait_steps: int = 0
     yield_wait_steps: int = 0
+    # P11 wait-kind extension.  See ``AgentState`` docs for the
+    # disjointness contract; the extended invariant asserted by
+    # ``MetricsTracker.finalize`` is
+    #   total_wait_steps == safe_wait_steps + yield_wait_steps
+    #                       + physics_revert_wait_steps
+    #                       + delay_wait_steps.
+    # ``physics_revert_wait_steps`` counts ticks where the resolver
+    # forced WAIT because intended next position lost the
+    # vertex/edge conflict check.  ``delay_wait_steps`` counts
+    # ticks forced to WAIT by execution-delay injection.  Both
+    # are typically zero in §5.x sweeps (no exec_delay_prob, no
+    # contention left after the Tier-2 resolver); the new fields
+    # exist so the wait_fraction metric measures what the paper
+    # claims -- "how often does a controlled agent fail to make
+    # progress" -- not just controller-chosen waits.
+    physics_revert_wait_steps: int = 0
+    delay_wait_steps: int = 0
     # Fraction of (agent x step) pairs spent waiting:
     #   wait_fraction = total_wait_steps / (num_agents * steps).
     # Computed in ``MetricsTracker.finalize``.  Reflects "how often does

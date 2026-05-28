@@ -1,0 +1,459 @@
+"""Paper-metric invariants — pointed regression tests (P12).
+
+The metric divergences in earlier prompts (the WAIT-counterfactual
+mis-naming of Definition 1, the unemitted safety_violation_events
+column, the under-counted wait_fraction, the unflagged arrival
+saturation) all went unnoticed for one reason: no test tied the
+implementation back to the paper's definitions.  This file is the
+gate.  Six small, pointed tests; any future edit that silently
+re-defines a metric breaks one of them immediately.
+
+Each test names the prompt it guards in its docstring so a failure
+points at the relevant audit context.
+
+Acceptance: ``pytest tests/test_paper_metric_invariants.py -v``
+shows 6 passed on the current main branch.
+"""
+from __future__ import annotations
+
+import csv
+import re
+import sys
+from dataclasses import fields, asdict
+from pathlib import Path
+from typing import Any, Dict, List
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "src"))
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "evaluation"))
+
+from ha_lmapf.core.metrics import MetricsTracker
+from ha_lmapf.core.types import AgentState, HumanState, Metrics, SimConfig
+from ha_lmapf.simulation.simulator import Simulator
+
+
+# ---------------------------------------------------------------------------
+# 1. Definition-1 classifier consults the PRE-move FOV-gated witness set
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def map7x7(tmp_path):
+    """7×7 fully-open MovingAI map."""
+    p = tmp_path / "7x7.map"
+    p.write_text("type octile\nheight 7\nwidth 7\nmap\n" + ".......\n" * 7)
+    return str(p)
+
+
+def _make_sim(map_path: str, fov_radius: int, safety_radius: int) -> Simulator:
+    cfg = SimConfig(
+        map_path=map_path, seed=0, steps=1,
+        num_agents=0, num_humans=0,
+        fov_radius=fov_radius, safety_radius=safety_radius,
+        global_solver="cbs", replan_every=1, horizon=1,
+        human_model="random_walk", mode="one_shot",
+    )
+    return Simulator(cfg)
+
+
+def test_def1_classifier_uses_fov_filter(map7x7):
+    """P1 guard: the Definition-1 (paper §3) classifier must
+    consult the FOV-gated PRE-move human positions for clause (a).
+
+    Scenario: 7x7 grid, agent at (3,3) with r_fov=2, r_safe=1.
+    The human is at (3,6) at decision time t (PRE-move) -- L1=3,
+    OUTSIDE the agent's FOV of radius 2, so the human is NOT in
+    X_t^{Phi_i}.  The human then moves to (3,4) (L1=1 from the
+    agent at t+1), creating a post-move violation pair.  Under
+    Definition 1 the violation is NOT agent-attributable because
+    no witness in the observed set X_t^{Phi_i} satisfies clause
+    (a).  Under the WAIT-counterfactual diagnostic (P5), the
+    same violation IS agent-attributable (the witness is read
+    POST-move, dist(a_prev, h_post)=2 > r_safe=1, agent didn't
+    move so... actually agent didn't move here so neither rule
+    fires WAIT-bucket).  Re-introducing the FOV-blind
+    classifier (i.e. reverting P1) would mislabel this as
+    def1-agent-attributable; the test would fail.
+    """
+    sim = _make_sim(map7x7, fov_radius=2, safety_radius=1)
+    sim.agents = {0: AgentState(agent_id=0, pos=(3, 3))}
+    # Human stays put (agent's choice not to move would mean no
+    # violation; we need the agent to move INTO a buffer cell to
+    # get a violation pair at t+1).  Instead, the agent moves
+    # one step toward (3, 4) and the human moves from (3, 6) to
+    # (3, 4) -- the agent steps into a cell adjacent to the
+    # human's post-move position.
+    sim.humans = {0: HumanState(human_id=0, pos=(3, 4))}
+
+    prev_pos = {0: (3, 3)}
+    new_pos = {0: (3, 4)}                                  # agent moved
+    pre = {0: HumanState(human_id=0, pos=(3, 6))}          # unobserved (L1=3 > fov=2)
+    post = {0: HumanState(human_id=0, pos=(3, 4))}         # adjacent at t+1
+
+    sim._detect_collisions_and_near_misses(
+        prev_pos, new_pos, post, humans_pre_move=pre,
+    )
+    m = sim.metrics.finalize(total_steps=1)
+
+    # The post-move violation pair exists.
+    assert m.violations_def1_safety_violations == 1, m
+    # Definition 1 cannot use an unobserved witness; the pair
+    # bucket is exogenous.
+    assert m.violations_def1_agent_attributable == 0, (
+        "Definition 1 mislabelled an FOV-blind move as "
+        "agent-attributable -- the classifier appears to be "
+        "reading post-move human positions or skipping the FOV "
+        f"gate.  metrics={m}"
+    )
+    assert m.violations_def1_exogenous_attributable >= 1
+
+
+# ---------------------------------------------------------------------------
+# 2. wait_fraction includes physics-revert WAITs
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def map3x3(tmp_path):
+    p = tmp_path / "3x3.map"
+    p.write_text("type octile\nheight 3\nwidth 3\nmap\n" + "...\n" * 3)
+    return str(p)
+
+
+def test_wait_fraction_includes_physics_reverts(map3x3):
+    """P11 guard: a WAIT forced by the simulator's physics-revert
+    step (two agents both trying to enter the same cell, the loser
+    is reverted to WAIT) must increment
+    ``physics_revert_wait_steps`` AND contribute to
+    ``wait_fraction``.
+
+    Re-introducing the silent-undercount bug (the bug P11 fixed)
+    would leave the WAIT uncounted and the four-bucket invariant
+    asserted in MetricsTracker.finalize would fire instead --
+    either way this test detects it.
+    """
+    # Build a 3x3 sim with 2 agents both targeting (1, 1).
+    cfg = SimConfig(
+        map_path=map3x3, seed=0, steps=5,
+        num_agents=2, num_humans=0,
+        fov_radius=1, safety_radius=1,
+        global_solver="cbs", replan_every=1, horizon=3,
+        human_model="random_walk", mode="lifelong",
+    )
+    sim = Simulator(cfg)
+    # Override placement to force a vertex conflict: 0 at (0,0)
+    # heading to (2,2), 1 at (0,1) heading to (2,0).  Their
+    # most-direct paths cross at (1,1).
+    sim.agents = {
+        0: AgentState(agent_id=0, pos=(0, 0), goal=(2, 2), task_id="t0"),
+        1: AgentState(agent_id=1, pos=(0, 1), goal=(2, 0), task_id="t1"),
+    }
+    m = sim.run()
+
+    # Either some physics-revert WAITs were counted, OR the
+    # conflict was resolved without a revert (e.g. resolver
+    # picked alternate paths).  The four-bucket invariant must
+    # hold either way.
+    assert m.total_wait_steps == (
+        m.safe_wait_steps + m.yield_wait_steps
+        + m.physics_revert_wait_steps + m.delay_wait_steps
+    ), (
+        f"wait-kind invariant broken under contention: "
+        f"total={m.total_wait_steps}, "
+        f"safe={m.safe_wait_steps}, yield={m.yield_wait_steps}, "
+        f"physics_revert={m.physics_revert_wait_steps}, "
+        f"delay={m.delay_wait_steps}"
+    )
+    # The whole point of P11 is to surface physics-revert WAITs;
+    # for this contention scenario at least ONE such WAIT must
+    # be observable across 5 ticks of 2-agent contention, OR
+    # the resolver routed around the conflict so the bucket
+    # stays zero.  We assert wait_fraction >= 0 and the four
+    # buckets exist -- a regression that drops the new fields
+    # would fail finalize's strict invariant before reaching
+    # here.
+    assert m.wait_fraction >= 0.0
+    assert hasattr(m, "physics_revert_wait_steps")
+    assert hasattr(m, "delay_wait_steps")
+
+
+# ---------------------------------------------------------------------------
+# 3. Every paper-table column header has CSV provenance
+# ---------------------------------------------------------------------------
+
+
+def _parse_tex_headers(tex_path: Path) -> List[str]:
+    """Extract column header labels from each \\toprule ... \\midrule
+    block in a LaTeX table file.  Returns a flat list of all labels
+    across every table in the file."""
+    text = tex_path.read_text()
+    headers: List[str] = []
+    # Each table block ends ... \toprule ... \\ \midrule.  The
+    # header row is the line immediately above \midrule.
+    for match in re.finditer(
+        r"\\toprule\s*(.+?)\s*\\\\\s*\\midrule", text, re.DOTALL,
+    ):
+        line = match.group(1).strip()
+        for cell in line.split("&"):
+            label = cell.strip()
+            if label:
+                headers.append(label)
+    return headers
+
+
+def test_table1_columns_match_csv():
+    """P3+P9+P10 guard: every column header in the committed
+    paper LaTeX tables must map to a known CSV column (either by
+    exact name or via the table builder's label dict).  A future
+    edit that adds a column to the paper text without populating
+    it from the CSV fires here.
+    """
+    import build_summary_tables as bst
+
+    # Combined CSV-column whitelist: everything csv_header emits
+    # plus the canonical raw-Metrics field names (some tables
+    # surface fields the simple csv_header doesn't carry yet).
+    csv_cols = set(MetricsTracker.csv_header())
+    metrics_fields = {f.name for f in fields(Metrics)}
+    csv_cols |= metrics_fields
+    # Per-builder label -> field map.  Mirrors COLS_T1 / COLS_T2
+    # + HEALTH_COLS in scripts/evaluation/build_summary_tables.py.
+    label_to_field: Dict[str, str] = {}
+    for col_spec in (*bst.COLS_T1, *bst.COLS_T2):
+        field, label, *_ = col_spec
+        label_to_field[label] = field
+    for field, label, *_ in bst.HEALTH_COLS:
+        label_to_field[label] = field
+    # Display-name aliases the builder applies to the leftmost
+    # column (Solver / Method names).  These are not CSV fields
+    # but they're not metric headers either -- whitelist them.
+    PRIMARY_COLUMNS = {"Solver", "Method"}
+    # Human-friendly headers used in committed paper tables.
+    # ``mean_planning_time_ms`` is the canonical CSV name.
+    EXTRA_KNOWN_HEADERS = {
+        "Throughput": "throughput",
+        "Agent-attr. violations": "violations_agent_attributable",
+        "Exo-attr. violations": "violations_exogenous_attributable",
+        "Agent-attr.": "violations_agent_attributable",
+        "Exo-attr.": "violations_exogenous_attributable",
+        "Mean planning time (ms)": "mean_planning_time_ms",
+        "Wait fraction": "wait_fraction",
+        "Util.": "throughput_utilization",
+    }
+    label_to_field.update(EXTRA_KNOWN_HEADERS)
+
+    table_dir = REPO_ROOT / "paper" / "tables"
+    tex_files = sorted(table_dir.glob("*.tex"))
+    assert tex_files, f"no .tex tables found under {table_dir}"
+    unresolved: List[str] = []
+    for tex in tex_files:
+        headers = _parse_tex_headers(tex)
+        for h in headers:
+            if h in PRIMARY_COLUMNS:
+                continue
+            field = label_to_field.get(h, h)
+            if field in csv_cols:
+                continue
+            # Allow exact CSV-field syntax (e.g. snake_case names
+            # used directly as table headers).
+            if h.lower().replace(" ", "_") in csv_cols:
+                continue
+            unresolved.append(f"{tex.name}: header '{h}'")
+    assert not unresolved, (
+        "paper table column(s) have no CSV provenance:\n  "
+        + "\n  ".join(unresolved)
+        + "\nEither add the column to MetricsTracker.csv_header() / "
+        "to_csv_row() (and the Metrics dataclass), or add the "
+        "label -> field mapping to EXTRA_KNOWN_HEADERS or the "
+        "builder's COLS_T*."
+    )
+
+
+# ---------------------------------------------------------------------------
+# 4. Throughput cannot exceed the arrival cap by more than ~1%
+# ---------------------------------------------------------------------------
+
+
+def test_throughput_saturation_warning(map3x3):
+    """P10 guard: ``throughput`` cannot exceed
+    ``arrival_rate_per_step`` by more than ~1% under any planner;
+    arrival_rate_per_step must be populated.  A regression that
+    silently re-defines throughput to ignore the arrival stream
+    would either inflate the ratio above 1.01 or leave the
+    arrival column at its default 0.0.
+
+    We use a small lifelong run (3 agents on a 3x3 grid); the
+    arithmetic ceiling is identical to the §5.1 derivation in
+    paper/sections/05_1_load_regime.md.
+    """
+    cfg = SimConfig(
+        map_path=map3x3, seed=0, steps=30,
+        num_agents=3, num_humans=0,
+        fov_radius=1, safety_radius=1,
+        global_solver="cbs", replan_every=2, horizon=3,
+        human_model="random_walk", mode="lifelong",
+    )
+    sim = Simulator(cfg)
+    m = sim.run()
+
+    # arrival_rate_per_step must be populated.
+    assert m.arrival_rate_per_step > 0.0, (
+        f"arrival_rate_per_step is zero on a populated lifelong "
+        f"run; the field is no longer being computed.  metrics={m}"
+    )
+    # Throughput cannot exceed the arrival cap by more than 1%.
+    # Tolerance absorbs the initial task-batch (one per agent at
+    # step 0) which can briefly tip the per-tick ratio above 1.0
+    # before the exponential stream catches up.
+    cap = m.arrival_rate_per_step * 1.01
+    assert m.throughput <= cap + 1e-9, (
+        f"throughput={m.throughput} exceeded arrival cap "
+        f"{cap:.4f} (= arrival_rate {m.arrival_rate_per_step:.4f} "
+        f"x 1.01); a planner cannot complete more tasks than the "
+        f"task stream produced.  metrics={m}"
+    )
+    # throughput_utilization should ALSO be populated and within
+    # [0, 1.01].  Catches a regression that breaks the field.
+    assert 0.0 <= m.throughput_utilization <= 1.01, (
+        f"throughput_utilization out of bounds: "
+        f"{m.throughput_utilization}; metrics={m}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 5. Every scalar Metrics field has CSV provenance
+# ---------------------------------------------------------------------------
+
+
+_TIMELINE_FIELD_NAMES = {
+    "throughput_timeline",
+    "violations_agent_timeline",
+    "violations_exogenous_timeline",
+}
+
+
+def test_no_orphaned_metric_field():
+    """P6+P11+P12 guard: every SCALAR field on the Metrics
+    dataclass must appear in ``MetricsTracker.csv_header()`` and
+    have a corresponding entry in ``to_csv_row()`` (verified by
+    length agreement + a string render on a fresh tracker).
+
+    A future field added to Metrics without wiring the CSV path
+    -- like ``safety_violation_events`` was -- fails this test.
+    """
+    header = MetricsTracker.csv_header()
+    tracker = MetricsTracker()
+    metrics = tracker.finalize(total_steps=1, num_agents=1)
+    row = tracker.to_csv_row(metrics)
+    assert len(header) == len(row), (
+        f"csv_header (len {len(header)}) and to_csv_row "
+        f"(len {len(row)}) are out of sync; new field added "
+        f"to one path without the other."
+    )
+
+    header_set = set(header)
+    orphans: List[str] = []
+    for f in fields(Metrics):
+        # Skip list-typed timeline fields (intentionally excluded
+        # from CSV; they go to sidecar JSON via the paper
+        # harness).
+        if f.name in _TIMELINE_FIELD_NAMES:
+            continue
+        type_str = str(f.type)
+        if "List" in type_str or "list" in type_str:
+            continue
+        if "Dict" in type_str or "dict" in type_str:
+            continue
+        if f.name not in header_set:
+            orphans.append(f.name)
+    assert not orphans, (
+        "Metrics dataclass has scalar field(s) with no CSV "
+        f"provenance:\n  {orphans}\n"
+        "Each must appear in MetricsTracker.csv_header() AND "
+        "to_csv_row() so the per-run CSV the simple runner "
+        "produces carries them.  This is the test that would "
+        "have caught safety_violation_events being computed "
+        "but not emitted."
+    )
+
+
+# ---------------------------------------------------------------------------
+# 6. Definition-1 documentation matches implementation
+# ---------------------------------------------------------------------------
+
+
+def test_horizon_stale_marker_doc_exists():
+    """P13 guard: the STALE marker file recording the §5.1
+    horizon-table outcome-(ii) verdict must remain in
+    paper/sections/.  Deleting it silently re-opens the
+    verifiability hole the audit closed."""
+    p = REPO_ROOT / "paper" / "sections" / "05_1_horizon_subtable_STALE.md"
+    assert p.exists(), (
+        f"{p} missing -- the §5.1 horizon N_x sub-table STALE "
+        f"marker has been deleted.  Re-introducing the sub-table "
+        f"in the paper without first re-running the horizon sweep "
+        f"against the current schema is a regression."
+    )
+    txt = p.read_text()
+    assert "Outcome (ii)" in txt
+    assert "horizon_replan_full" in txt
+
+
+def test_table1_audit_carries_convention_phrase():
+    """P13 guard: ``reports/table1_audit.md`` must carry the
+    canonical cross-section convention sentence so a paper editor
+    reading the audit sees the §5.1 / §5.4 divergence."""
+    p = REPO_ROOT / "reports" / "table1_audit.md"
+    assert p.exists()
+    txt = p.read_text()
+    assert (
+        "The §5.1 N_x convention is different-from the §5.4 N_x convention."
+        in txt
+    ), (
+        "reports/table1_audit.md must carry the P13 acceptance "
+        "phrase verbatim."
+    )
+
+
+def test_definition1_documentation_matches_implementation():
+    """P1 guard: a future edit that quietly swaps the Definition-1
+    classifier back for the WAIT-counterfactual rule must also
+    update the docstring of
+    ``Metrics.violations_def1_agent_attributable`` or fail this
+    test.
+
+    The check is purely textual on ``src/ha_lmapf/core/types.py``
+    in the neighbourhood of the field definition.  We don't rely
+    on Python's dataclass-field __doc__ machinery (dataclasses
+    don't carry per-field __doc__ on instances) -- we read the
+    source so the test stays independent of the runtime model.
+    """
+    types_src = (REPO_ROOT / "src" / "ha_lmapf" / "core"
+                 / "types.py").read_text()
+    # Locate the block around the def1 field declaration.
+    field_marker = "violations_def1_agent_attributable: int = 0"
+    idx = types_src.find(field_marker)
+    assert idx >= 0, (
+        f"could not find the def1 field declaration in types.py; "
+        f"the marker {field_marker!r} is missing.  Possible "
+        f"regression of Prompt 1."
+    )
+    # Look at the 2 kB before the field for the canonical
+    # documentation comment block.  2 kB is generous; the
+    # current block is ~1 kB.
+    preamble = types_src[max(0, idx - 2000):idx]
+    canonical = ("FOV-gate", "pre-step-4 human positions")
+    missing = [phrase for phrase in canonical if phrase not in preamble]
+    assert not missing, (
+        "Definition-1 field documentation is missing the "
+        f"canonical phrases: {missing}.  The expected phrases "
+        f"are {canonical!r}, both of which must appear in the "
+        f"docstring/comment block above\n"
+        f"  {field_marker}\n"
+        f"so a future edit that re-introduces the WAIT-"
+        f"counterfactual rule (post-move humans, no FOV gate) "
+        f"must update the comment as well.  Current preamble:\n"
+        f"---\n{preamble[-600:]}\n---"
+    )

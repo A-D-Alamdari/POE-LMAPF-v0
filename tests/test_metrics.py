@@ -387,6 +387,10 @@ class TestMetricsIntegration:
         tracker.add_global_replan(5)
         tracker.add_local_replan(20)
         tracker.add_wait_steps(150)
+        # P11: keep the wait-kind invariant intact -- the
+        # simulator's bucketing blocks always pair add_wait_steps
+        # with one of the four add_*_wait_step methods.
+        tracker.add_safe_wait_step(150)
 
         # Record timing
         for _ in range(10):

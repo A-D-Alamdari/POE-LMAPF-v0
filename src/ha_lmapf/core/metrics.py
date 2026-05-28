@@ -56,9 +56,19 @@ class MetricsTracker:
         self._replans: int = 0
         self._total_wait_steps: int = 0
         # Wait-kind decomposition.  Invariant:
-        #   total_wait_steps == safe_wait_steps + yield_wait_steps.
+        #   total_wait_steps == safe_wait_steps + yield_wait_steps
+        #                       + physics_revert_wait_steps
+        #                       + delay_wait_steps   (P11 extension).
         self._safe_wait_steps: int = 0
         self._yield_wait_steps: int = 0
+        # P11 wait-kind extension.  Counts ticks where the
+        # simulator's step 6 / step 7a forced WAIT after the
+        # controller had already decided to move.  Disjoint from
+        # safe / yield by construction (the override branches only
+        # rewrite non-WAIT actions); see
+        # ``simulator.py::step_once`` for the two callsites.
+        self._physics_revert_wait_steps: int = 0
+        self._delay_wait_steps: int = 0
         # Solver returned None (timeout / crash) — RollingHorizon reused
         # the previous plan bundle.
         self._solver_timeouts: int = 0
@@ -81,6 +91,16 @@ class MetricsTracker:
         # (agent, human) violation pair; their sum equals _safety_violations.
         self._violations_agent_attributable: int = 0
         self._violations_exogenous_attributable: int = 0
+        # Definition-1 (paper §3) attribution counters.  Computed by
+        # the FOV-gated, pre-move, two-clause classifier in
+        # ``simulator.py::_detect_collisions_and_near_misses`` block
+        # (A).  These ARE the Theorem 1 invariant; see
+        # ``docs/proposed_approach.md`` §F for the construction-level
+        # proof.  Independent of the WAIT-counterfactual diagnostic
+        # counters above -- the two answer different questions and
+        # neither is the other's alias.
+        self._violations_def1_agent_attributable: int = 0
+        self._violations_def1_exogenous_attributable: int = 0
         # Event-debounced counters (P6 fix).  A "violation event" is a
         # maximal contiguous run of ticks where a specific (agent_id,
         # human_id) pair is inside r_safe; the counter ticks on the
@@ -241,6 +261,25 @@ class MetricsTracker:
         """
         self._yield_wait_steps += int(count)
 
+    def add_physics_revert_wait_step(self, count: int = 1) -> None:
+        """Record a WAIT forced by the simulator's physics-revert
+        step (step 7a in ``step_once``): the controller had decided
+        to move but the resolver re-checked for vertex / edge
+        conflicts and reverted the move to WAIT.  Caller must also
+        call ``add_wait_steps`` to keep the extended invariant
+        ``total_wait_steps == safe_wait_steps + yield_wait_steps
+        + physics_revert_wait_steps + delay_wait_steps``."""
+        self._physics_revert_wait_steps += int(count)
+
+    def add_delay_wait_step(self, count: int = 1) -> None:
+        """Record a WAIT forced by execution-delay injection
+        (step 6 in ``step_once``, robust-MAPF feature).  Distinct
+        from ``delay_events`` -- that counts when delays are
+        INJECTED, this counts ticks the agent SPENT under a
+        delay-induced WAIT.  See contract on
+        :meth:`add_physics_revert_wait_step`."""
+        self._delay_wait_steps += int(count)
+
     def add_solver_timeout(self, count: int = 1) -> None:
         """Count a ``timeout_no_result`` SolverResult — solver hit its
         budget without returning any plan.  Maps to
@@ -308,6 +347,31 @@ class MetricsTracker:
         to the exogenous agent: no h' in X_t^{Phi_i} sits within r_safe of
         s_i(t+1)."""
         self._violations_exogenous_attributable += int(count)
+
+    # ------------------------------------------------------------------
+    # Definition-1 attribution (paper §3 / Theorem 1)
+    # ------------------------------------------------------------------
+
+    def add_def1_agent_attributable_violation(self, count: int = 1) -> None:
+        """Count post-move violation pairs that the FOV-gated, pre-move,
+        two-clause Definition-1 classifier in ``simulator.py``
+        block (A) labels agent-attributable.  This is the canonical
+        Theorem 1 quantity (paper §3); the WAIT-counterfactual
+        ``add_agent_attributable_violation`` answers a different
+        question.  Theorem 1 (paper §F) is the claim that the count
+        this method receives stays zero on every Algorithm-2
+        trajectory -- enforced by the forbidden-set construction,
+        not by the metric."""
+        self._violations_def1_agent_attributable += int(count)
+
+    def add_def1_exogenous_attributable_violation(self, count: int = 1) -> None:
+        """Count post-move violation pairs that the Definition-1
+        classifier labels exogenous-attributable (the violation
+        exists at t+1 but no observed pre-move witness satisfied
+        both clauses of Definition 1).  Sum of this and
+        ``add_def1_agent_attributable_violation`` equals
+        ``violations_def1_safety_violations`` at finalize."""
+        self._violations_def1_exogenous_attributable += int(count)
 
     # ------------------------------------------------------------------
     # Event-debounced violation accounting (P6 fix)
@@ -485,6 +549,8 @@ class MetricsTracker:
         # mapping.
         return [
             "throughput",
+            "arrival_rate_per_step",       # P10 load-regime
+            "throughput_utilization",      # P10 load-regime
             "completed_tasks",
             "total_released_tasks",
             "task_completion",
@@ -526,11 +592,47 @@ class MetricsTracker:
             "violations_exogenous_attributable_agent_ticks",
             "violations_exogenous_attributable_events",
             "mean_task_completion_span",
+            # Definition-1 attribution (paper §3 / Theorem 1).  See
+            # ``simulator.py::_detect_collisions_and_near_misses``
+            # block (A).  Names are alphabetical within this block.
+            "violations_def1_agent_attributable",
+            "violations_def1_exogenous_attributable",
+            "violations_def1_safety_violations",
+            # P12 orphan-field gate.  Every scalar field on the
+            # Metrics dataclass must appear here AND in
+            # ``to_csv_row`` so the orphan test
+            # (``tests/test_paper_metric_invariants.py::
+            # test_no_orphaned_metric_field``) finds CSV
+            # provenance for it.  Added in lockstep with the
+            # writer below.
+            "safe_wait_steps",
+            "yield_wait_steps",
+            "physics_revert_wait_steps",
+            "delay_wait_steps",
+            "wait_fraction",
+            "collisions_agent_exogenous",
+            "solver_timeouts",
+            "solver_partial_returns",
+            "solver_errors",
+            "solver_fallback_reuses",
+            "deadlock_count",
+            "max_global_no_progress_streak",
+            "global_no_progress_steps",
+            "sum_assignment_path_overlap",
+            "mean_assignment_path_overlap",
+            "n_multiagent_allocation_rounds",
+            "guidance_eligible_ticks",
+            "guidance_covered_ticks",
+            "guidance_followed_ticks",
+            "guidance_coverage",
+            "guidance_follow_rate",
         ]
 
     def to_csv_row(self, metrics: Metrics) -> List[str]:
         return [
             f"{metrics.throughput:.6f}",
+            f"{metrics.arrival_rate_per_step:.6f}",    # P10
+            f"{metrics.throughput_utilization:.6f}",   # P10
             str(metrics.completed_tasks),
             str(metrics.total_released_tasks),
             f"{metrics.task_completion:.4f}",
@@ -572,6 +674,31 @@ class MetricsTracker:
             str(metrics.violations_exogenous_attributable_agent_ticks),
             str(metrics.violations_exogenous_attributable_events),
             f"{metrics.mean_task_completion_span:.2f}",
+            str(metrics.violations_def1_agent_attributable),
+            str(metrics.violations_def1_exogenous_attributable),
+            str(metrics.violations_def1_safety_violations),
+            # P12: lockstep with the header additions above.
+            str(metrics.safe_wait_steps),
+            str(metrics.yield_wait_steps),
+            str(metrics.physics_revert_wait_steps),
+            str(metrics.delay_wait_steps),
+            f"{metrics.wait_fraction:.6f}",
+            str(metrics.collisions_agent_exogenous),
+            str(metrics.solver_timeouts),
+            str(metrics.solver_partial_returns),
+            str(metrics.solver_errors),
+            str(metrics.solver_fallback_reuses),
+            str(metrics.deadlock_count),
+            str(metrics.max_global_no_progress_streak),
+            str(metrics.global_no_progress_steps),
+            f"{metrics.sum_assignment_path_overlap:.6f}",
+            f"{metrics.mean_assignment_path_overlap:.6f}",
+            str(metrics.n_multiagent_allocation_rounds),
+            str(metrics.guidance_eligible_ticks),
+            str(metrics.guidance_covered_ticks),
+            str(metrics.guidance_followed_ticks),
+            f"{metrics.guidance_coverage:.6f}",
+            f"{metrics.guidance_follow_rate:.6f}",
         ]
 
     def finalize(
@@ -600,6 +727,35 @@ class MetricsTracker:
                 f"{self._violations_agent_attributable} + "
                 f"{self._violations_exogenous_attributable} = {attr_sum}"
             )
+
+        # Definition-1 invariant: the def1 buckets are computed from
+        # the same post-move violation-pair set as bucket (B), so
+        # their sum must equal the (B) sum -- i.e. the legacy
+        # ``safety_violations`` counter -- whenever Definition 1
+        # actually ran.  We compute the def1 sum and expose it as
+        # ``violations_def1_safety_violations``.  When the
+        # simulator-internal classifier ran (humans_pre_move passed),
+        # the two sums are equal by construction; when only legacy
+        # paths populated the WAIT counters (unit tests that call
+        # ``add_safety_violation`` directly without ``add_def1_*``),
+        # the def1 sum stays 0 and the assertion below scopes itself
+        # accordingly.
+        def1_attr_sum = (
+            int(self._violations_def1_agent_attributable)
+            + int(self._violations_def1_exogenous_attributable)
+        )
+        if def1_attr_sum > 0 and def1_attr_sum != int(self._safety_violations):
+            raise AssertionError(
+                f"Definition-1 attribution invariant broken: "
+                f"def1_safety_violations (= def1_agent + def1_exo = "
+                f"{self._violations_def1_agent_attributable} + "
+                f"{self._violations_def1_exogenous_attributable} = "
+                f"{def1_attr_sum}) != safety_violations="
+                f"{self._safety_violations}.  Both classifiers iterate "
+                f"the same post-move violation-pair set; this drift "
+                f"means one classifier saw fewer pairs than the other."
+            )
+
         flowtimes: List[int] = []
         service_times: List[int] = []
         for rec in self._tasks.values():
@@ -615,6 +771,24 @@ class MetricsTracker:
         throughput = float(self._completed_tasks) / float(total_steps) if total_steps > 0 else 0.0
 
         task_completion = float(self._completed_tasks) / float(self.total_tasks) if self.total_tasks > 0 else 0.0
+
+        # Load-regime diagnostics (P10).  The system-wide arrival
+        # rate (released_tasks / steps) is what the throughput
+        # column is implicitly compared against in a lifelong
+        # stream.  ``throughput_utilization`` of 1.0 means the
+        # cell is arrival-saturated: throughput equals the arrival
+        # rate cap and is no longer measuring planner capacity.
+        # Reported in the CSV so paper-table builders can flag
+        # arrival-saturated cells visually (see
+        # ``scripts/evaluation/build_summary_tables.py``).
+        arrival_rate = (
+            float(self.total_tasks) / float(total_steps)
+            if total_steps > 0 else 0.0
+        )
+        throughput_util = (
+            float(throughput) / arrival_rate
+            if arrival_rate > 0.0 else 0.0
+        )
 
         sv_rate = (self._safety_violations / total_steps * 1000.0) if total_steps > 0 else 0.0
         # Agent-normalized rate (P6 fix).  Matches the normalization of
@@ -657,8 +831,10 @@ class MetricsTracker:
             cumulative += completions_per_step[s]
             throughput_timeline.append(cumulative / (s + 1))
 
-        return Metrics(
+        m = Metrics(
             throughput=throughput,
+            arrival_rate_per_step=arrival_rate,
+            throughput_utilization=throughput_util,
             completed_tasks=self._completed_tasks,
             total_released_tasks=self.total_tasks,
             task_completion=task_completion,
@@ -680,6 +856,9 @@ class MetricsTracker:
             violations_exogenous_attributable=self._violations_exogenous_attributable,
             violations_exogenous_attributable_agent_ticks=self._violations_exogenous_attributable,
             violations_exogenous_attributable_events=self._violations_exogenous_attributable_events,
+            violations_def1_agent_attributable=self._violations_def1_agent_attributable,
+            violations_def1_exogenous_attributable=self._violations_def1_exogenous_attributable,
+            violations_def1_safety_violations=def1_attr_sum,
             global_replans=self._global_replans,
             local_replans=self._local_replans,
             intervention_rate=int_rate,
@@ -707,6 +886,8 @@ class MetricsTracker:
             throughput_timeline=throughput_timeline,
             safe_wait_steps=self._safe_wait_steps,
             yield_wait_steps=self._yield_wait_steps,
+            physics_revert_wait_steps=self._physics_revert_wait_steps,
+            delay_wait_steps=self._delay_wait_steps,
             wait_fraction=(
                 self._total_wait_steps / float(num_agents * total_steps)
                 if (num_agents and total_steps > 0)
@@ -746,3 +927,66 @@ class MetricsTracker:
                 if self._guidance_covered_ticks > 0 else 0.0
             ),
         )
+
+        # Event-vs-agent-ticks contract (P6 follow-up).  The
+        # ``*_agent_ticks`` aliases must equal their legacy
+        # counterparts because the CSV writer reads both columns
+        # from this object; a drift here would surface as columns
+        # silently disagreeing in downstream plots.  ``*_events``
+        # is the leading-edge debounced count and is bounded above
+        # by the per-tick count -- every event consumes at least
+        # one tick, so events > agent_ticks would indicate the
+        # ``MetricsTracker.close_violation_tick`` state machine
+        # double-counted a leading edge.  Asserted here against
+        # the MATERIALIZED Metrics fields (the values the CSV
+        # writer will actually emit) so a future field rename
+        # that decouples the alias from its source fires
+        # immediately at run-end.
+        assert m.safety_violations == m.safety_violation_agent_ticks, (
+            f"safety_violation_agent_ticks alias drift: "
+            f"safety_violations={m.safety_violations} != "
+            f"safety_violation_agent_ticks={m.safety_violation_agent_ticks}"
+        )
+        assert m.violations_agent_attributable == m.violations_agent_attributable_agent_ticks, (
+            f"violations_agent_attributable_agent_ticks alias drift: "
+            f"violations_agent_attributable={m.violations_agent_attributable} != "
+            f"violations_agent_attributable_agent_ticks={m.violations_agent_attributable_agent_ticks}"
+        )
+        assert m.violations_exogenous_attributable == m.violations_exogenous_attributable_agent_ticks, (
+            f"violations_exogenous_attributable_agent_ticks alias drift: "
+            f"violations_exogenous_attributable={m.violations_exogenous_attributable} != "
+            f"violations_exogenous_attributable_agent_ticks={m.violations_exogenous_attributable_agent_ticks}"
+        )
+        assert m.safety_violations >= m.safety_violation_events, (
+            f"events > agent_ticks: "
+            f"safety_violation_events={m.safety_violation_events} > "
+            f"safety_violations={m.safety_violations}; the debounce "
+            f"state machine must have double-counted a leading edge."
+        )
+
+        # P11 wait-kind extended invariant.  Every counted wait
+        # tick must land in exactly one of the four buckets; a
+        # drift here means a new wait-kind callsite was added to
+        # the simulator without bumping ``total_wait_steps`` in
+        # lockstep, or one of the override branches (step 6 /
+        # step 7a) ran on an action the controller had already
+        # bucketed as safe / yield.
+        wait_kind_sum = (
+            int(m.safe_wait_steps)
+            + int(m.yield_wait_steps)
+            + int(m.physics_revert_wait_steps)
+            + int(m.delay_wait_steps)
+        )
+        assert m.total_wait_steps == wait_kind_sum, (
+            f"wait-kind invariant broken: "
+            f"total_wait_steps={m.total_wait_steps} != "
+            f"safe+yield+physics_revert+delay = "
+            f"{m.safe_wait_steps}+{m.yield_wait_steps}+"
+            f"{m.physics_revert_wait_steps}+{m.delay_wait_steps} "
+            f"= {wait_kind_sum}.  See "
+            f"simulator.py::step_once for the wait-bucketing blocks; "
+            f"if a new override callsite was added, it must call "
+            f"add_wait_steps in lockstep with the appropriate "
+            f"add_*_wait_step method."
+        )
+        return m
