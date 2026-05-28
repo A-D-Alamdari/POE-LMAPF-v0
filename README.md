@@ -1,5 +1,13 @@
 # Partially Observable Exogenous-agent Lifelong MAPF (POE-LMAPF)
 
+> **⏸ PAUSED — read [`reports/audit/RESUME_DECISION.md`](reports/audit/RESUME_DECISION.md) before resuming.**
+> The experimental section requires a re-run; an 11-step audit found
+> every committed sweep fails its own validity contract and the
+> metric repair has never been read into a paper-side aggregation.
+> Do not regenerate sweeps before reading the verdict and the
+> resume-sequence gate logic.  See [`RESUME.md`](RESUME.md) for the
+> short pointer.
+
 A **two-tier planning framework** for Partially Observable
 Exogenous-agent Lifelong Multi-Agent Path Finding in dynamic warehouse
 environments.
