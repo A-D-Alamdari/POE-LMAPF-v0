@@ -152,10 +152,17 @@ class RandomWalkHumanModel(HumanModel):
             beta_go: float = 2.0,
             beta_wait: float = -1.0,
             beta_turn: float = 0.0,
+            humans_block_on_agent_cells: bool = True,
     ) -> None:
         self.beta_go = float(beta_go)
         self.beta_wait = float(beta_wait)
         self.beta_turn = float(beta_turn)
+        # Resume-prompt-2: True (default) preserves the vertex-
+        # coordinated behavior; False drops the ``agent_positions``
+        # filter in ``_legal_successors`` so humans may step into
+        # agent-occupied cells (distance-0 vertex collision
+        # accounted for by the simulator).
+        self._humans_block_on_agent_cells = bool(humans_block_on_agent_cells)
 
     def step(
             self,
@@ -165,7 +172,11 @@ class RandomWalkHumanModel(HumanModel):
             agent_positions: Optional[Set[Cell]] = None,
     ) -> Dict[int, HumanState]:
         new_humans: Dict[int, HumanState] = {}
-        blocked = agent_positions if agent_positions is not None else set()
+        blocked = (
+            agent_positions
+            if (agent_positions is not None and self._humans_block_on_agent_cells)
+            else set()
+        )
 
         for hid in sorted(humans.keys()):
             h = humans[hid]
@@ -266,6 +277,7 @@ class AisleFollowerHumanModel(HumanModel):
             alpha: float = 1.0,
             beta: float = 1.5,
             wait_penalty: float = -1.0,
+            humans_block_on_agent_cells: bool = True,
     ) -> None:
         self.alpha = float(alpha)
         self.beta = float(beta)
@@ -274,6 +286,8 @@ class AisleFollowerHumanModel(HumanModel):
         # and discourage humans from becoming stationary in narrow aisles,
         # which can otherwise create permanent blockages for agents.
         self.wait_penalty = float(wait_penalty)
+        # Resume-prompt-2: regime toggle (see RandomWalkHumanModel).
+        self._humans_block_on_agent_cells = bool(humans_block_on_agent_cells)
 
         # Cached aisle-likelihood field (computed lazily on first step)
         self._phi: Optional[Dict[Cell, float]] = None
@@ -300,7 +314,11 @@ class AisleFollowerHumanModel(HumanModel):
         phi = self._phi
 
         new_humans: Dict[int, HumanState] = {}
-        blocked = agent_positions if agent_positions is not None else set()
+        blocked = (
+            agent_positions
+            if (agent_positions is not None and self._humans_block_on_agent_cells)
+            else set()
+        )
 
         for hid in sorted(humans.keys()):
             h = humans[hid]
@@ -413,9 +431,12 @@ class AdversarialHumanModel(HumanModel):
             self,
             gamma: float = 2.0,
             lambda_: float = 0.5,
+            humans_block_on_agent_cells: bool = True,
     ) -> None:
         self.gamma = float(gamma)
         self.lambda_ = float(lambda_)
+        # Resume-prompt-2: regime toggle (see RandomWalkHumanModel).
+        self._humans_block_on_agent_cells = bool(humans_block_on_agent_cells)
 
         # Cached bottleneck centrality (computed lazily)
         self._bottleneck: Optional[Dict[Cell, float]] = None
@@ -439,10 +460,23 @@ class AdversarialHumanModel(HumanModel):
         self._ensure_bottleneck(env)
         bottleneck = self._bottleneck
 
-        blocked = agent_positions if agent_positions is not None else set()
-
-        # Compute agent distance field (changes each step as agents move)
-        agent_dist = _compute_agent_distance_field(env, blocked) if blocked else {}
+        blocked = (
+            agent_positions
+            if (agent_positions is not None and self._humans_block_on_agent_cells)
+            else set()
+        )
+        # The agent-distance field used by the target ``g_t`` is
+        # independent of the regime toggle: in the False regime
+        # humans may STEP into agent cells, but the field still
+        # measures shortest-path distance from each candidate cell
+        # to the nearest agent.  Source set is the raw
+        # ``agent_positions``, not the blocked set.
+        sources = (
+            agent_positions
+            if agent_positions is not None
+            else set()
+        )
+        agent_dist = _compute_agent_distance_field(env, sources) if sources else {}
 
         # Maximum possible distance for cells unreachable from agents
         max_dist = env.width + env.height
@@ -506,9 +540,17 @@ class MixedPopulationHumanModel(HumanModel):
             self,
             models: Dict[str, HumanModel],
             weights: Dict[str, float],
+            humans_block_on_agent_cells: bool = True,
     ) -> None:
         self._models = models
         self._weights = weights
+        # Resume-prompt-2: regime toggle.  Mixed only dispatches to
+        # the sub-models, so the toggle takes effect via each
+        # sub-model's own ``_humans_block_on_agent_cells`` field --
+        # the factory passes the same value through when building
+        # each sub-instance.  Stored here so callers can inspect
+        # the regime if needed.
+        self._humans_block_on_agent_cells = bool(humans_block_on_agent_cells)
         # Per-human type assignments (populated on first step)
         self._assignments: Dict[int, str] = {}
         self._assigned = False
@@ -572,14 +614,27 @@ class ReplayHumanModel(HumanModel):
 
     Parameters:
         trajectories: Dict mapping human_id -> list of (row, col) positions.
+
+    NOTE on ``humans_block_on_agent_cells`` (resume-prompt-2): this
+    model ignores runtime ``agent_positions`` by design (the
+    trajectories were fixed at generation time).  The regime toggle
+    is accepted for interface uniformity but has no effect: if a
+    recorded position happens to coincide with an agent's cell at
+    runtime, the human still moves there regardless of the toggle.
+    The simulator's distance-0 detection will still count the
+    encroachment as a vertex collision under both regimes.
     """
 
     def __init__(
             self,
             trajectories: Dict[int, List[Tuple[int, int]]],
+            humans_block_on_agent_cells: bool = True,
     ) -> None:
         self._trajectories = trajectories
         self._step = 0
+        # Stored for interface uniformity; see class docstring note --
+        # Replay ignores ``agent_positions`` by design.
+        self._humans_block_on_agent_cells = bool(humans_block_on_agent_cells)
 
     def step(
             self,

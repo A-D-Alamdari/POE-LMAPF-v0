@@ -705,17 +705,24 @@ class Simulator:
         """
         name = (name or "").lower()
         params = self.config.human_model_params or {}
+        # Resume-prompt-2: plumb the regime toggle into every model
+        # so each ``_legal_successors`` call consults the right
+        # filter; Replay ignores it by design (see its docstring).
+        block = bool(getattr(
+            self.config, "humans_block_on_agent_cells", True))
 
         if name in {"aisle", "aisle_follower", "corridor"}:
             return AisleFollowerHumanModel(
                 alpha=float(params.get("alpha", 1.0)),
                 beta=float(params.get("beta", 1.5)),
+                humans_block_on_agent_cells=block,
             )
 
         if name in {"adversarial", "adversary"}:
             return AdversarialHumanModel(
                 gamma=float(params.get("gamma", 2.0)),
                 lambda_=float(params.get("lambda", 0.5)),
+                humans_block_on_agent_cells=block,
             )
 
         if name == "mixed":
@@ -734,6 +741,7 @@ class Simulator:
             beta_go=float(params.get("beta_go", 2.0)),
             beta_wait=float(params.get("beta_wait", -1.0)),
             beta_turn=float(params.get("beta_turn", 0.0)),
+            humans_block_on_agent_cells=block,
         )
 
     def _make_mixed_model(self, params: dict) -> MixedPopulationHumanModel:
@@ -749,6 +757,8 @@ class Simulator:
         """
         weights = params.get("weights", {"random_walk": 0.5, "aisle": 0.5})
         sub_params = params.get("sub_params", {})
+        block = bool(getattr(
+            self.config, "humans_block_on_agent_cells", True))
 
         models = {}
         for model_name in weights:
@@ -759,20 +769,26 @@ class Simulator:
                 models[model_name] = AisleFollowerHumanModel(
                     alpha=float(mp.get("alpha", 1.0)),
                     beta=float(mp.get("beta", 1.5)),
+                    humans_block_on_agent_cells=block,
                 )
             elif mn in {"adversarial", "adversary"}:
                 models[model_name] = AdversarialHumanModel(
                     gamma=float(mp.get("gamma", 2.0)),
                     lambda_=float(mp.get("lambda", 0.5)),
+                    humans_block_on_agent_cells=block,
                 )
             else:
                 models[model_name] = RandomWalkHumanModel(
                     beta_go=float(mp.get("beta_go", 2.0)),
                     beta_wait=float(mp.get("beta_wait", -1.0)),
                     beta_turn=float(mp.get("beta_turn", 0.0)),
+                    humans_block_on_agent_cells=block,
                 )
 
-        return MixedPopulationHumanModel(models=models, weights=weights)
+        return MixedPopulationHumanModel(
+            models=models, weights=weights,
+            humans_block_on_agent_cells=block,
+        )
 
     def _place_entities(self) -> None:
         """Randomly spawn controlled and exogenous agents.
@@ -1239,10 +1255,36 @@ class Simulator:
                                  + abs(a_new[1] - hp[1])) <= safety_r
                             for _hid_obs, hp in observed_pairs
                         )
+                        # Resume-prompt-2: split the def1 buckets by
+                        # post-move L1 distance.  ``d_new`` is
+                        # already L1(s_i(t+1), h_post) above; route
+                        # to ``_d0`` when 0 and ``_dgt0`` when in
+                        # (0, safety_r].  Both add_* calls fire in
+                        # lockstep with the parent so the
+                        # finalize-time invariant ``parent == d0 + dgt0``
+                        # holds by construction.  The d0 branch is
+                        # reachable only when the human moved INTO
+                        # the agent's t+1 cell -- in the True regime
+                        # ``_update_humans`` filters that out, and
+                        # the agent moving INTO a human-occupied cell
+                        # is independently blocked by the forbidden
+                        # set construction (any human's own cell is
+                        # inside its own r=0 buffer).  So d0 > 0
+                        # implies False regime AND the human-moves-
+                        # into-agent path; this is the schema's only
+                        # falsifiable distinction at this layer.
                         if def1_attr:
                             self.metrics.add_def1_agent_attributable_violation(1)
+                            if d_new == 0:
+                                self.metrics.add_def1_agent_attributable_d0_violation(1)
+                            else:
+                                self.metrics.add_def1_agent_attributable_dgt0_violation(1)
                         else:
                             self.metrics.add_def1_exogenous_attributable_violation(1)
+                            if d_new == 0:
+                                self.metrics.add_def1_exogenous_attributable_d0_violation(1)
+                            else:
+                                self.metrics.add_def1_exogenous_attributable_dgt0_violation(1)
 
                 # ---- (B) WAIT-counterfactual diagnostic ------------
                 # Post-move humans, no FOV gate, single-clause.  This
@@ -1482,6 +1524,29 @@ class Simulator:
 
         # 4. Environment Dynamics (Humans)
         self._update_humans()
+
+        # 4a. Distance-0 vertex-collision detection (resume-prompt-2).
+        # In the True regime ``_update_humans`` filtered out
+        # agent-occupied cells, so no human now overlaps an agent;
+        # this loop is then a no-op cheap-pass.  In the False regime
+        # a human may have stepped into an agent's cell -- count it
+        # as one ``collisions_agent_human_vertex`` per (agent, human)
+        # pair per tick and log at INFO for traceability.  Per
+        # resolution (i) of the resume design notes, neither party
+        # is moved; both continue to make decisions next tick.
+        _vc_logger = None
+        for aid in sorted(self.agents.keys()):
+            a_pos = self.agents[aid].pos
+            for hid in sorted(self.humans.keys()):
+                if self.humans[hid].pos == a_pos:
+                    self.metrics.add_agent_human_vertex_collision(1)
+                    if _vc_logger is None:
+                        import logging
+                        _vc_logger = logging.getLogger(__name__)
+                    _vc_logger.info(
+                        "[VERTEX-COLLISION] t=%d agent=%d human=%d cell=%s",
+                        self.step, aid, hid, a_pos,
+                    )
 
         # Snapshot exogenous-agent positions at decision time t.
         # The simulator's ordering is human-first: humans move at step 4 and
