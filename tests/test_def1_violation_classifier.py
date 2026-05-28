@@ -96,16 +96,21 @@ def test_def1_unobserved_witness_is_exogenous(map5x5):
     violation is exogenous-attributable.  Compare with the
     WAIT-counterfactual diagnostic, which would still label this
     agent-attributable -- the two answer different questions."""
-    # r_fov=1 narrows the observed set so the human at distance 2
-    # from a_prev is NOT in X_t.
-    sim = _make_sim(map5x5, fov_radius=1, safety_radius=1)
+    # r_fov=2 narrows the observed set so the human pre-move at
+    # distance 3 from a_prev=(0,0) is NOT in X_t.  (Audit step 06
+    # bumped fov from 1 -> 2 to satisfy the now-enforced
+    # construction-safety precondition r_safe < r_fov; the human's
+    # pre-move position is pushed out by one cell to keep it
+    # FOV-blind.  Post-move the human is at (2,0), creating the
+    # same violation pair at t+1 the original scenario exercised.)
+    sim = _make_sim(map5x5, fov_radius=2, safety_radius=1)
     sim.agents = {0: AgentState(agent_id=0, pos=(1, 0))}
     sim.humans = {0: HumanState(human_id=0, pos=(2, 0))}
 
     prev_pos = {0: (0, 0)}
     new_pos = {0: (1, 0)}
-    pre = {0: HumanState(human_id=0, pos=(2, 0))}     # unobserved (L1=2 > fov=1)
-    post = {0: HumanState(human_id=0, pos=(2, 0))}
+    pre = {0: HumanState(human_id=0, pos=(3, 0))}     # unobserved (L1=3 > fov=2)
+    post = {0: HumanState(human_id=0, pos=(2, 0))}    # moves in by 1
 
     sim._detect_collisions_and_near_misses(
         prev_pos, new_pos, post, humans_pre_move=pre,

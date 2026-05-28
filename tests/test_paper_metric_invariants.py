@@ -337,7 +337,12 @@ def test_throughput_saturation_warning(map3x3):
     cfg = SimConfig(
         map_path=map3x3, seed=0, steps=30,
         num_agents=3, num_humans=0,
-        fov_radius=1, safety_radius=1,
+        # Audit 06: r_safe < r_fov is now enforced at SimConfig
+        # construction (Theorem-1 precondition).  This test
+        # measures throughput-vs-arrival saturation, which is
+        # independent of FoV; bumping fov to 2 keeps the test
+        # semantics intact.
+        fov_radius=2, safety_radius=1,
         global_solver="cbs", replan_every=2, horizon=3,
         human_model="random_walk", mode="lifelong",
     )

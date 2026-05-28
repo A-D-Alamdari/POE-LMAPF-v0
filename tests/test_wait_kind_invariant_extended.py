@@ -333,7 +333,10 @@ def test_physics_revert_counted(map3x3_open):
     cfg = SimConfig(
         map_path=map3x3_open, seed=0, steps=10,
         num_agents=2, num_humans=0,
-        fov_radius=1, safety_radius=1,
+        # Audit 06: r_safe < r_fov enforced; bumped fov 1 -> 2.  This
+        # test exercises the step 7a physics-revert path which is
+        # independent of FoV (no humans in this scenario).
+        fov_radius=2, safety_radius=1,
         global_solver="cbs", replan_every=1, horizon=3,
         human_model="random_walk", mode="lifelong",
     )

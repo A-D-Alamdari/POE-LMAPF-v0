@@ -39,7 +39,14 @@ sys.path.insert(0, str(REPO_ROOT))
 
 EXPECTED_RUN_COUNTS = {
     "solver_sensitivity":      3360,
-    "fov_safety":               400,
+    # Audit 06: filtered the §5.3 fov_safety sweep from a 5x4
+    # cartesian (= 400 runs) down to 17 valid (fov, safe) pairs
+    # x 2 maps x 10 seeds = 340 runs.  The 3 excluded pairs
+    # (fov=2,safe=2), (fov=2,safe=3), (fov=3,safe=3) would crash
+    # at SimConfig construction under the now-enforced
+    # Theorem-1 precondition r_safe < r_fov.  See
+    # reports/audit/06_preconditions.md.
+    "fov_safety":               340,
     "scaling_agents":          1040,
     "scaling_exogenous":        760,
     "baseline_comparison":      720,
