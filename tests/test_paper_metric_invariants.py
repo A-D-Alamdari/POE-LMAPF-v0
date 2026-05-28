@@ -385,35 +385,49 @@ def test_no_orphaned_metric_field():
 
 
 def test_horizon_stale_marker_doc_exists():
-    """P13 guard: the STALE marker file recording the §5.1
-    horizon-table outcome-(ii) verdict must remain in
-    paper/sections/.  Deleting it silently re-opens the
-    verifiability hole the audit closed."""
+    """P15 guard: the STALE marker file must remain in
+    paper/sections/ and continue to describe the §5.1 N_x source
+    as UNRESOLVED (downgraded from the over-claimed "outcome
+    (ii) / deleted source" verdict).  Deleting the file or
+    silently restoring the over-claim re-opens the verifiability
+    hole the audit existed to close."""
     p = REPO_ROOT / "paper" / "sections" / "05_1_horizon_subtable_STALE.md"
     assert p.exists(), (
         f"{p} missing -- the §5.1 horizon N_x sub-table STALE "
         f"marker has been deleted.  Re-introducing the sub-table "
-        f"in the paper without first re-running the horizon sweep "
-        f"against the current schema is a regression."
+        f"in the paper without first verifying the source is a "
+        f"regression."
     )
     txt = p.read_text()
-    assert "Outcome (ii)" in txt
+    assert "UNRESOLVED" in txt, (
+        "STALE doc no longer describes the §5.1 source as "
+        "UNRESOLVED.  Either the source has been identified "
+        "(update this test) or the doc has been edited to "
+        "restore an over-claim (revert)."
+    )
     assert "horizon_replan_full" in txt
 
 
-def test_table1_audit_carries_convention_phrase():
-    """P13 guard: ``reports/table1_audit.md`` must carry the
-    canonical cross-section convention sentence so a paper editor
-    reading the audit sees the §5.1 / §5.4 divergence."""
+def test_table1_audit_carries_unresolved_phrase():
+    """P15 guard: ``reports/table1_audit.md`` must describe the
+    §5.1 source as UNRESOLVED rather than claiming the §5.1
+    convention is "different-from" the §5.4 convention -- that
+    earlier wording rested on a broken candidate search."""
     p = REPO_ROOT / "reports" / "table1_audit.md"
     assert p.exists()
     txt = p.read_text()
+    assert "UNRESOLVED" in txt, (
+        "reports/table1_audit.md must describe the §5.1 N_x "
+        "source as UNRESOLVED."
+    )
+    # The retracted over-claim must NOT be reintroduced.
     assert (
-        "The §5.1 N_x convention is different-from the §5.4 N_x convention."
-        in txt
+        "The §5.1 N_x convention is different-from the §5.4"
+        not in txt
     ), (
-        "reports/table1_audit.md must carry the P13 acceptance "
-        "phrase verbatim."
+        "The 'convention is different-from' claim was retracted "
+        "in P15 because it rested on a broken candidate search; "
+        "do not reintroduce it without an actual source."
     )
 
 

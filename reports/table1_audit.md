@@ -101,42 +101,33 @@ the Theorem 1 quantity it claims to measure.
 `scripts/diagnostics/find_nx_source.py` against the printed
 values in `paper/tables/table1_solver_substitutability.{md,tex}`.)
 
-## Cross-section convention check (P13 + P14 follow-up)
+## Cross-section convention check — §5.1 source UNRESOLVED
 
 The paper uses the column name "N_x" in BOTH the §5.4 baseline
-comparison (this audit) AND the §5.1 horizon-tuning Table 1.  We
-ran the same diagnostic against the §5.1 dataset
-(`logs/tuning/horizon_replan_full/results.csv`, |M|=100, |X|=50,
-H ∈ {10..80}) with two cleanly separated panels (P14 follow-up
-to fix a column-dimension-collapse bug in the original P13
-search):
+comparison (this audit) AND the §5.1 horizon-tuning Table 1.
+The §5.4 audit above is sound (outcome (i), max rel err 0.007%).
 
-* **Panel A** — column × unary transform.  Every transform uses
-  its column argument; a runtime assert raises if two distinct
-  columns under the same transform tie to 1e-9 (the collapse
-  signature).  Best Panel A fit: `wait_fraction` under `x/T*1000`
-  at L2=0.0121, max per-cell rel err **32.16%**.
-* **Panel B** — named derived quantities, evaluated once per row,
-  with free-scaling constant `c = argmin_c L2(paper, c*q)`.  Best
-  shape match: `(safe_wait_steps + yield_wait_steps)/(2*M*T)`
-  with c=1.1918, L2=0.0079, max per-cell rel err **20.21%**.
+> **The §5.1 N_x source is UNRESOLVED (audit tool had a
+> column-binding bug; see `reports/nx_horizon_audit.md`).
+> Whether the §5.1 and §5.4 conventions agree is unknown.**
 
-Best across both panels: **20.21%** max per-cell relative error
--- four times the 5% threshold.  The §5.1 N_x values do not
-reproduce from any column in the post-Prompt-1 schema, and the
-free-scaling constant (1.19) is not a plausible canonical value.
-Full sorted candidates and per-cell breakdowns:
-`reports/nx_horizon_audit.md`.
+The earlier conclusion in this file ("The §5.1 N_x convention is
+different-from the §5.4 N_x convention") rested on a
+diagnostic whose original (P13) candidate search ignored its
+column argument: every column reported an identical fit.  A
+follow-up (P14) split the panel and added a runtime assert
+against column collapse; the post-fix search shows the §5.1
+values do not reproduce within 5% per cell on the current panel
+either.  But a finite candidate panel cannot enumerate every
+possible formula; the audit cannot demonstrate
+non-reproducibility, only "not reproduced by this panel".  The
+§5.1 source is open.
 
-> **The §5.1 N_x convention is different-from the §5.4 N_x convention.**
-
-See `reports/nx_horizon_audit.md` for the per-cell breakdown of
-the top three §5.1 fits and the formal outcome (ii) decision.
-The §5.1 sub-table is held STALE pending re-runs against the
-current schema; see
-`paper/sections/05_1_horizon_subtable_STALE.md` for the
-disposition note.
+Disposition + STALE marker for the horizon sub-table:
+`paper/sections/05_1_horizon_subtable_STALE.md`.
 
 The §5.4 audit above (this file) remains outcome (i): identity
 transform on `violations_exogenous_attributable` reproduces every
-§5.4 cell within 0.007%.
+§5.4 cell within 0.007%.  That part is sound.  The §5.1 source
+is open; see `reports/nx_horizon_audit.md` (STATUS block at the
+top) for the audit history.
