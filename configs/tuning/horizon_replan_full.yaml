@@ -58,17 +58,21 @@ base:
   # default (docs/experimental_setup.md) and the right
   # trade-off here.
   solver_timeout_s: 10.0
-  # Degenerate-run guard — P2 / P7 follow-up.
-  # A row is INVALID iff any of:
-  #   * run_valid == False,
-  #   * solver_fail_fraction > 0.05,
-  #   * global_replans == 0 (Tier-1 never ran).
-  # This key documents the per-sweep tolerance; the
-  # validator (validate_paper_claims.py) exits non-zero
-  # if the actual invalid-row fraction exceeds it.
-  # 0.0 = strict (zero degenerate runs tolerated).
-  max_invalid_fraction: 0.0
   log_violations_timeline: false
+
+# Degenerate-run guard — P2 / P7 / audit step 07.
+# A row is INVALID iff any of:
+#   * run_valid == False,
+#   * solver_fail_fraction > 0.05,
+#   * global_replans == 0 (Tier-1 never ran).
+# This key is the per-sweep tolerance; the runner
+# (scripts/evaluation/run_paper_experiment.py main())
+# fails with exit-code 3 if the observed invalid
+# fraction exceeds it.  MUST live at the SPEC TOP
+# LEVEL (peer of base: / seeds: / groups:); nesting
+# under base: now raises in expand_manifest.
+# 0.0 = strict (zero degenerate runs tolerated).
+max_invalid_fraction: 0.0
 
 seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 

@@ -197,7 +197,38 @@ def expand_manifest(spec: Dict[str, Any]) -> List[Dict[str, Any]]:
     Each row carries the merged base + sweep-cell config dict plus the
     seed, the run_id, and the experiment name.
     """
-    base: Dict[str, Any] = dict(spec.get("base", {}) or {})
+    # Canonical-placement check (audit step 07).  The YAML schema places
+    # ``max_invalid_fraction`` at the SPEC TOP LEVEL -- it is a
+    # sweep-level threshold consumed by ``main`` after the full sweep
+    # completes, not a per-run SimConfig field.  Prior to audit step 07
+    # the placement was inconsistent (every committed tuning YAML
+    # nested it under ``base:``, where the top-level reader missed it
+    # and ``_build_sim_config`` warned "ignoring unknown SimConfig
+    # fields: ['max_invalid_fraction']").  The check below makes a
+    # wrong placement fail loudly so the silent-no-op cannot recur.
+    base_cfg = spec.get("base", {}) or {}
+    if isinstance(base_cfg, dict) and "max_invalid_fraction" in base_cfg:
+        raise ValueError(
+            "spec key ``max_invalid_fraction`` is misplaced under "
+            "``base:`` -- it is a sweep-level threshold and must "
+            "appear at the SPEC TOP LEVEL.  Dedent the line so it "
+            "is a peer of ``base:`` / ``seeds:`` / ``groups:`` "
+            "(see audit step 07 / reports/audit/07_max_invalid_fraction.md). "
+            "Inside ``base:`` it is silently dropped because "
+            "``_build_sim_config`` filters inner keys to SimConfig "
+            "fields only."
+        )
+    for group in spec.get("groups", []) or []:
+        sweep = (group or {}).get("sweep", {}) or {}
+        if isinstance(sweep, dict) and "max_invalid_fraction" in sweep:
+            raise ValueError(
+                "spec key ``max_invalid_fraction`` is misplaced inside "
+                "a ``groups[*].sweep`` cell -- it is a sweep-level "
+                "threshold, not a per-run swept value.  Move it to "
+                "the SPEC TOP LEVEL (peer of ``base:``)."
+            )
+
+    base: Dict[str, Any] = dict(base_cfg)
     seeds: List[int] = list(spec.get("seeds", [0]))
     name = str(spec.get("name", "experiment"))
     rows: List[Dict[str, Any]] = []
@@ -876,6 +907,35 @@ def main(argv: Optional[List[str]] = None) -> int:
         # the partial valid subset -- but flag the failure with a
         # non-zero exit at the end.
 
+    # Sweep-level threshold (audit step 07).  ``spec_max_invalid_fraction``
+    # is the YAML's per-sweep ceiling on the OVERALL invalid-row
+    # fraction (one number across all (solver, map) cells together,
+    # distinct from ``invalid_cell_limit`` which gates each cell
+    # individually).  Prior to audit 07 this value was read into
+    # ``spec_max_invalid_fraction`` but NEVER consumed; the check below
+    # closes that loop.  Both gates can fire independently — the final
+    # exit code reflects either failure.
+    sweep_threshold_breached = False
+    if spec_max_invalid_fraction is not None and total_runs > 0:
+        sweep_invalid_fraction = total_invalid / total_runs
+        if sweep_invalid_fraction > spec_max_invalid_fraction:
+            sweep_threshold_breached = True
+            logger.error(
+                "sweep-level validity gate FAILED: "
+                "%d/%d invalid runs = %.4f > max_invalid_fraction=%.4f "
+                "(from spec top-level).  See audit step 07 / "
+                "reports/audit/07_max_invalid_fraction.md.",
+                total_invalid, total_runs,
+                sweep_invalid_fraction, spec_max_invalid_fraction,
+            )
+        else:
+            logger.info(
+                "sweep-level validity gate PASSED: "
+                "%d/%d invalid runs = %.4f <= max_invalid_fraction=%.4f",
+                total_invalid, total_runs,
+                sweep_invalid_fraction, spec_max_invalid_fraction,
+            )
+
     # Auto-invocation hook (paper appendix material).  When the YAML
     # ships ``reference_condition`` and ``statistical_groupby`` fields,
     # run the appendix-grade pairwise pipeline at the end of the
@@ -886,7 +946,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             from scripts.evaluation.statistical_analysis import run_analysis
         except Exception as exc:  # noqa: BLE001
             logger.warning("statistical_analysis import failed (%s); skipping", exc)
-            return 3 if failing_cells else 0
+            return 3 if (failing_cells or sweep_threshold_breached) else 0
         groupby_str = spec.get("statistical_groupby")
         if isinstance(groupby_str, str):
             groupby = [s.strip() for s in groupby_str.split(",") if s.strip()]
@@ -932,8 +992,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Final exit code reflects the run-validity gate.  Exit code 3 is
     # reserved for "sweep completed but failed the validity contract"
     # so it is distinguishable from preflight failure (2) and from
-    # generic SystemExit / unhandled exceptions (1).
-    if failing_cells:
+    # generic SystemExit / unhandled exceptions (1).  Both the
+    # per-(solver, map) cell gate AND the sweep-level
+    # ``max_invalid_fraction`` gate (audit step 07) feed into the
+    # same exit code.
+    if failing_cells or sweep_threshold_breached:
         return 3
     return 0
 
