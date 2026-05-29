@@ -1,0 +1,8 @@
+# Validator-side manifest for diagnostic probe (false_evade).
+# Schema differs from the runner config -- this is the
+# {sweeps: [...]} shape consumed by validate_paper_claims's
+# manifest CLI mode (Phase 2 prompt 1).
+sweeps:
+  - name: diagnostic_probe_false_evade
+    csv: ../../logs/probe/diagnostic/false_evade/results.csv
+    max_invalid_fraction: 0.05

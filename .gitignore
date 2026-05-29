@@ -30,3 +30,4 @@ logs/regression_smoke/
 
 # Phase 2 probe: per-tick timeline sidecars (regenerable via probe re-run).
 logs/probe/calibration/timelines/
+logs/probe/diagnostic/*/timelines/

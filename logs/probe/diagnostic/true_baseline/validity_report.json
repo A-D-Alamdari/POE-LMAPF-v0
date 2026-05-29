@@ -1,0 +1,19 @@
+{
+  "n_failed_sweeps": 1,
+  "overall_passed": false,
+  "sweeps": {
+    "diagnostic_probe_true_baseline": {
+      "csv_path": "/home/user/POE-LMAPF-v0/logs/probe/diagnostic/true_baseline/results.csv",
+      "invalid_fraction": 1.0,
+      "n_invalid": 12,
+      "n_rows": 12,
+      "name": "diagnostic_probe_true_baseline",
+      "passed": false,
+      "reasons": {
+        "deadlock-fraction": 11,
+        "solver-fail-fraction": 1
+      },
+      "threshold": 0.05
+    }
+  }
+}

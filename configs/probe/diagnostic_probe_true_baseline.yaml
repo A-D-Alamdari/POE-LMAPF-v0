@@ -1,0 +1,106 @@
+# Calibration probe (Phase 2 prompt 4) — kill-switch for Phase 3.
+#
+# Mirrors the calibration-probe (Phase 2 prompt 4) operating point
+# under the (True regime, baseline variant) combination so the four
+# (regime, variant) combinations can be compared cell-by-cell on the
+# same 4-cell x 3-seed scope.  The other axes (solver budget, map,
+# fov/safety, human model, num_humans, steps, max_invalid_fraction)
+# match calibration_probe.yaml exactly.
+#
+# Scope: 4 cells × 3 seeds = 12 runs.
+#   Cell A: 100 agents, horizon 80, replan_every 40  (absolute worst)
+#   Cell B: 100 agents, horizon 60, replan_every 30
+#   Cell C:  75 agents, horizon 80, replan_every 40
+#   Cell D:  75 agents, horizon 60, replan_every 30
+# Map: warehouse-10-20-10-2-2 (largest map present in
+# horizon_replan_full's set; the brief's worst-case map IS in this
+# sweep so no substitution required).
+#
+# Regime / variant: humans_block_on_agent_cells: true +
+# algorithm_variant: baseline.  See audit 15 for the per-combo
+# decision-tree fit.
+#
+# Solver list (must all pass P0 preflight before launch):
+#   lacam_official
+#
+# Verify with:
+#   python scripts/preflight_solvers.py --solvers lacam_official
+
+name: diagnostic_probe_true_baseline
+description: |
+  Phase 2 prompt 4 calibration probe.  4 worst-corner cells × 3 seeds
+  = 12 runs on warehouse-10-20-10-2-2 under (False regime, baseline
+  variant) at 30s solver budget.  Decides whether Phase 3 (B7) is
+  greenlit.
+
+base:
+  mode: lifelong
+  steps: 2000
+  human_model: random_walk
+  map_to_human_model:
+    warehouse-10-20-10-2-1: aisle
+    warehouse-10-20-10-2-2: aisle
+    random-64-64-10: random_walk
+  global_solver: lacam_official
+  local_planner: astar
+  task_allocator: congestion_avoidance
+  fov_radius: 4
+  safety_radius: 1
+  hard_safety: true
+  communication_mode: priority
+  solver_timeout_s: 30.0
+  log_violations_timeline: false
+  # Scalar pins -- NOT swept axes.  Probe locks (true, baseline).
+  humans_block_on_agent_cells: true
+  algorithm_variant: baseline
+
+# max_invalid_fraction = 0.05 (NOT 0.0): the probe is calibrating,
+# not validating, so we want to observe the actual invalid fraction
+# rather than fail strictly at the first invalid row.  0.05 matches
+# the validator's clause-3 threshold; a "passing probe" means every
+# cell clears the same gate Phase 3 will gate against.  Note: the
+# RUNNER reads this key (audit 07) and would exit 3 if the sweep
+# fails it, but our per-sweep verdict comes from the standalone
+# validator run (Phase 2 prompt 1 manifest mode) after the runner
+# finishes -- that is what the audit-14 acceptance decision uses.
+max_invalid_fraction: 0.05
+
+seeds: [0, 1, 2]
+
+groups:
+  # ----- Cell A: 100 agents, H=80, replan_every=40 (worst case) -----
+  - name: cellA_a100_H80
+    sweep:
+      method:       [ours]
+      map_path:     [data/maps/warehouse-10-20-10-2-2.map]
+      num_agents:   [100]
+      num_humans:   [50]
+      horizon:      [80]
+      replan_every: [40]
+  # ----- Cell B: 100 agents, H=60, replan_every=30 -----
+  - name: cellB_a100_H60
+    sweep:
+      method:       [ours]
+      map_path:     [data/maps/warehouse-10-20-10-2-2.map]
+      num_agents:   [100]
+      num_humans:   [50]
+      horizon:      [60]
+      replan_every: [30]
+  # ----- Cell C:  75 agents, H=80, replan_every=40 -----
+  - name: cellC_a75_H80
+    sweep:
+      method:       [ours]
+      map_path:     [data/maps/warehouse-10-20-10-2-2.map]
+      num_agents:   [75]
+      num_humans:   [50]
+      horizon:      [80]
+      replan_every: [40]
+  # ----- Cell D:  75 agents, H=60, replan_every=30 -----
+  - name: cellD_a75_H60
+    sweep:
+      method:       [ours]
+      map_path:     [data/maps/warehouse-10-20-10-2-2.map]
+      num_agents:   [75]
+      num_humans:   [50]
+      horizon:      [60]
+      replan_every: [30]
