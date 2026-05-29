@@ -53,10 +53,11 @@ $w^\ast = 10$ the starvation threshold, $\beta = 50$ the urgency
 boost, and $i$ the controlled-agent ID.  The lexicographic maximum
 wins; ties favour the lower $i$.  Implementation:
 ``priority_rules.py::PriorityRulesResolver._priority``.
-``TokenPassingResolver`` uses the same tuple **without** the $\beta$
-boost, plus fairness rotation after $K_{\mathit{fair}} = 5$
-consecutive wins on the same cell
-(``token_passing.py::TokenPassingResolver``).
+``TokenBasedResolver`` instead uses the paper's $(\tau, -d, w, -i)$
+tuple, where $\tau$ is the per-(agent, cell) token count (0 tokens ⇒
+$\tau = +\infty$, an automatic win); see
+``token_passing.py::TokenBasedResolver`` and the re-implementation note
+in that file's section below.
 
 ## Overview
 
@@ -155,61 +156,67 @@ class ImminentConflict:
 
 ---
 
-## token_passing.py - Token Passing Resolver
+## token_passing.py - Token-Based Resolver
 
-Communication-based conflict resolution with fair rotation.
+Communication-based conflict resolution via per-(agent, cell) token counts
+(paper §4.3 "Token-Based").  Canonical class `TokenBasedResolver`;
+`TokenPassingResolver` is retained as a back-compat alias.
 
-### TokenPassingResolver Class
+> **Re-implemented in resume-prompt-6.**  The previous version used a
+> single-owner token with K-conflict rotation and *no* τ term in its
+> priority tuple — the divergence from the paper characterised in
+> audit 03 §2.  Per Decision 2b the paper is defended, so the resolver now
+> implements the priority tuple the paper claims, `(τ, -d, w)`, with a
+> per-(agent, cell) token count `τ` as the primary key.  The `fairness_k`
+> constructor parameter is retained for backward compatibility but is
+> **deprecated and inert** (it warns and does nothing).
 
-```python
-class TokenPassingResolver(ConflictResolver):
-    """
-    Token-based conflict resolution.
-
-    Mechanism:
-        - Each contested cell has a "token"
-        - Token holder wins conflicts for that cell
-        - After K conflicts, token rotates (fairness)
-
-    Parameters:
-        fairness_k: int - Conflicts before priority rotation (default: 5)
-    """
-
-    def resolve(
-            self,
-            agent_id: int,
-            desired_cell: Cell,
-            sim_state: SimStateView,
-            observation: Observation,
-            rng=None
-    ) -> StepAction:
-        """
-        Resolve conflict using token ownership.
-
-        Process:
-            1. Detect conflict
-            2. If no conflict: proceed to desired cell
-            3. If conflict: check token ownership
-            4. Winner proceeds, loser yields
-            5. Track conflicts for fairness rotation
-        """
-```
-
-### Fairness Mechanism
+### Mechanism
 
 ```
-After K conflicts between same agents:
-    - Rotate token ownership
-    - Previously disadvantaged agent gets priority
-    - Prevents starvation
+Per-(agent, cell) token counts, lazily endowed with 5 on first contention.
+
+Priority tuple (higher wins, lexicographic):  (τ, -d, w, -id)
+    τ  = +∞ if token_count == 0 else token_count   (0 tokens => auto-win)
+    d  = Manhattan distance from current pos to goal
+    w  = consecutive wait count
+    id = agent id
+
+Win-loss transfer, one per contention:
+    winner's count at the contested cell -= 1   (floored at 0)
+    every loser's count at the cell      += 1   (never capped)
+    winner pays 1 total regardless of the number of losers
+        (per-(winner, loser) pair conservation; not whole-contention
+         conservation when there is more than one loser)
+
+State scope: token counts live for the lifetime of one resolver instance
+(one Simulator run); the simulator builds a fresh resolver per run.
 ```
+
+### Public API
+
+`resolve(agent_id, desired_cell, sim_state, observation, rng=None,
+forbidden=None, local_planner=None) -> StepAction` is the live per-agent
+contract (unchanged shape; consumed by `AgentController`).  Internally it
+runs the contested cell's contention exactly once per tick and maps the
+outcome to an action.  The contention primitive `contend(cell, contenders,
+sim_state) -> winner_id` (pick winner by priority + apply the token
+transfer) is exposed for direct testing.
+
+### Theorem 1 / modularity
+
+When the calling agent loses, its fallback (1-hop side-step, then optional
+local A*, then Safe-WAIT) filters against the forbidden set `F` so no
+executed action enters `F`.  The resolver reads `forbidden` by membership
+only and never mutates any caller-supplied collection (audit 03 §3); the
+sole mutable state is the internal `_tokens` dict.
 
 ### Usage
 
 ```python
-from ha_lmapf.local_tier.conflict_resolution import TokenPassingResolver
+from ha_lmapf.local_tier.conflict_resolution import TokenBasedResolver
 
-resolver = TokenPassingResolver(fairness_k=5)
+resolver = TokenBasedResolver()
 action = resolver.resolve(agent_id, desired_cell, sim_state, observation)
 ```
 
@@ -352,10 +359,12 @@ action = resolver.resolve(agent_id, desired_cell, sim_state, observation)
 
 ```yaml
 # In config file
-communication_mode: "token"  # Options: "token" or "priority" (set in SimConfig)
+communication_mode: "token_based"  # Options: "token_based" / "wait_based"
+                                   # (legacy "token" / "priority" accepted)
 
-# Token passing specific
-fairness_k: 5
+# Token-based: no tunable parameters (per-(agent, cell) token counts are
+# internal; the endowment is fixed at 5).  The legacy `fairness_k` knob is
+# deprecated and ignored.
 
 # Priority rules specific
 starvation_threshold: 10

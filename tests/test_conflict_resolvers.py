@@ -157,17 +157,27 @@ class TestTokenPassingResolver:
         # Should return a valid action
         assert action in [StepAction.RIGHT, StepAction.WAIT, StepAction.UP, StepAction.DOWN, StepAction.LEFT]
 
-    def test_fairness_rotation(self, empty_5x5_env, empty_observation):
-        """Token holder rotates after K conflicts."""
+    def test_fairness_k_param_is_deprecated_noop(self, empty_5x5_env, empty_observation):
+        """REPLACED test_fairness_rotation (resume-prompt-6).
+
+        The single-owner K-rotation owner-flip mechanism no longer exists;
+        ``fairness_k`` is retained only as a deprecated, inert constructor
+        parameter (warns, does nothing).  This test pins that contract: the
+        constructor still accepts the kwarg (back-compat) but emits a
+        DeprecationWarning, and the resolver still produces valid actions.
+        Fairness is now expressed through the per-(agent, cell) token
+        counts, exercised in tests/test_token_based_resolver_v2.py.
+        """
         agents = {
             0: AgentState(agent_id=0, pos=(2, 2), goal=(2, 3)),
             1: AgentState(agent_id=1, pos=(2, 3), goal=(2, 2)),
         }
         sim_state = MockSimState(agents=agents, env=empty_5x5_env)
-        resolver = TokenPassingResolver(fairness_k=2)
+        with pytest.warns(DeprecationWarning):
+            resolver = TokenPassingResolver(fairness_k=2)
 
-        # Multiple resolutions to test fairness rotation
-        for _ in range(5):
+        for step in range(5):
+            sim_state.step = step  # advance so each is a fresh contention
             action = resolver.resolve(0, (2, 3), sim_state, empty_observation)
             assert action in list(StepAction)
 

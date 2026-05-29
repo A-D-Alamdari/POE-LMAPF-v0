@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
 from ha_lmapf.core.types import AgentState, Observation, PlanBundle, StepAction, TimedPath
 from ha_lmapf.local_tier.conflict_resolution.token_passing import TokenPassingResolver
 from ha_lmapf.simulation.environment import Environment
@@ -19,7 +17,19 @@ class _SimStub:
         return self._plans
 
 
-def test_token_passing_priority_and_fairness_rotation() -> None:
+def test_token_passing_winner_proceeds_loser_yields() -> None:
+    """Public-contract slice of the former
+    ``test_token_passing_priority_and_fairness_rotation`` (resume-prompt-6).
+
+    The K-rotation half of the original test was removed: that mechanism no
+    longer exists.  What remains is the resolver's load-bearing contract on
+    a single contention — the winner proceeds into the contested cell and
+    the loser does not — which holds identically under the new
+    per-(agent, cell) token scheme (both agents start at the 5 endowment, so
+    the first contention is decided by the rest of the ``(τ, -d, w, -id)``
+    tuple and the lower id wins).  Token-mechanism specifics are covered in
+    tests/test_token_based_resolver_v2.py.
+    """
     env = Environment(width=5, height=5, blocked=set())
 
     # Two agents adjacent, both want the same contested cell (2,2)
@@ -42,9 +52,10 @@ def test_token_passing_priority_and_fairness_rotation() -> None:
     obs0 = Observation(visible_humans={}, visible_agents={1: agents[1]}, blocked=set(env.blocked))
     obs1 = Observation(visible_humans={}, visible_agents={0: agents[0]}, blocked=set(env.blocked))
 
-    resolver = TokenPassingResolver(fairness_k=2)
+    resolver = TokenPassingResolver()
 
-    # First conflict on (2,2): deterministic winner by priority tie-break (-agent_id favors 0)
+    # Conflict on (2,2): both at the 5 endowment, equal d (1) and w (0);
+    # deterministic winner by the -id tie-break favours agent 0.
     a0 = resolver.resolve(0, (2, 2), sim, obs0, rng=None)
     a1 = resolver.resolve(1, (2, 2), sim, obs1, rng=None)
 
@@ -56,14 +67,3 @@ def test_token_passing_priority_and_fairness_rotation() -> None:
     from ha_lmapf.core.grid import apply_action
     nxt1 = apply_action(cur1, a1)
     assert nxt1 != (2, 2), "Loser should not move into contested cell"
-
-    # Simulate repeated conflicts where agent 0 keeps winning; after fairness_k, should rotate to agent 1
-    # Increase wait_steps for agent 1 to ensure it becomes next-best contender clearly
-    sim.agents[1] = replace(sim.agents[1], wait_steps=5)
-
-    # Second win by agent 0 triggers rotation (fairness_k=2)
-    _ = resolver.resolve(0, (2, 2), sim, obs0, rng=None)
-
-    # Now agent 1 should be favored as token owner on next conflict
-    a1_next = resolver.resolve(1, (2, 2), sim, obs1, rng=None)
-    assert a1_next != StepAction.WAIT
