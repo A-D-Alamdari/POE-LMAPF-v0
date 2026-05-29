@@ -3,14 +3,24 @@ Run-validity gate tests for ``scripts.evaluation.run_paper_experiment``.
 
 Covers the instrumentation that makes degenerate solver runs loud:
 
-* ``solver_fail_fraction`` is computed per row and tagged with
-  ``run_valid`` against the configurable threshold.
-* Invalid rows are siphoned to ``results_INVALID.csv`` and excluded
-  from the main ``results.csv`` -- they are NOT deleted.
+* The runner's per-row gate delegates to the standalone validator's
+  strong predicate (Phase 2 prompt 5).  Invalid rows are siphoned to
+  ``results_INVALID.csv`` and excluded from the main ``results.csv``
+  -- they are NOT deleted.
 * ``run_validity_summary.csv`` is written per (solver, map) cell and
   flags cells whose invalid fraction exceeds the limit.
-* A healthy smoke slice writes the summary with all runs valid; the
-  main runner returns 0.
+* ``write_run_validity_summary`` returns ``(summary_rows,
+  failing_cells, sweep_invalid_reasons)`` (Phase 2 prompt 5 added the
+  reason Counter as the third element so the post-sweep log can
+  surface budget-vs-deadlock-vs-schema breakdown).
+* A healthy smoke slice writes the summary with all runs valid.
+
+The pre-prompt-5 test ``test_row_is_valid_handles_string_and_missing``
+pinned a contract the strong predicate intentionally inverts (legacy
+row with no signal now FAILS missing-required-columns by design,
+audit 08).  That test's intent is now covered by
+``test_runner_predicate_matches_validator`` in
+tests/test_max_invalid_fraction.py and has been removed here.
 """
 from __future__ import annotations
 
@@ -32,20 +42,52 @@ from scripts.evaluation.run_paper_experiment import (  # noqa: E402
 )
 
 
+# Strong-predicate required columns at clean defaults (Phase 2 prompt 5).
+# Fixtures stamp these onto every row so the partition / aggregation
+# tests exercise the legitimate verdict paths, not the missing-cols
+# precondition.  The pre-prompt-5 ``_mk_row`` only set ``run_valid`` +
+# ``solver_fail_fraction``; under the strong predicate that row would
+# trip missing-required-columns before any clause fires.
+_STRONG_CLEAN = dict(
+    status="ok", global_replans=100,
+    solver_timeouts=0, solver_errors=0,
+    deadlock_count=0, num_agents=100,
+    throughput_utilization=0.5,
+)
+
+
 def _mk_row(run_id: str, solver: str, map_path: str, run_valid: bool,
             status: str = "ok") -> dict:
-    return {
+    """Build a synthetic CSV row.
+
+    ``run_valid=False`` is realised by perturbing a clause-3 input
+    (solver_errors above the 5 % gate) under a status=ok base, so the
+    row's strong-predicate verdict matches the requested ``run_valid``.
+    The ``run_valid`` field itself is still stamped for back-compat
+    with any CSV reader that reads it back as text -- it is NOT what
+    ``_row_is_valid`` consults under the strong predicate.
+    """
+    row = {
         "run_id": run_id,
         "experiment": "test",
         "applied_global_solver": solver,
         "global_solver": solver,
         "map_path": map_path,
-        "num_agents": 100,
         "seed": 0,
-        "status": status,
         "run_valid": run_valid,
-        "solver_fail_fraction": 1.0 if not run_valid else 0.0,
     }
+    row.update(_STRONG_CLEAN)
+    row["status"] = status
+    if not run_valid:
+        # Trip clause 3 (solver-fail-fraction): 6/100 = 0.06 > 0.05.
+        row["solver_errors"] = 6
+        row["solver_fail_fraction"] = 0.06
+    else:
+        row["solver_fail_fraction"] = 0.0
+    # Honor an explicit non-ok status as a clause-1 (crash) perturbation.
+    if status != "ok":
+        row["status"] = status
+    return row
 
 
 def test_split_valid_invalid_partitions_rows():
@@ -57,16 +99,6 @@ def test_split_valid_invalid_partitions_rows():
     valid, invalid = _split_valid_invalid(rows)
     assert [r["run_id"] for r in valid] == ["a", "c"]
     assert [r["run_id"] for r in invalid] == ["b"]
-
-
-def test_row_is_valid_handles_string_and_missing():
-    assert _row_is_valid({"run_valid": True}) is True
-    assert _row_is_valid({"run_valid": False}) is False
-    assert _row_is_valid({"run_valid": "True"}) is True
-    assert _row_is_valid({"run_valid": "False"}) is False
-    # Legacy row without the column counts as valid so pre-instrumentation
-    # CSVs are not retroactively invalidated.
-    assert _row_is_valid({"some_other": 1}) is True
 
 
 def test_append_rows_split_routes_to_separate_files(tmp_path: Path):
@@ -104,7 +136,7 @@ def test_summary_flags_cells_over_limit(tmp_path: Path):
         + [_mk_row(f"b{i}", "pibt2", "m1", True) for i in range(5)]
     )
     _append_rows_split(main_path, invalid_path, rows)
-    summary_rows, failing = write_run_validity_summary(
+    summary_rows, failing, reasons = write_run_validity_summary(
         main_path, invalid_path, summary_path, cell_fraction_limit=0.20,
     )
 
@@ -119,6 +151,9 @@ def test_summary_flags_cells_over_limit(tmp_path: Path):
     assert int(good["invalid_runs"]) == 0
     assert good["cell_exceeds_limit"] is False
     assert failing == [("lacam3", "m1")]
+    # Phase 2 prompt 5: the third return element is a reason Counter.
+    # The 4 invalid rows here trip clause 3 (solver-fail-fraction).
+    assert reasons["solver-fail-fraction"] == 4
 
 
 def test_summary_all_valid_returns_empty_failing(tmp_path: Path):
@@ -127,12 +162,14 @@ def test_summary_all_valid_returns_empty_failing(tmp_path: Path):
     summary_path = tmp_path / "run_validity_summary.csv"
     rows = [_mk_row(f"r{i}", "lacam3", "m1", True) for i in range(3)]
     _append_rows_split(main_path, invalid_path, rows)
-    _, failing = write_run_validity_summary(
+    _, failing, reasons = write_run_validity_summary(
         main_path, invalid_path, summary_path, cell_fraction_limit=0.20,
     )
     assert not invalid_path.exists()  # nothing invalid -> file not created
     assert summary_path.exists()
     assert failing == []
+    # Phase 2 prompt 5: clean sweep -> empty reason Counter.
+    assert not reasons
     with summary_path.open() as f:
         rows_out = list(csv.DictReader(f))
     assert len(rows_out) == 1
@@ -196,7 +233,7 @@ def test_run_one_tags_validity_columns(tmp_path: Path):
     invalid_path = tmp_path / "results_INVALID.csv"
     summary_path = tmp_path / "run_validity_summary.csv"
     _append_rows_split(main_path, invalid_path, recs)
-    summary_rows, failing = write_run_validity_summary(
+    summary_rows, failing, _reasons = write_run_validity_summary(
         main_path, invalid_path, summary_path, cell_fraction_limit=0.20,
     )
 

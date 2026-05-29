@@ -149,25 +149,55 @@ exit=3
 }
 ```
 
-### Runner-vs-validator divergence (separate finding)
+### Runner-vs-validator divergence (separate finding — resolved)
 
-The runner's internal gate (`run_paper_experiment.py`) reported
-`PASSED: 0/12 invalid runs = 0.0000 <= max_invalid_fraction=0.0500` on
-the same CSV.  The runner only checks `solver_fail_fraction`; the
-validator's strong predicate (Phase 2 prompt 1) checks all five
-clauses.  Both readings are internally consistent.
+At probe time, the runner's internal gate
+(`run_paper_experiment.py`) reported
+`PASSED: 0/12 invalid runs = 0.0000 <= max_invalid_fraction=0.0500`
+on the same CSV.  The runner checked only `solver_fail_fraction` +
+`status`; the validator's strong predicate (Phase 2 prompt 1) checks
+all five clauses (+ a missing-columns precondition).  Both readings
+were internally consistent but they disagreed by 12 rows.
 
 This divergence is the same gap audit 05 §3.1 / audit 09 §5 flagged
-and audit 07 + Phase 2 prompt 1 partly closed.  The runner's gate is
-the *launch-time* check; the standalone validator is the *post-hoc*
-check.  Phase 3 must use the validator's verdict, not the runner's,
-or it will repeat audit 09's degeneracy in a new schema (the
-predicate would be wired but ignored).
+and audit 07 + Phase 2 prompt 1 partly closed.
 
-A follow-up prompt should bring the runner's gate into alignment with
-the validator's strong predicate so the two cannot disagree.  Out of
-scope here; Phase 2 prompt 4's brief locked the validator and forbids
-runner changes.
+**Resolved in Phase 2 prompt 5.**  The runner's `_row_is_valid` now
+delegates to `validate_paper_claims.is_row_invalid` — the same
+canonical predicate the standalone validator uses.  The runner's
+per-record stamping path also re-evaluates the strong predicate and
+writes the canonical reason name to `validity_reason` on every row;
+the post-sweep log surfaces a reason breakdown (`reasons:
+solver-fail-fraction=N1 deadlock-fraction=N2 ...`) matching the
+standalone validator's CLI output.  A regression test
+(`test_runner_predicate_matches_validator` in
+tests/test_max_invalid_fraction.py) constructs one row per canonical
+reason name and asserts the two functions agree; a future fork of the
+runner's predicate fails this test loudly.
+
+Verification on the existing probe CSV (CSV unchanged; runner and
+validator code both now consult `is_row_invalid`):
+
+```
+$ python scripts/evaluation/validate_paper_claims.py \
+    --manifest configs/probe/calibration_probe_manifest.yaml
+[sweep:calibration_probe] n_rows=12 invalid=12 (100.0%) threshold=5.0% FAIL
+  reasons: deadlock-fraction=12
+
+$ diff configs/probe/validity_report.json \
+       logs/probe/calibration/validity_report.json
+# (empty -- BYTE-IDENTICAL to the pre-alignment JSON, because the
+# validator itself wasn't changed; only the runner was)
+
+$ python -c '...                       # runner-side reclassification
+runner    : 12/12 invalid, reasons={"deadlock-fraction": 12}
+validator : 12/12 invalid, reasons={"deadlock-fraction": 12}
+agree     : True
+'
+```
+
+The runner and validator agree on every row.  The divergence cannot
+recur because both now call into the same function.
 
 ## Acceptance decision (brief §5 decision tree)
 

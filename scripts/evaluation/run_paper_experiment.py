@@ -52,6 +52,7 @@ import tempfile
 import time
 import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -61,12 +62,27 @@ import yaml
 # Ensure ``src/`` is on the path even when invoked as a bare script.
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
+# Also ensure the repo root is importable so the sibling
+# ``scripts.evaluation.validate_paper_claims`` import resolves regardless
+# of how this script was invoked (CLI, pytest, etc.).
+sys.path.insert(0, str(_REPO_ROOT))
 
 from ha_lmapf.baselines import (  # noqa: E402
     make_lacam_blind_config,
     make_no_buffer_config,
     make_pibt2_fr_config,
     make_rhcr_blind_config,
+)
+
+# Phase 2 prompt 5: the runner's per-row validity gate consults the SAME
+# predicate the standalone validator uses, so a sweep that passes the
+# runner's gate also passes ``validate_paper_claims --manifest`` and vice
+# versa.  The probe (audit 14) exposed a divergence between the runner's
+# legacy solver-fail-only check and the validator's five-clause strong
+# predicate; this import is the alignment.
+from scripts.evaluation.validate_paper_claims import (  # noqa: E402
+    is_row_invalid,
+    INVALID_REASONS,
 )
 from ha_lmapf.core.types import Metrics, SimConfig  # noqa: E402
 from ha_lmapf.simulation.simulator import Simulator  # noqa: E402
@@ -402,12 +418,17 @@ def run_one(row: Dict[str, Any]) -> Dict[str, Any]:
         )
     record["wall_clock_s"] = round(time.perf_counter() - t0, 4)
 
-    # Per-run validity gate.  ``solver_fail_fraction`` is the share of
-    # global replans for which the Tier-1 solver returned a timeout or
-    # an error; the run is "valid" iff that share is at or below the
-    # threshold.  ``global_replans == 0`` means the simulator never
-    # invoked the Tier-1 solver -- treat as 0/1 = 0.0 (vacuously valid)
-    # via ``max(1, global_replans)``.
+    # Per-run validity gate.  Phase 2 prompt 5 aligned this stamping
+    # path with the standalone validator's strong predicate; pre-prompt-5
+    # the runner stamped ``run_valid`` from solver-fail-fraction +
+    # status alone, which was the source of the audit-14 runner-vs-
+    # validator divergence (the validator's predicate also fires on
+    # no-global-replan / deadlock-fraction / saturation / missing
+    # columns).  ``run_valid`` is now the strong-predicate verdict and
+    # ``validity_reason`` carries the canonical reason name for the
+    # first failing clause (one of :data:`INVALID_REASONS`, or "" on
+    # passing rows).  ``solver_fail_fraction`` is preserved as a
+    # diagnostic CSV column.
     threshold = float(row.get("_validity_threshold", DEFAULT_VALIDITY_THRESHOLD))
     try:
         global_replans = int(record.get("global_replans") or 0)
@@ -422,10 +443,14 @@ def run_one(row: Dict[str, Any]) -> Dict[str, Any]:
     except (TypeError, ValueError):
         solver_timeouts = 0
     fail_fraction = float(solver_errors + solver_timeouts) / float(max(1, global_replans))
-    run_valid = (record.get("status") == "ok") and (fail_fraction <= threshold)
     record["solver_fail_fraction"] = round(fail_fraction, 6)
-    record["run_valid"] = bool(run_valid)
     record["validity_threshold"] = threshold
+    # Strong-predicate verdict (delegates to the validator's canonical
+    # predicate, single source of truth).
+    invalid, reason = is_row_invalid(record)
+    run_valid = not invalid
+    record["run_valid"] = bool(run_valid)
+    record["validity_reason"] = reason  # canonical reason; "" iff valid
     # Mirror the canonical solver_fallback_reuses field under the
     # spec's preferred audit-trail name without dropping the original.
     if "solver_fallback_reuses" in record and "fallback_reuse_count" not in record:
@@ -446,10 +471,10 @@ def run_one(row: Dict[str, Any]) -> Dict[str, Any]:
         seed = record.get("seed", record.get("config", {}).get("seed") if isinstance(record.get("config"), dict) else "<unknown>")
         logger.error(
             "INVALID run: solver=%s map=%s num_agents=%s seed=%s "
-            "solver_fail_fraction=%.4f (threshold=%.2f) "
+            "reason=%s solver_fail_fraction=%.4f (threshold=%.2f) "
             "global_replans=%d solver_errors=%d solver_timeouts=%d status=%s",
             solver, map_path, num_agents, seed,
-            fail_fraction, threshold,
+            reason, fail_fraction, threshold,
             global_replans, solver_errors, solver_timeouts,
             record.get("status"),
         )
@@ -489,18 +514,29 @@ def _read_existing_run_ids(results_path: Path) -> set:
 
 
 def _row_is_valid(row: Dict[str, Any]) -> bool:
-    """Read the boolean ``run_valid`` column from a row (which may be a
-    Python bool, a string from a freshly-read CSV, or missing)."""
-    val = row.get("run_valid")
-    if isinstance(val, bool):
-        return val
-    if val is None or val == "":
-        # Missing column => legacy row from before instrumentation;
-        # treat as valid so existing CSVs are not retroactively
-        # invalidated.
-        return True
-    s = str(val).strip().lower()
-    return s in ("true", "1", "yes")
+    """True iff the row passes the strong validity predicate.
+
+    Phase 2 prompt 5 alignment.  Delegates to
+    :func:`scripts.evaluation.validate_paper_claims.is_row_invalid` --
+    the SAME canonical predicate the standalone validator's manifest
+    mode uses -- so runner and validator can never disagree about which
+    rows are invalid.  The runner's per-row stamping path
+    (:func:`_classify_run_validity`) writes ``run_valid`` to each
+    record using the same delegate; this function works on either a
+    freshly-classified record or a row read back from CSV
+    (``is_row_invalid`` reads the raw columns; the stamped column is
+    ignored).
+
+    Pre-prompt-5 behavior: read the stamped boolean ``run_valid``
+    column and treat missing as valid.  That was the source of the
+    audit-14 runner-vs-validator divergence (the runner stamped the
+    column from solver-fail alone; the standalone validator's
+    predicate also checks no-global-replan / deadlock-fraction /
+    saturation / required-columns).  The new body bypasses the stamped
+    column entirely and re-evaluates the strong predicate.
+    """
+    invalid, _reason = is_row_invalid(row)
+    return not invalid
 
 
 def _split_valid_invalid(
@@ -583,11 +619,20 @@ def write_run_validity_summary(
     invalid_path: Path,
     summary_path: Path,
     cell_fraction_limit: float,
-) -> Tuple[List[Dict[str, Any]], List[Tuple[str, str]]]:
+) -> Tuple[List[Dict[str, Any]], List[Tuple[str, str]], Counter]:
     """Aggregate (solver, map) run counts across both result CSVs and
-    write ``run_validity_summary.csv``.  Returns ``(summary_rows,
-    failing_cells)`` where ``failing_cells`` lists cells with invalid
-    fraction strictly greater than ``cell_fraction_limit``.
+    write ``run_validity_summary.csv``.  Returns
+    ``(summary_rows, failing_cells, sweep_invalid_reasons)`` where:
+
+    * ``summary_rows`` is the per-cell summary table.
+    * ``failing_cells`` lists cells with invalid fraction strictly
+      greater than ``cell_fraction_limit``.
+    * ``sweep_invalid_reasons`` is a Counter mapping the canonical
+      reason name (one of :data:`INVALID_REASONS`) to the number of
+      sweep-wide invalid rows attributed to it.  Phase 2 prompt 5
+      addition; the runner's post-sweep log surfaces it so an operator
+      can see at a glance whether the failure was budget-related,
+      deadlock-related, schema-related, etc.
 
     Always writes the summary file (with a header row only) so the
     artifact exists even for empty sweeps -- downstream tooling can
@@ -595,16 +640,19 @@ def write_run_validity_summary(
     all_rows = _read_csv_rows(results_path) + _read_csv_rows(invalid_path)
     # Aggregate by (solver, map).
     buckets: Dict[Tuple[str, str], Dict[str, int]] = {}
+    sweep_invalid_reasons: Counter = Counter()
     for r in all_rows:
         key = _summary_key(r)
         b = buckets.setdefault(
             key, {"valid": 0, "invalid": 0, "errored": 0, "total": 0},
         )
         b["total"] += 1
-        if _row_is_valid(r):
-            b["valid"] += 1
-        else:
+        invalid, reason = is_row_invalid(r)
+        if invalid:
             b["invalid"] += 1
+            sweep_invalid_reasons[reason] += 1
+        else:
+            b["valid"] += 1
         if str(r.get("status", "")).lower() not in ("ok", ""):
             b["errored"] += 1
 
@@ -641,7 +689,7 @@ def write_run_validity_summary(
         w.writerow({k: r.get(k, "") for k in fieldnames})
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write_text(summary_path, buf.getvalue())
-    return summary_rows, failing_cells
+    return summary_rows, failing_cells, sweep_invalid_reasons
 
 
 def _filter_by_shard(rows: List[Dict[str, Any]], shard: Optional[Tuple[int, int]]) -> List[Dict[str, Any]]:
@@ -877,7 +925,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     # block below -- if any (solver, map) cell exceeds the limit; the
     # caller can then decide whether to retry or accept the partial
     # sweep.
-    summary_rows, failing_cells = write_run_validity_summary(
+    summary_rows, failing_cells, sweep_invalid_reasons = write_run_validity_summary(
         results_path, invalid_path, summary_path, invalid_cell_limit,
     )
     total_runs = sum(int(r["total_runs"]) for r in summary_rows)
@@ -886,6 +934,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         "run-validity summary written: %s (%d cells, %d/%d runs invalid)",
         summary_path, len(summary_rows), total_invalid, total_runs,
     )
+    # Phase 2 prompt 5: surface the canonical reason breakdown so an
+    # operator can tell budget-pressure failures from deadlock failures
+    # without diffing the CSV.  Empty Counter on a clean sweep -> no
+    # tail line.
+    if sweep_invalid_reasons:
+        reason_tail = " ".join(
+            f"{name}={sweep_invalid_reasons[name]}"
+            for name in INVALID_REASONS
+            if sweep_invalid_reasons[name] > 0
+        )
+        logger.info("  reasons: %s", reason_tail)
     for r in summary_rows:
         if int(r["invalid_runs"]) > 0:
             marker = "EXCEEDS LIMIT" if r["cell_exceeds_limit"] else "ok"
@@ -918,22 +977,33 @@ def main(argv: Optional[List[str]] = None) -> int:
     sweep_threshold_breached = False
     if spec_max_invalid_fraction is not None and total_runs > 0:
         sweep_invalid_fraction = total_invalid / total_runs
+        # Format the reason tail once (Phase 2 prompt 5): "" if no
+        # invalid runs, otherwise space-separated "reason=count" pairs
+        # in the upstream-ness order :data:`INVALID_REASONS` declares.
+        reason_tail = " ".join(
+            f"{name}={sweep_invalid_reasons[name]}"
+            for name in INVALID_REASONS
+            if sweep_invalid_reasons[name] > 0
+        )
+        reason_suffix = f"  reasons: {reason_tail}" if reason_tail else ""
         if sweep_invalid_fraction > spec_max_invalid_fraction:
             sweep_threshold_breached = True
             logger.error(
                 "sweep-level validity gate FAILED: "
                 "%d/%d invalid runs = %.4f > max_invalid_fraction=%.4f "
                 "(from spec top-level).  See audit step 07 / "
-                "reports/audit/07_max_invalid_fraction.md.",
+                "reports/audit/07_max_invalid_fraction.md.%s",
                 total_invalid, total_runs,
                 sweep_invalid_fraction, spec_max_invalid_fraction,
+                reason_suffix,
             )
         else:
             logger.info(
                 "sweep-level validity gate PASSED: "
-                "%d/%d invalid runs = %.4f <= max_invalid_fraction=%.4f",
+                "%d/%d invalid runs = %.4f <= max_invalid_fraction=%.4f%s",
                 total_invalid, total_runs,
                 sweep_invalid_fraction, spec_max_invalid_fraction,
+                reason_suffix,
             )
 
     # Auto-invocation hook (paper appendix material).  When the YAML

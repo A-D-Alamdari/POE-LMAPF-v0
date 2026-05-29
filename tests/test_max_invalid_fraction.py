@@ -163,6 +163,55 @@ def test_threshold_fails_when_breached():
     assert _exercise_threshold_check(1, 200, 0.0) is True
 
 
+def test_runner_predicate_matches_validator():
+    """Phase 2 prompt 5 alignment regression test.
+
+    The runner's ``_row_is_valid`` and the standalone validator's
+    ``is_row_invalid`` must agree on every row.  Pre-prompt-5 they
+    diverged (the audit-14 calibration probe surfaced 0/12 vs 12/12
+    invalid on the same CSV).  This test exercises one row per
+    canonical reason name + a clean row; a future change that forks
+    the runner's predicate off the validator's breaks the alignment
+    and this test fires.
+
+    Rows are constructed at the dict level (no CSV / Simulator
+    involvement) so the test is hermetic and fast.
+    """
+    from scripts.evaluation.run_paper_experiment import _row_is_valid
+    from scripts.evaluation.validate_paper_claims import is_row_invalid
+
+    def row(**kw):
+        base = dict(
+            status="ok", global_replans=100,
+            solver_timeouts=0, solver_errors=0,
+            deadlock_count=0, num_agents=100,
+            throughput_utilization=0.5,
+        )
+        base.update(kw)
+        return base
+
+    cases = [
+        ("clean", row()),
+        ("crash", row(status="error")),
+        ("no-global-replan", row(global_replans=0)),
+        # 6/100 = 0.06 > 0.05
+        ("solver-fail", row(solver_errors=6)),
+        # 50/100 = 0.50 > 0.10
+        ("deadlock", row(deadlock_count=50)),
+        # Missing required column: drop deadlock_count.
+        ("missing-cols", {k: v for k, v in row().items() if k != "deadlock_count"}),
+    ]
+    for label, r in cases:
+        runner_valid = _row_is_valid(r)
+        invalid, _reason = is_row_invalid(r)
+        validator_valid = not invalid
+        assert runner_valid == validator_valid, (
+            f"runner-validator divergence on {label}: "
+            f"runner_valid={runner_valid} validator_valid={validator_valid} "
+            f"row={r}"
+        )
+
+
 def test_runner_logs_breach_error(caplog):
     """End-to-end check that the runner's logger emits an ERROR-level
     line when the sweep-level breach branch fires.  Direct exec of
