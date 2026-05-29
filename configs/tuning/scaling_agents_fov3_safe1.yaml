@@ -39,23 +39,6 @@ base:
   max_rounds: 5
   hard_safety: true
   communication_mode: priority
-  # Per-call solver budget — calibrated against the P3
-  # cohort (107 successful invocations per solver on
-  # ``logs/calibration/raw_measurements_v2*.csv``):
-  #
-  #   solver           p50   p90   p95   p99    max     # ms
-  #   cbsh2              6    61   126   764   1500
-  #   lacam3         10012 10021 10024 10030  10031     # anytime; uses full budget
-  #   lacam_official     2     7     9    17    146
-  #   lns2               3     7     9    12     14
-  #   pbs                6    22    31    53    167
-  #   pibt2              5    15    18    26     27
-  #
-  # Every non-anytime solver clears p99 in under one
-  # second; lacam3 (anytime) deliberately uses the full
-  # budget as its quality knob.  10 s is the §5.1 paper
-  # default (docs/experimental_setup.md) and the right
-  # trade-off here.
   solver_timeout_s: 30.0
   log_violations_timeline: true
 

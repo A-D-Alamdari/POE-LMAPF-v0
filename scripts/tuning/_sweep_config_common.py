@@ -56,31 +56,15 @@ def base_solver_budget_yaml(
         budget_s: float = SOLVER_BUDGET_S,
         indent: str = "  ",
 ) -> str:
-    """Return the ``solver_timeout_s: <budget>`` YAML line plus its
-    P3-justification comment block.  Caller splices into the
-    ``base:`` block.  ``indent`` is the per-line indent used by the
-    surrounding YAML (two spaces by default to match the ``base:``
-    children)."""
-    return (
-        f"{indent}# Per-call solver budget — calibrated against the P3\n"
-        f"{indent}# cohort (107 successful invocations per solver on\n"
-        f"{indent}# ``logs/calibration/raw_measurements_v2*.csv``):\n"
-        f"{indent}#\n"
-        f"{indent}#   solver           p50   p90   p95   p99    max     # ms\n"
-        f"{indent}#   cbsh2              6    61   126   764   1500\n"
-        f"{indent}#   lacam3         10012 10021 10024 10030  10031     # anytime; uses full budget\n"
-        f"{indent}#   lacam_official     2     7     9    17    146\n"
-        f"{indent}#   lns2               3     7     9    12     14\n"
-        f"{indent}#   pbs                6    22    31    53    167\n"
-        f"{indent}#   pibt2              5    15    18    26     27\n"
-        f"{indent}#\n"
-        f"{indent}# Every non-anytime solver clears p99 in under one\n"
-        f"{indent}# second; lacam3 (anytime) deliberately uses the full\n"
-        f"{indent}# budget as its quality knob.  10 s is the §5.1 paper\n"
-        f"{indent}# default (docs/experimental_setup.md) and the right\n"
-        f"{indent}# trade-off here.\n"
-        f"{indent}solver_timeout_s: {float(budget_s)}\n"
-    )
+    """Return just the ``solver_timeout_s: <budget>`` YAML line.
+
+    The per-YAML calibration comment was removed in Phase 2 prompt 3
+    (it had become stale next to the locked 30s budget and was always
+    redundant).  The canonical calibration rationale lives in the
+    module-level comment block at the top of this file.  ``indent`` is
+    the per-line indent used by the surrounding YAML (two spaces by
+    default to match the ``base:`` children)."""
+    return f"{indent}solver_timeout_s: {float(budget_s)}\n"
 
 
 def base_validity_guard_yaml(

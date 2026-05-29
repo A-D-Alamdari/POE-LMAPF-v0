@@ -103,11 +103,15 @@ def test_generator_byte_stable_roundtrip(gen_path: Path):
 
 @pytest.mark.parametrize("gen_path", _GENERATORS, ids=lambda p: p.stem)
 def test_yaml_has_p7_guard_keys(gen_path: Path):
-    """Every auto-generated sweep YAML carries the P3-justified
-    ``solver_timeout_s`` and the P2-tied ``max_invalid_fraction``
-    keys + their docstring blocks.  Reviewers should be able to see
-    the budget justification and the validity-tolerance in the file
-    header without spelunking through git history."""
+    """Every auto-generated sweep YAML carries ``solver_timeout_s`` and
+    ``max_invalid_fraction``, plus the P0-preflight solver-provenance
+    comment.  The per-YAML calibration comment block was removed in
+    Phase 2 prompt 3 (it had become stale next to the locked 30 s
+    budget); the canonical calibration rationale now lives in the
+    module-level block at the top of
+    ``scripts/tuning/_sweep_config_common.py``.  This test also pins
+    that the stale "calibrated against the P3" text does NOT reappear
+    next to a 30 s budget."""
     yaml_path = _generator_to_yaml(gen_path)
     text = yaml_path.read_text()
     assert "solver_timeout_s:" in text, (
@@ -116,13 +120,18 @@ def test_yaml_has_p7_guard_keys(gen_path: Path):
     assert "max_invalid_fraction:" in text, (
         f"{yaml_path.name}: max_invalid_fraction key missing (P2 guard)"
     )
-    # The P3-justification block (calibration table) and the P0-preflight
-    # provenance comment must both be present.
-    assert "calibrated against the P3" in text, (
-        f"{yaml_path.name}: missing P3 solver-budget justification block"
-    )
     assert "P0 preflight" in text, (
         f"{yaml_path.name}: missing P0 preflight solver-provenance comment"
+    )
+    # Negative pin: the per-YAML calibration block was removed in
+    # Phase 2 prompt 3.  If it reappears (e.g. a generator copy-pastes
+    # the old comment back in next to a non-10 s budget), that is the
+    # bug this prompt fixed.
+    assert "calibrated against the P3" not in text, (
+        f"{yaml_path.name}: stale per-YAML calibration block has "
+        "reappeared (Phase 2 prompt 3 removed it).  The canonical "
+        "calibration rationale lives in the module-level block of "
+        "scripts/tuning/_sweep_config_common.py; do not re-add it here."
     )
 
 
