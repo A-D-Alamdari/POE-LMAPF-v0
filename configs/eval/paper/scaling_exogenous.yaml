@@ -18,7 +18,7 @@ base:
   safety_radius: 1
   horizon: 20
   replan_every: 10
-  solver_timeout_s: 10.0
+  solver_timeout_s: 30.0
   hard_safety: true
   communication_mode: priority
   local_planner: astar

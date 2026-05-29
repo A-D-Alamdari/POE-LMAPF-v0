@@ -29,7 +29,7 @@ base:
   fov_radius: 4
   safety_radius: 1
   global_solver: lacam_official
-  solver_timeout_s: 10.0
+  solver_timeout_s: 30.0
   hard_safety: true
   communication_mode: priority
   local_planner: astar

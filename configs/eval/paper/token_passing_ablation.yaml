@@ -25,7 +25,7 @@ base:
   global_solver: lacam_official
   horizon: 20
   replan_every: 10
-  solver_timeout_s: 10.0
+  solver_timeout_s: 30.0
   hard_safety: true
   local_planner: astar
   human_model: random_walk

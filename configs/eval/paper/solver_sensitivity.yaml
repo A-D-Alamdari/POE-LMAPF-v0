@@ -23,7 +23,7 @@ base:
   mode: lifelong
   task_allocator: congestion_avoidance
   replan_every: 10
-  solver_timeout_s: 10.0
+  solver_timeout_s: 30.0
   map_to_human_model:
     random-64-64-10: random_walk
     warehouse-10-20-10-2-1: aisle
