@@ -1,33 +1,126 @@
 #!/usr/bin/env python3
 """
-Paper numerical-claim validator.
+Paper numerical-claim validator + strong-predicate sweep validator.
 
-Reads a registry of paper claims (default
-``docs/PAPER_NUMERICAL_CLAIMS.yaml``), pulls the corresponding
-``results.csv`` from a sweep directory under ``--results-root``,
-applies the encoded filter / aggregation, and compares against the
-expected value.  Writes a Markdown report grouped by verdict
-(``Confirmed`` / ``Refuted`` / ``Now stronger`` / ``Now weaker`` /
-``Skipped``) plus a side-by-side LaTeX diff for Table 1 and Table 2.
+Two entry points share this module:
 
-The user reads the report and edits the paper accordingly; this tool
-does **not** modify the YAML registry or the paper text.
+1. **Claims mode** (legacy): ``--claims <yaml> --results-root <dir>``.
+   Reads a registry of paper claims, pulls the corresponding
+   ``results.csv`` from a sweep directory, applies the encoded filter /
+   aggregation, and compares against the expected value.  Writes a
+   Markdown report grouped by verdict (``Confirmed`` / ``Refuted`` /
+   ``Now stronger`` / ``Now weaker`` / ``Skipped`` / ``Invalid``) plus a
+   side-by-side LaTeX diff for Tables 1 and 2.  The user reads the
+   report and edits the paper accordingly; this tool does **not**
+   modify the YAML registry or the paper text.
+
+2. **Manifest mode** (resume-prompt-7): ``--manifest <yaml>``.
+   Applies the strong validity predicate (audit 09 + audit 11 +
+   Decision 4c) row-by-row to every sweep listed in the manifest,
+   produces a per-sweep ``SweepValidityReport``, writes
+   ``validity_report.json`` next to the manifest, and exits 3 if any
+   sweep's invalid fraction exceeds its declared
+   ``max_invalid_fraction``.
+
+Strong validity predicate
+-------------------------
+A CSV row is INVALID iff any of:
+
+   1. ``status != 'ok'``                            -- reason ``crash``
+   2. ``global_replans == 0``                       -- reason ``no-global-replan``
+   3. ``solver_fail_fraction > 0.05`` where
+      ``solver_fail_fraction =
+        (solver_timeouts + solver_errors) / max(1, global_replans)``
+                                                    -- reason ``solver-fail-fraction``
+   4. ``deadlock_count / num_agents > 0.10``        -- reason ``deadlock-fraction``
+   5. ``throughput_utilization >= 0.95`` AND
+      ``deadlock_count / num_agents > 0.10``        -- reason ``saturation-hiding-deadlock``
+
+A precondition runs before clauses 1-5: if any of the seven required
+columns (``status``, ``global_replans``, ``solver_timeouts``,
+``solver_errors``, ``deadlock_count``, ``num_agents``,
+``throughput_utilization``) is absent or empty, the row is invalid by
+reason ``missing-required-columns`` and no other clause is evaluated.
+
+Reasons ordered by upstream-ness (the predicate names the first clause
+that fires; clause 5 is fully subsumed by clause 4 numerically and is
+named only when checked in isolation, e.g. by a mutation test):
+
+   - ``crash``                       (clause 1)
+   - ``no-global-replan``            (clause 2)
+   - ``solver-fail-fraction``        (clause 3)
+   - ``deadlock-fraction``           (clause 4)
+   - ``saturation-hiding-deadlock``  (clause 5)
+   - ``missing-required-columns``    (precondition)
+
+A sweep is REJECTED iff its row-level invalid fraction exceeds the
+``max_invalid_fraction`` declared in its manifest entry.
+
+Manifest YAML schema
+--------------------
+::
+
+    sweeps:
+      - name: horizon_replan_full
+        csv:  logs/tuning/horizon_replan_full/results.csv
+        max_invalid_fraction: 0.0
+      - name: fov_safety_sweep
+        csv:  logs/tuning/fov_safety_sweep/results.csv
+        max_invalid_fraction: 0.0
+
+``validity_report.json`` schema
+-------------------------------
+::
+
+    {
+      "sweeps": {
+        "<sweep_name>": {
+          "n_rows": int,
+          "n_invalid": int,
+          "invalid_fraction": float,
+          "threshold": float,
+          "passed": bool,
+          "reasons": {"<reason_name>": int, ...}
+        },
+        ...
+      },
+      "overall_passed": bool,
+      "n_failed_sweeps": int
+    }
+
+The validator complements -- it does not replace -- the run-launch
+gate in ``run_paper_experiment.py`` (audit 07).  The runner enforces
+per-row validity at sweep launch time; this validator re-applies the
+predicate post-hoc on the produced CSV and gates whether any sweep is
+fit to feed a §5 table.
+
+Citations: ``reports/audit/09_strong_validity_predicate.md`` (full
+five-clause derivation), ``reports/audit/11_solver_fail_hardened.md``
+(threshold sensitivity), Decision 4c (subsumption of clause 5 by 4).
 
 Usage::
 
+    # Claims mode
     python scripts/evaluation/validate_paper_claims.py \\
         --claims        docs/PAPER_NUMERICAL_CLAIMS.yaml \\
         --results-root  logs/paper \\
         --out           claim_validation.md \\
         --tables-out    claim_validation_tables.tex \\
         --section       all
+
+    # Manifest mode (resume-prompt-7)
+    python scripts/evaluation/validate_paper_claims.py \\
+        --manifest      sweeps.yaml
 """
 from __future__ import annotations
 
 import argparse
 import csv
+import json
 import logging
 import math
+import sys
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -44,15 +137,43 @@ REQUIRED_CLAIM_FIELDS = (
 ALLOWED_SECTIONS = {"5.2", "5.3", "5.4", "5.5"}
 ALLOWED_DIRECTIONS = {"higher", "lower", "neither"}
 
-# Degenerate-run guard (P2 follow-up).  Mirrors the threshold the
-# experiment runner uses; per-row check below trips on any of:
-#   * explicit ``run_valid`` field present and falsey,
-#   * explicit ``solver_fail_fraction`` exceeding the threshold,
-#   * computed ``(solver_errors + solver_timeouts) / max(1, global_replans)``
-#     exceeding the threshold when the explicit field is missing
-#     (covers legacy per-run CSVs from before P2),
-#   * ``global_replans`` present and zero (Tier-1 never ran).
-DEFAULT_VALIDITY_THRESHOLD = 0.05
+# Strong validity predicate (audit 09 + audit 11 + Decision 4c) -- LOCKED.
+# Do NOT silently revise these thresholds; see the module docstring and
+# audit 11 for the threshold-sensitivity analysis.
+SOLVER_FAIL_THRESHOLD = 0.05
+DEADLOCK_FRACTION_THRESHOLD = 0.10
+SATURATION_UTILIZATION_THRESHOLD = 0.95
+
+# Required columns for the strong predicate; absence ⇒ ``missing-required-columns``.
+REQUIRED_COLUMNS = (
+    "status",
+    "global_replans",
+    "solver_timeouts",
+    "solver_errors",
+    "deadlock_count",
+    "num_agents",
+    "throughput_utilization",
+)
+
+# Canonical reason names emitted by ``is_row_invalid``.  Listed in the
+# upstream-ness order the predicate uses when several clauses are eligible
+# (the predicate returns the FIRST clause that fires).  ``saturation-
+# hiding-deadlock`` is in the set for diagnostic completeness; numerically
+# it is subsumed by ``deadlock-fraction`` and therefore never named at
+# runtime when both apply.
+INVALID_REASONS = (
+    "crash",
+    "no-global-replan",
+    "solver-fail-fraction",
+    "deadlock-fraction",
+    "saturation-hiding-deadlock",
+    "missing-required-columns",
+)
+
+# Back-compat alias.  The legacy CLI flag ``--validity-threshold`` used to
+# parameterise clause 3; under Decision 4c the threshold is locked at 0.05
+# and the flag is preserved only for back-compat (no-op + DeprecationWarning).
+DEFAULT_VALIDITY_THRESHOLD = SOLVER_FAIL_THRESHOLD
 
 
 # ---------------------------------------------------------------------------
@@ -81,78 +202,125 @@ def load_results(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
-def _truthy_run_valid(value: Any) -> bool:
-    """Coerce a ``run_valid`` cell to a boolean.  CSV round-trips
-    Python bools as the strings ``True`` / ``False``; numerics also
-    appear as 1 / 0.  Treat anything else (None, empty, unknown
-    string) as ``True`` so missing-column CSVs are not classified as
-    invalid -- the explicit checks downstream still trip on the real
-    failure signal (computed solver_fail_fraction)."""
-    if value is None or value == "":
+def _missing(row: Dict[str, Any], col: str) -> bool:
+    """A column is 'missing' if its key is absent, or its value is None or ''."""
+    if col not in row:
         return True
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return bool(value)
-    s = str(value).strip().lower()
-    if s in ("false", "0", "no"):
-        return False
-    return True
+    v = row[col]
+    return v is None or v == ""
+
+
+def is_row_invalid(row: Dict[str, Any]) -> Tuple[bool, str]:
+    """Apply the strong validity predicate to a single CSV row.
+
+    Returns ``(is_invalid, reason)``.  ``reason`` is the canonical
+    name of the first clause that fires (one of :data:`INVALID_REASONS`)
+    or ``""`` if the row is valid.
+
+    Clauses are checked in upstream-ness order so the reason names the
+    most upstream failure mode.  The 'missing-required-columns'
+    precondition runs before clauses 1-5; if any required column is
+    absent or empty the row is invalid by that reason and no other
+    clause is evaluated.  Clause 5 (saturation-hiding-deadlock) is
+    fully subsumed by clause 4 (deadlock-fraction); it is named only
+    when checked in isolation (e.g. by a mutation test).
+    """
+    # Precondition.
+    for col in REQUIRED_COLUMNS:
+        if _missing(row, col):
+            return True, "missing-required-columns"
+
+    # Clause 1: crash.
+    if str(row["status"]) != "ok":
+        return True, "crash"
+
+    # Clause 2: no global replan (Tier-1 never ran).
+    try:
+        gr = int(float(row["global_replans"]))
+    except (TypeError, ValueError):
+        return True, "missing-required-columns"
+    if gr == 0:
+        return True, "no-global-replan"
+
+    # Clause 3: solver-fail fraction.
+    try:
+        st = int(float(row["solver_timeouts"]))
+        se = int(float(row["solver_errors"]))
+    except (TypeError, ValueError):
+        return True, "missing-required-columns"
+    sf = (st + se) / float(max(1, gr))
+    if sf > SOLVER_FAIL_THRESHOLD:
+        return True, "solver-fail-fraction"
+
+    # Clause 4: deadlock fraction.
+    try:
+        dl = int(float(row["deadlock_count"]))
+        n = int(float(row["num_agents"]))
+    except (TypeError, ValueError):
+        return True, "missing-required-columns"
+    dl_frac = dl / float(max(1, n))
+    if dl_frac > DEADLOCK_FRACTION_THRESHOLD:
+        return True, "deadlock-fraction"
+
+    # Clause 5: saturation-hiding-deadlock (subsumed by clause 4 in
+    # practice; reachable only in isolation, kept for diagnostic naming).
+    try:
+        util = float(row["throughput_utilization"])
+    except (TypeError, ValueError):
+        return True, "missing-required-columns"
+    if util >= SATURATION_UTILIZATION_THRESHOLD and dl_frac > DEADLOCK_FRACTION_THRESHOLD:
+        return True, "saturation-hiding-deadlock"
+
+    return False, ""
 
 
 def classify_row_validity(
-    row: Dict[str, Any], threshold: float,
+    row: Dict[str, Any], threshold: float = SOLVER_FAIL_THRESHOLD,
 ) -> Optional[str]:
-    """Return ``None`` if the row passes the degenerate-run guard,
-    otherwise a short reason string suitable for the Invalid section.
+    """Legacy claims-driven adapter around :func:`is_row_invalid`.
 
-    The check is conservative: a CSV that lacks the P2 columns
-    (``run_valid`` / ``solver_fail_fraction``) is still inspected by
-    computing the failure fraction from ``solver_errors``,
-    ``solver_timeouts``, and ``global_replans`` -- the fields that
-    have been in the per-run CSV since well before P2.  That is what
-    catches the existing ``solver_errors_mean = 100`` rows the
-    acceptance scenario in the task spec calls out."""
-    rv = row.get("run_valid")
-    if rv is not None and rv != "" and not _truthy_run_valid(rv):
-        return f"run_valid={rv!r}"
-
-    sf = row.get("solver_fail_fraction")
-    if sf is not None and sf != "":
-        try:
-            sf_f = float(sf)
-            if sf_f > threshold:
-                return (f"solver_fail_fraction={sf_f:.4f} > "
-                        f"threshold={threshold}")
-        except (TypeError, ValueError):
-            pass
-    else:
-        # No explicit field -- compute from raw counters.
-        try:
-            se = int(float(row.get("solver_errors") or 0))
-            st = int(float(row.get("solver_timeouts") or 0))
-            gr = int(float(row.get("global_replans") or 0))
-            denom = max(1, gr)
-            sf_computed = (se + st) / float(denom)
-            if sf_computed > threshold:
-                return (
-                    f"computed solver_fail_fraction={sf_computed:.4f} > "
-                    f"threshold={threshold} "
-                    f"(solver_errors={se}, solver_timeouts={st}, "
-                    f"global_replans={gr})"
-                )
-        except (TypeError, ValueError):
-            pass
-
-    gr = row.get("global_replans")
-    if gr is not None and gr != "":
-        try:
-            if int(float(gr)) <= 0:
-                return f"global_replans={gr} (Tier-1 never ran)"
-        except (TypeError, ValueError):
-            pass
-
-    return None
+    Returns ``None`` if the row passes the strong predicate, otherwise a
+    short reason string suitable for the Invalid section of the claim
+    report.  The reason is the canonical predicate name plus, where it
+    helps the reader, the offending numbers.  The ``threshold`` keyword
+    is now a no-op (clause 3's threshold is locked at 0.05 per
+    Decision 4c); it is retained for back-compat with the legacy CLI.
+    """
+    invalid, reason = is_row_invalid(row)
+    if not invalid:
+        return None
+    if reason == "missing-required-columns":
+        missing = [c for c in REQUIRED_COLUMNS if _missing(row, c)]
+        return f"missing-required-columns: {missing}"
+    if reason == "crash":
+        return f"crash (status={row.get('status')!r})"
+    if reason == "no-global-replan":
+        return "no-global-replan (global_replans == 0, Tier-1 never ran)"
+    if reason == "solver-fail-fraction":
+        gr = int(float(row["global_replans"]))
+        st = int(float(row["solver_timeouts"]))
+        se = int(float(row["solver_errors"]))
+        sf = (st + se) / float(max(1, gr))
+        return (
+            f"solver-fail-fraction={sf:.4f} > {SOLVER_FAIL_THRESHOLD} "
+            f"(solver_errors={se}, solver_timeouts={st}, global_replans={gr})"
+        )
+    if reason == "deadlock-fraction":
+        dl = int(float(row["deadlock_count"]))
+        n = int(float(row["num_agents"]))
+        return (
+            f"deadlock-fraction={dl}/{n}={dl / max(1, n):.4f} "
+            f"> {DEADLOCK_FRACTION_THRESHOLD}"
+        )
+    if reason == "saturation-hiding-deadlock":
+        util = float(row["throughput_utilization"])
+        dl = int(float(row["deadlock_count"]))
+        n = int(float(row["num_agents"]))
+        return (
+            f"saturation-hiding-deadlock (utilization={util:.3f} >= "
+            f"{SATURATION_UTILIZATION_THRESHOLD} AND deadlock={dl}/{n})"
+        )
+    return reason
 
 
 def partition_validity(
@@ -906,21 +1074,117 @@ def _load_all_under_root(results_root: Path) -> List[Dict[str, Any]]:
 
 
 @dataclass
+class SweepValidityReport:
+    """Per-sweep aggregation of the strong validity predicate.
+
+    Returned by :func:`validate_sweep` and consumed by the manifest CLI
+    + ``validity_report.json``.  ``reasons`` keys are drawn from
+    :data:`INVALID_REASONS`; the count for any reason absent from a
+    sweep is zero (Counter default).
+    """
+    name: str
+    csv_path: str
+    n_rows: int
+    n_invalid: int
+    invalid_fraction: float
+    threshold: float
+    passed: bool
+    reasons: Counter = field(default_factory=Counter)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "csv_path": self.csv_path,
+            "n_rows": self.n_rows,
+            "n_invalid": self.n_invalid,
+            "invalid_fraction": self.invalid_fraction,
+            "threshold": self.threshold,
+            "passed": self.passed,
+            "reasons": dict(self.reasons),
+        }
+
+
+def validate_sweep(
+    csv_path: Path,
+    max_invalid_fraction: float,
+    name: Optional[str] = None,
+) -> SweepValidityReport:
+    """Apply :func:`is_row_invalid` to every row of ``csv_path`` and
+    aggregate.
+
+    A sweep PASSES iff ``invalid_fraction <= max_invalid_fraction``.
+    ``max_invalid_fraction = 0.0`` therefore demands every single row
+    pass the strong predicate (the contract every committed sweep YAML
+    declares -- audit 07).
+    """
+    csv_path = Path(csv_path)
+    rows = load_results(csv_path)
+    reasons: Counter = Counter()
+    n_invalid = 0
+    for r in rows:
+        invalid, reason = is_row_invalid(r)
+        if invalid:
+            n_invalid += 1
+            reasons[reason] += 1
+    n_rows = len(rows)
+    invalid_fraction = n_invalid / float(max(1, n_rows))
+    passed = invalid_fraction <= float(max_invalid_fraction)
+    return SweepValidityReport(
+        name=name if name is not None else csv_path.parent.name,
+        csv_path=str(csv_path),
+        n_rows=n_rows,
+        n_invalid=n_invalid,
+        invalid_fraction=invalid_fraction,
+        threshold=float(max_invalid_fraction),
+        passed=passed,
+        reasons=reasons,
+    )
+
+
+@dataclass
 class ValidityReport:
     """Per-source / aggregate degenerate-run guard summary.
 
-    ``total_rows`` etc. are *unique-row* counts: even if multiple
-    claims reference the same source, the source's rows are tallied
-    once.  ``invalid_rows`` carries enough identifying state to
-    surface in the Invalid section of the markdown report.
+    Carries two layers of aggregation:
+
+    * **Per-row** (claims-mode path).  ``total_rows`` etc. are
+      *unique-row* counts: even if multiple claims reference the same
+      source, the source's rows are tallied once.  ``invalid_rows``
+      carries enough identifying state to surface in the Invalid
+      section of the markdown report.
+
+    * **Per-sweep** (manifest-mode path, optional).  ``per_sweep``
+      maps sweep name -> :class:`SweepValidityReport`; populated when
+      the validator runs in ``--manifest`` mode.
     """
     total_rows: int = 0
     valid_rows: int = 0
     invalid_rows: List[Tuple[str, Dict[str, Any], str]] = field(default_factory=list)
+    per_sweep: Dict[str, SweepValidityReport] = field(default_factory=dict)
 
     @property
     def n_invalid(self) -> int:
         return len(self.invalid_rows)
+
+    @property
+    def overall_passed(self) -> bool:
+        """True iff every sweep in ``per_sweep`` passed.  Empty
+        per-sweep dict (claims mode) returns True so callers that
+        check this in both modes are not falsely tripped."""
+        return all(r.passed for r in self.per_sweep.values())
+
+    @property
+    def n_failed_sweeps(self) -> int:
+        return sum(1 for r in self.per_sweep.values() if not r.passed)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Schema documented at the top of this module
+        (``validity_report.json``)."""
+        return {
+            "sweeps": {n: r.to_dict() for n, r in self.per_sweep.items()},
+            "overall_passed": self.overall_passed,
+            "n_failed_sweeps": self.n_failed_sweeps,
+        }
 
 
 def run_validation(
@@ -1041,30 +1305,128 @@ def run_validation(
     return verdicts, structural, validity
 
 
+def run_manifest_validation(manifest_path: Path) -> ValidityReport:
+    """Apply :func:`validate_sweep` to every sweep listed in the manifest.
+
+    Returns a :class:`ValidityReport` whose ``per_sweep`` dict carries
+    one :class:`SweepValidityReport` per declared sweep.  The per-row
+    aggregation fields (``total_rows`` / ``invalid_rows``) stay at
+    defaults in manifest mode -- the per-sweep reports already carry the
+    row-level counts.
+    """
+    manifest_path = Path(manifest_path)
+    spec = yaml.safe_load(manifest_path.read_text()) or {}
+    sweeps = spec.get("sweeps", [])
+    if not isinstance(sweeps, list) or not sweeps:
+        raise ValueError(
+            f"manifest {manifest_path} has no 'sweeps' list "
+            f"(got: {type(sweeps).__name__})"
+        )
+    report = ValidityReport()
+    base = manifest_path.parent
+    for entry in sweeps:
+        if not isinstance(entry, dict):
+            raise ValueError(f"sweep entry is not a dict: {entry!r}")
+        name = entry.get("name")
+        csv_field = entry.get("csv")
+        thresh = entry.get("max_invalid_fraction")
+        if name is None or csv_field is None or thresh is None:
+            raise ValueError(
+                f"sweep entry missing required key "
+                f"(name / csv / max_invalid_fraction): {entry!r}"
+            )
+        csv_path = Path(csv_field)
+        if not csv_path.is_absolute():
+            csv_path = (base / csv_path).resolve()
+        sweep_report = validate_sweep(csv_path, float(thresh), name=str(name))
+        report.per_sweep[str(name)] = sweep_report
+    return report
+
+
+def _format_sweep_summary(r: SweepValidityReport) -> str:
+    """One-line + reason-tail human summary for stderr."""
+    pct = r.invalid_fraction * 100.0
+    thresh_pct = r.threshold * 100.0
+    verdict = "PASS" if r.passed else "FAIL"
+    head = (
+        f"[sweep:{r.name}] n_rows={r.n_rows} "
+        f"invalid={r.n_invalid} ({pct:.1f}%) "
+        f"threshold={thresh_pct:.1f}% {verdict}"
+    )
+    if r.reasons:
+        tail = " ".join(f"{k}={v}" for k, v in r.reasons.most_common())
+        return f"{head}\n  reasons: {tail}"
+    return head
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(
         description="POE-LMAPF paper numerical claim validator")
-    p.add_argument("--claims", required=True, type=Path,
-                   help="docs/PAPER_NUMERICAL_CLAIMS.yaml")
-    p.add_argument("--results-root", required=True, type=Path,
-                   help="Directory containing per-sweep result subdirs "
-                        "(e.g. logs/paper/)")
-    p.add_argument("--out", required=True, type=Path,
-                   help="Markdown report path")
+    # Mode is mutually exclusive: --manifest (resume-prompt-7 sweep
+    # validator) OR --claims (legacy paper-claims validator).
+    p.add_argument("--manifest", type=Path, default=None,
+                   help="Sweep manifest YAML (sweeps: [{name, csv, "
+                        "max_invalid_fraction}, ...]).  Runs the strong "
+                        "validity predicate row-by-row over every sweep "
+                        "and writes validity_report.json next to the "
+                        "manifest; exits 3 if any sweep fails its "
+                        "max_invalid_fraction.")
+    p.add_argument("--claims", type=Path, default=None,
+                   help="docs/PAPER_NUMERICAL_CLAIMS.yaml (claims mode).")
+    p.add_argument("--results-root", type=Path, default=None,
+                   help="Claims mode: directory containing per-sweep "
+                        "result subdirs (e.g. logs/paper/).")
+    p.add_argument("--out", type=Path, default=None,
+                   help="Claims mode: Markdown report path.")
     p.add_argument("--tables-out", default=None, type=Path,
-                   help="Optional LaTeX table diff path "
-                        "(default: alongside --out)")
+                   help="Claims mode: optional LaTeX table diff path "
+                        "(default: alongside --out).")
     p.add_argument("--section", default="all",
                    choices=("all", "5.2", "5.3", "5.4", "5.5"))
     p.add_argument("--validity-threshold", type=float,
                    default=DEFAULT_VALIDITY_THRESHOLD,
-                   help=("Per-row degenerate-run guard threshold "
-                         "(solver_fail_fraction). "
-                         f"Default {DEFAULT_VALIDITY_THRESHOLD}."))
+                   help=("[DEPRECATED, no-op] Solver-fail threshold; locked "
+                         f"at {SOLVER_FAIL_THRESHOLD} per Decision 4c."))
     p.add_argument("--log-level", default="INFO")
     args = p.parse_args(argv)
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO),
                         format="%(levelname)s %(name)s | %(message)s")
+
+    # ---- Manifest mode (resume-prompt-7) ----
+    if args.manifest is not None:
+        if args.claims is not None:
+            p.error("--manifest and --claims are mutually exclusive")
+        report = run_manifest_validation(args.manifest)
+        for sweep in report.per_sweep.values():
+            print(_format_sweep_summary(sweep), file=sys.stderr)
+        out_json = args.manifest.parent / "validity_report.json"
+        out_json.write_text(
+            json.dumps(report.to_dict(), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        logger.info("wrote %s", out_json)
+        if not report.overall_passed:
+            logger.error(
+                "%d of %d sweep(s) failed the validity gate; "
+                "exit 3 (audit 07 / Decision 4c).",
+                report.n_failed_sweeps, len(report.per_sweep),
+            )
+            return 3
+        return 0
+
+    # ---- Claims mode (legacy) ----
+    for required in ("claims", "results_root", "out"):
+        if getattr(args, required) is None:
+            p.error(
+                f"--{required.replace('_', '-')} is required in claims mode "
+                f"(use --manifest for sweep-only validation)"
+            )
+    if args.validity_threshold != DEFAULT_VALIDITY_THRESHOLD:
+        logger.warning(
+            "--validity-threshold is deprecated and ignored (clause 3 "
+            "is locked at %.2f per Decision 4c)",
+            SOLVER_FAIL_THRESHOLD,
+        )
 
     verdicts, structural, validity = run_validation(
         args.claims, args.results_root, args.section,

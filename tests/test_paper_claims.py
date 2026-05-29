@@ -83,6 +83,42 @@ def _write_csv(path: Path, rows: List[Dict[str, Any]]) -> None:
             w.writerow(r)
 
 
+# Resume-prompt-7: every test row must carry the strong predicate's
+# required columns (audit 09, Decision 4c).  The fixtures in this file
+# pre-date that predicate; without these defaults every synth row would
+# trip the missing-required-columns precondition and the synthetic
+# Confirmed / Refuted assertions below would never reach the
+# comparison.  The defaults represent a clean run -- status ok, Tier-1
+# fired, no solver failures, no deadlock, sub-saturation utilization --
+# so the strong predicate classifies every synth row as VALID.
+_STRONG_PREDICATE_CLEAN_DEFAULTS = {
+    "status": "ok",
+    "global_replans": 100,
+    "solver_timeouts": 0,
+    "solver_errors": 0,
+    "deadlock_count": 0,
+    # ``num_agents`` is a sweep axis in most fixtures and overrides this
+    # default via setdefault.  The default is here purely so the
+    # axis-free fov_safety fixtures (which don't sweep agent count) still
+    # satisfy the strong predicate's column-presence check.
+    "num_agents": 50,
+    "throughput_utilization": 0.5,
+}
+
+
+def _with_strong_predicate_defaults(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Stamp the strong-predicate required columns onto every row.
+
+    The row's own ``status`` (and any other explicit override) wins; this
+    only fills gaps.  ``num_agents`` is already supplied by every
+    fixture (it's a sweep axis).
+    """
+    for r in rows:
+        for k, v in _STRONG_PREDICATE_CLEAN_DEFAULTS.items():
+            r.setdefault(k, v)
+    return rows
+
+
 def test_synthetic_matching_results_yield_confirmed(tmp_path: Path):
     """Synthesise per-source CSVs whose aggregated values exactly hit
     the expected_value of every concrete (non-structural) claim."""
@@ -291,12 +327,14 @@ def test_synthetic_matching_results_yield_confirmed(tmp_path: Path):
                     })
     rows_per_source["baseline_comparison"] = rows_bc
 
-    # Persist.
+    # Persist.  Stamp the strong-predicate required columns (audit 09,
+    # Decision 4c) onto every row before write so the synth fixtures
+    # don't trip the missing-required-columns precondition.
     results_root = tmp_path / "logs" / "paper"
     for source, rows in rows_per_source.items():
         d = results_root / source
         d.mkdir(parents=True, exist_ok=True)
-        _write_csv(d / "results.csv", rows)
+        _write_csv(d / "results.csv", _with_strong_predicate_defaults(rows))
 
     # run_validation returns (verdicts, structural_claims, validity_report)
     # since 812fc90 added the degenerate-run guard.
@@ -362,7 +400,7 @@ def test_perturbation_flips_a_claim_to_refuted(tmp_path: Path):
     results_root = tmp_path / "logs" / "paper"
     d = results_root / "fov_safety"
     d.mkdir(parents=True, exist_ok=True)
-    _write_csv(d / "results.csv", rows)
+    _write_csv(d / "results.csv", _with_strong_predicate_defaults(rows))
 
     # Run only the §5.3 section so we don't depend on other sources.
     # run_validation returns (verdicts, structural_claims, validity_report)

@@ -1,109 +1,132 @@
 """
-Acceptance tests for the degenerate-run guard added to the paper-claim
-and smoke validators (P2 follow-up).
+Integration tests for validate_paper_claims claims-mode runtime under the
+strong validity predicate (resume-prompt-7).
 
-The guard reads ``run_valid`` / ``solver_fail_fraction`` / ``global_replans``
-on every input row and refuses to emit a Confirmed verdict when any
-supporting row failed the check.  Both validators must:
+History: this file was the P2-follow-up acceptance test for the lenient
+classifier that parsed ``run_valid`` / explicit ``solver_fail_fraction``
+fields and fell back to a computed fraction for legacy CSVs.
+Resume-prompt-7 replaced that classifier with the five-clause strong
+predicate of audit 09 + audit 11 + Decision 4c.  The six classifier-detail
+unit tests that pinned the OLD predicate (``test_classifier_*`` and
+``test_classifier_legacy_row_with_no_signal_passes``) tested behavior
+that no longer exists -- the legacy "no signal => valid" path is now
+"missing-required-columns => invalid" by design (audit 08).  Their
+intent is covered by tests/test_validity_predicate.py, which pins the
+new predicate clause by clause.
 
-* exit non-zero when any input row fails the guard,
-* keep cleanly validating data that passes the guard,
-* expose the per-row reasons in the report / GO-NO-GO output.
+What remains here is the higher-level integration contract:
+
+* ``partition_validity`` returns split-by-validity lists in input order
+  (the new predicate, applied row by row, still produces the same
+  partition semantics).
+* The CLI exits 0 on a clean CSV, 3 on a CSV with any invalid row.
+* The markdown report's Invalid section is correctly populated and the
+  per-claim filter logic stays decoupled from sweep-level invalidity.
+
+Every healthy row in this file now carries the seven strong-predicate
+required columns (``status``, ``global_replans``, ``solver_timeouts``,
+``solver_errors``, ``deadlock_count``, ``num_agents``,
+``throughput_utilization``) at clean defaults so the integration tests
+exercise the legitimate verdict paths, not the missing-columns
+precondition.
 """
 from __future__ import annotations
 
 import csv
 import sys
-import textwrap
 from pathlib import Path
 from typing import Any, Dict, List
 
-import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.evaluation.validate_paper_claims import (  # noqa: E402
-    DEFAULT_VALIDITY_THRESHOLD,
-    ValidityReport,
     classify_row_validity,
     main as validate_paper_claims_main,
     partition_validity,
-    run_validation,
 )
 
 
+# Strong-predicate clean defaults stamped onto every fixture row by
+# ``_with_strong_defaults``.  Mirrors the helper in test_paper_claims.py.
+_STRONG_DEFAULTS = {
+    "status": "ok",
+    "global_replans": 100,
+    "solver_timeouts": 0,
+    "solver_errors": 0,
+    "deadlock_count": 0,
+    "num_agents": 50,
+    "throughput_utilization": 0.5,
+}
+
+
+def _with_strong_defaults(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    for r in rows:
+        for k, v in _STRONG_DEFAULTS.items():
+            r.setdefault(k, v)
+    return rows
+
+
 # ---------------------------------------------------------------------------
-# Classifier unit cases
+# partition_validity contract: split + preserve order
 # ---------------------------------------------------------------------------
-
-
-def test_classifier_passes_healthy_row():
-    """Healthy row -- non-degenerate solver, all P2 columns absent --
-    returns ``None`` (i.e. valid).  This is the legacy-CSV path."""
-    row = {"solver_errors": 0, "solver_timeouts": 0, "global_replans": 100}
-    assert classify_row_validity(row, 0.05) is None
-
-
-def test_classifier_trips_on_explicit_run_valid_false():
-    reason = classify_row_validity({"run_valid": "False"}, 0.05)
-    assert reason is not None and "run_valid" in reason
-
-
-def test_classifier_trips_on_explicit_solver_fail_fraction():
-    reason = classify_row_validity({"solver_fail_fraction": 0.5}, 0.05)
-    assert reason is not None and "solver_fail_fraction=0.5" in reason
-
-
-def test_classifier_trips_on_computed_solver_fail_fraction():
-    """Legacy CSVs lack ``solver_fail_fraction`` but carry the raw
-    counters; the classifier must compute the ratio and trip on it."""
-    row = {"solver_errors": 100, "solver_timeouts": 0, "global_replans": 100}
-    reason = classify_row_validity(row, 0.05)
-    assert reason is not None
-    assert "computed solver_fail_fraction=1.0000" in reason
-
-
-def test_classifier_trips_on_zero_global_replans():
-    reason = classify_row_validity({"global_replans": 0}, 0.05)
-    assert reason is not None and "global_replans=0" in reason
-
-
-def test_classifier_legacy_row_with_no_signal_passes():
-    """A row with none of the validity columns present should not
-    be classified as invalid -- we have no signal."""
-    assert classify_row_validity({"throughput": 0.5}, 0.05) is None
-
-
 def test_partition_validity_splits_and_preserves_order():
-    rows: List[Dict[str, Any]] = [
-        {"run_id": "ok1", "global_replans": 100, "solver_errors": 1},
-        {"run_id": "bad1", "global_replans": 100, "solver_errors": 100},
-        {"run_id": "ok2", "global_replans": 50, "solver_errors": 2},
+    """Two clean rows interleaved with two clause-failing rows.  The
+    valid + invalid lists must split in input order with no reordering.
+
+    Replaces the legacy version of this test (which used
+    ``run_valid=False`` / oversized ``solver_errors`` as the failure
+    signal).  Under the strong predicate the perturbations that make a
+    row invalid are different (clause 1: status, clause 2:
+    global_replans, etc.); the partition semantics are unchanged.
+    """
+    rows: List[Dict[str, Any]] = _with_strong_defaults([
+        {"run_id": "ok1"},
+        # Clause 1: crash.
+        {"run_id": "bad1", "status": "error"},
+        {"run_id": "ok2"},
+        # Clause 2: no-global-replan.
         {"run_id": "bad2", "global_replans": 0},
-    ]
+    ])
     valid, invalid = partition_validity(rows, 0.05)
     assert [r["run_id"] for r in valid] == ["ok1", "ok2"]
     assert [r["run_id"] for r, _ in invalid] == ["bad1", "bad2"]
     assert all(reason for _, reason in invalid)
 
 
-# ---------------------------------------------------------------------------
-# End-to-end: validate_paper_claims main()
-# ---------------------------------------------------------------------------
+def test_classify_row_validity_legacy_threshold_kwarg_is_noop():
+    """The legacy ``threshold`` keyword is preserved for back-compat
+    (claims-mode CLI used to expose ``--validity-threshold``) but is a
+    no-op under the strong predicate -- clause 3's threshold is locked
+    at 0.05 per Decision 4c.
+
+    A row whose solver-fail fraction is 0.06 trips clause 3 regardless
+    of whether the caller passes the default 0.05 or a permissive 0.50;
+    the locked threshold ignores the kwarg.
+    """
+    row = dict(_STRONG_DEFAULTS, solver_errors=6)  # 6/100 = 0.06
+    assert classify_row_validity(row, 0.05) is not None
+    # Passing 0.50 would have allowed it under the old behavior; under
+    # the locked threshold it is still invalid.
+    assert classify_row_validity(row, 0.50) is not None
 
 
+# ---------------------------------------------------------------------------
+# End-to-end: validate_paper_claims main() (claims mode)
+# ---------------------------------------------------------------------------
 _HEALTHY_RUN = {
     "run_id": "abc", "experiment": "x",
     "method": "ours", "global_solver": "lacam3",
     "horizon": 20, "map_path": "data/maps/random-64-64-10.map",
     "map_stem": "random-64-64-10",
     "num_agents": 50, "num_humans": 20, "seed": 0,
-    "throughput": 0.10, "status": "ok",
-    # Validity columns
-    "run_valid": True, "solver_fail_fraction": 0.0,
-    "global_replans": 100, "solver_errors": 0, "solver_timeouts": 0,
+    "throughput": 0.10,
+    # Strong-predicate required columns at clean defaults.
+    "status": "ok", "global_replans": 100,
+    "solver_errors": 0, "solver_timeouts": 0,
+    "deadlock_count": 0, "throughput_utilization": 0.5,
     "wall_clock_s": 1.0, "error_msg": "",
 }
 
@@ -147,8 +170,8 @@ def _make_results_tree(root: Path, source: str, rows: List[Dict[str, Any]]) -> N
 
 
 def test_clean_csv_runs_validator_with_exit_zero(tmp_path: Path):
-    """Healthy input -- every row passes the guard -- gives a normal
-    Confirmed verdict and the harness exits 0."""
+    """Every row passes the strong predicate -> a normal Confirmed
+    verdict and exit code 0."""
     results_root = tmp_path / "logs"
     _make_results_tree(results_root, "solver_sensitivity", [_HEALTHY_RUN])
     claims_path = tmp_path / "claims.yaml"
@@ -170,18 +193,18 @@ def test_clean_csv_runs_validator_with_exit_zero(tmp_path: Path):
     assert "## Invalid input rows" not in report
 
 
-def test_solver_errors_100_csv_yields_invalid_and_exit_3(tmp_path: Path):
-    """The acceptance scenario from the task spec: feeding the
-    harness rows that look like the existing ``solver_errors_mean = 100``
-    artifacts (per-run rows with solver_errors = global_replans) yields
-    an Invalid verdict and exit code 3, NOT Confirmed."""
+def test_solver_errors_csv_yields_invalid_and_exit_3(tmp_path: Path):
+    """A row whose solver-fail fraction trips clause 3 yields an
+    Invalid verdict (not Confirmed) and exit code 3.
+
+    Replaces the legacy ``solver_errors_mean=100`` scenario from the
+    original P2 acceptance test; the perturbation is now ``solver_errors
+    > 5%`` (the locked clause-3 threshold)."""
     bad_run = dict(_HEALTHY_RUN)
     bad_run.update({
         "run_id": "deg",
-        "run_valid": False,
-        "solver_fail_fraction": 1.0,
-        "solver_errors": 100,
-        "global_replans": 100,
+        # 6/100 = 0.06 > 0.05 (clause 3 fires).
+        "solver_errors": 6,
     })
     results_root = tmp_path / "logs"
     _make_results_tree(results_root, "solver_sensitivity",
@@ -205,25 +228,32 @@ def test_solver_errors_100_csv_yields_invalid_and_exit_3(tmp_path: Path):
     assert "## Confirmed (1)" not in report
     # Run id of the tainted row appears in the Invalid section.
     assert "deg" in report
+    # The named reason in the report is the canonical clause-3 name.
+    assert "solver-fail-fraction" in report
 
 
-def test_legacy_csv_without_validity_columns_is_caught_by_computed_fraction(tmp_path: Path):
-    """A legacy CSV that predates ``run_valid`` / ``solver_fail_fraction``
-    but still carries ``solver_errors`` + ``global_replans`` must
-    trip the guard via the computed fraction."""
-    legacy_bad = {
+def test_legacy_csv_without_required_columns_is_caught_by_missing_cols(tmp_path: Path):
+    """A legacy CSV that predates the strong predicate's required column
+    set (e.g. missing ``deadlock_count`` and ``throughput_utilization``)
+    trips the missing-required-columns precondition on every row.
+
+    Replaces the legacy "caught by computed solver_fail_fraction" test:
+    the strong predicate's precondition fires first, and the named
+    reason in the Invalid section is now ``missing-required-columns``."""
+    legacy_row = {
         "run_id": "legacy", "experiment": "x",
         "method": "ours", "global_solver": "lacam3",
         "horizon": 20, "map_path": "data/maps/random-64-64-10.map",
         "map_stem": "random-64-64-10",
         "num_agents": 50, "num_humans": 20, "seed": 0,
         "throughput": 0.10, "status": "ok",
-        # NO run_valid / solver_fail_fraction columns
+        # Has the legacy counters but NOT the new required columns
+        # (deadlock_count, throughput_utilization).
         "solver_errors": 50, "solver_timeouts": 50, "global_replans": 100,
         "wall_clock_s": 1.0, "error_msg": "",
     }
     results_root = tmp_path / "logs"
-    _make_results_tree(results_root, "solver_sensitivity", [legacy_bad])
+    _make_results_tree(results_root, "solver_sensitivity", [legacy_row])
     claims_path = tmp_path / "claims.yaml"
     _write_claims_yaml(claims_path)
     out = tmp_path / "report.md"
@@ -237,23 +267,24 @@ def test_legacy_csv_without_validity_columns_is_caught_by_computed_fraction(tmp_
     ])
     assert rc == 3
     report = out.read_text()
-    assert "computed solver_fail_fraction" in report
+    assert "missing-required-columns" in report
 
 
 def test_invalid_row_outside_claim_filter_does_not_taint_other_claims(tmp_path: Path):
     """An invalid row that does not match a claim's filter should not
-    block that claim's Confirmed verdict.  The harness still exits
-    non-zero overall because invalid rows exist somewhere in the
-    sweep, but per-claim verdicts are not falsely demoted."""
+    block that claim's Confirmed verdict.  The harness still exits 3
+    overall (invalid rows exist somewhere in the sweep), but per-claim
+    verdicts are not falsely demoted."""
     # Healthy: map_stem=random-64-64-10 (matches the claim filter).
-    # Invalid: map_stem=warehouse-10-20-10-2-2 (does NOT match).
+    # Invalid: map_stem=warehouse-10-20-10-2-2 (does NOT match), tripped
+    # by clause 3.
     other_invalid = dict(_HEALTHY_RUN)
     other_invalid.update({
         "run_id": "warehouse_bad",
         "map_path": "data/maps/warehouse-10-20-10-2-2.map",
         "map_stem": "warehouse-10-20-10-2-2",
-        "run_valid": False,
-        "solver_fail_fraction": 0.99,
+        # 99/100 = 0.99 > 0.05 (clause 3).
+        "solver_errors": 99,
     })
     results_root = tmp_path / "logs"
     _make_results_tree(results_root, "solver_sensitivity",
@@ -273,10 +304,9 @@ def test_invalid_row_outside_claim_filter_does_not_taint_other_claims(tmp_path: 
     assert rc == 3
     report = out.read_text()
     # ... but the claim itself can still be evaluated (its filter
-    # excludes the invalid row), so a non-Invalid verdict should
-    # appear for this claim.
+    # excludes the invalid row), so a non-Invalid verdict appears for
+    # this claim.
     assert "smoke_throughput_floor" in report
-    # The Invalid section must NOT mention this claim as Invalid.
     invalid_block_start = report.find("## Invalid (")
     if invalid_block_start != -1:
         invalid_block_end = report.find("## ", invalid_block_start + 5)
@@ -285,10 +315,10 @@ def test_invalid_row_outside_claim_filter_does_not_taint_other_claims(tmp_path: 
 
 
 def test_top_line_summary_format(tmp_path: Path):
-    """Spec: 'Add a top-line summary: N rows, M valid, K invalid'.
-    Verify it appears in the markdown header."""
-    bad = dict(_HEALTHY_RUN); bad["run_id"] = "b"
-    bad["run_valid"] = False; bad["solver_fail_fraction"] = 1.0
+    """The markdown header carries 'N=<rows> (valid <m>, invalid <k>)'.
+    Three rows in, one tripped by clause 1 (crash): expect N=3, valid 2,
+    invalid 1."""
+    bad = dict(_HEALTHY_RUN); bad["run_id"] = "b"; bad["status"] = "error"
     results_root = tmp_path / "logs"
     _make_results_tree(results_root, "solver_sensitivity",
                        [_HEALTHY_RUN, dict(_HEALTHY_RUN, run_id="g2"), bad])
