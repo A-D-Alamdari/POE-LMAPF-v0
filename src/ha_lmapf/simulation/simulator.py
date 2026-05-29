@@ -254,6 +254,17 @@ class Simulator:
         # semantics live in ``tests/test_response_attributable.py``.
         self._encroached_last_tick: Set[int] = set()
         self._encroached_this_tick: Set[int] = set()
+        # Resume-prompt-5 (option II): agents that the γ evade
+        # controller flagged as predicted-encroached during THIS
+        # tick's decide phase (step 5b), before any human move.
+        # Read by the Def-1 classifier (step 8) in the SAME tick --
+        # a predicted encroachment this tick gets the same
+        # response-attribution routing as a realized encroachment
+        # last tick.  Cleared by ``_promote_encroachment_memory``
+        # at end-of-tick (it does NOT carry over to next tick's
+        # ``_encroached_last_tick``; each tick re-derives its
+        # prediction).  Populated by AgentController.decide_action.
+        self._predicted_encroached_this_tick: Set[int] = set()
 
         # 6. Initialize: Global Planner
         # Resolve solver timeout: paper Section 5.1 ``solver_timeout_s``
@@ -1083,20 +1094,30 @@ class Simulator:
         self.humans = self.human_model.step(self.env, self.humans, self.rng, agent_positions)
 
     def _promote_encroachment_memory(self) -> None:
-        """Resume-prompt-3: promote this tick's encroachment set to
-        ``_encroached_last_tick`` so the NEXT tick's Def-1
-        classifier can consult it, then clear this tick's set.
-        Copy-then-clear gives a one-tick-deep memory: two ticks
-        after an encroachment, ``_encroached_last_tick`` is empty
-        again and the agent is back on the ordinary
+        """Resume-prompt-3 / prompt-5: promote this tick's REALIZED
+        encroachment set to ``_encroached_last_tick`` so the NEXT
+        tick's Def-1 classifier can consult it, then clear both the
+        realized-this-tick and the PREDICTED-this-tick sets.
+
+        Copy-then-clear gives the realized memory a one-tick depth:
+        two ticks after an encroachment, ``_encroached_last_tick``
+        is empty again and the agent is back on the ordinary
         agent/exogenous attribution path.  A sticky promotion
         (e.g. ``last |= this``) would mis-attribute follow-up
         buffer events as response forever; the regression test
         ``test_response_bucket_clears_after_one_tick`` calls this
-        method directly so any drift between the contract and
-        the implementation surfaces immediately."""
+        method directly so any drift surfaces immediately.
+
+        The PREDICTED set (option II, resume-prompt-5) is a pure
+        within-tick tag: it is written by the γ controller during
+        the decide phase and consumed by the classifier later in
+        the SAME tick, so it must NOT carry over -- it is cleared
+        here, not promoted into ``_encroached_last_tick``.  The
+        next tick's γ controller re-derives prediction from
+        scratch."""
         self._encroached_last_tick = self._encroached_this_tick.copy()
         self._encroached_this_tick = set()
+        self._predicted_encroached_this_tick = set()
 
     def _detect_collisions_and_near_misses(
             self,
@@ -1284,33 +1305,42 @@ class Simulator:
                                  + abs(a_new[1] - hp[1])) <= safety_r
                             for _hid_obs, hp in observed_pairs
                         )
-                        # Three-way Def-1 attribution
-                        # (resume-prompt-3).  Branches in order:
+                        # Three-way Def-1 attribution (resume-prompt-3,
+                        # extended for predicted encroachment in
+                        # prompt-5 option II).  Branches in order:
                         #
-                        #  (1) RESPONSE -- ``aid`` was tagged in
-                        #      ``_encroached_last_tick`` by the
-                        #      previous tick's step-4a vertex-
-                        #      collision pass.  Any (a, *) violation
-                        #      pair this tick is a consequence of
-                        #      that encroachment, not a new agent or
-                        #      exogenous fact.  Covers both cases:
-                        #      (a) the agent moved this tick to
-                        #          escape the encroacher and stepped
-                        #          into another human's buffer; and
-                        #      (b) the agent stayed put (Safe Wait)
-                        #          and the original encroacher is
-                        #          still within ``r_safe``.  In both
-                        #      cases the cause-vs-consequence is
-                        #      "encroachment first, violation
-                        #      after," so the pair is routed to
-                        #      ``response_attributable`` REGARDLESS
-                        #      of geometry.  Response has no
-                        #      d0/dgt0 split (Decision 3 of the
-                        #      resume plan): response moves are
-                        #      always made FROM distance 0 to
-                        #      somewhere, so the destination's
-                        #      distance to ANOTHER human is not
-                        #      the meaningful axis.
+                        #  (1) RESPONSE -- ``aid`` was tagged either
+                        #      in ``_encroached_last_tick`` (a REALIZED
+                        #      distance-0 event detected by the
+                        #      previous tick's step-4a pass) OR in
+                        #      ``_predicted_encroached_this_tick`` (the
+                        #      γ evade controller flagged a PREDICTED
+                        #      imminent encroachment during this tick's
+                        #      decide phase).  Either way any (a, *)
+                        #      violation pair this tick is a consequence
+                        #      of the encroachment -- realized or
+                        #      predicted -- not a new agent or exogenous
+                        #      fact.  The paper-side framing:
+                        #      response-attributable covers BOTH
+                        #      realized and predicted encroachments.
+                        #      Covers the realized sub-cases:
+                        #      (a) the agent moved to escape the
+                        #          encroacher and entered another
+                        #          human's buffer; and
+                        #      (b) the agent Safe-Waited and the
+                        #          original encroacher is still within
+                        #          ``r_safe``.
+                        #      And the predicted sub-case: γ steered
+                        #      the agent away from (or into a Safe Wait
+                        #      because of) a predicted-incoming human.
+                        #      In all cases the pair is routed to
+                        #      ``response_attributable`` REGARDLESS of
+                        #      geometry.  Response has no d0/dgt0 split
+                        #      (Decision 3): response moves are always
+                        #      made FROM distance 0 (or a predicted
+                        #      distance-0) to somewhere, so the
+                        #      destination's distance to ANOTHER human
+                        #      is not the meaningful axis.
                         #
                         #  (2) AGENT-ATTRIBUTABLE -- the canonical
                         #      Theorem-1 clause: some observed
@@ -1330,8 +1360,10 @@ class Simulator:
                         # agent or exogenous buckets even when the
                         # geometry would otherwise put it there
                         # (the cause-vs-consequence ordering would
-                        # be inverted).
-                        if aid in self._encroached_last_tick:
+                        # be inverted).  The two memories OR together
+                        # and are both read-only during this pass.
+                        if (aid in self._encroached_last_tick
+                                or aid in self._predicted_encroached_this_tick):
                             self.metrics.add_def1_response_attributable_violation(1)
                         elif def1_attr:
                             self.metrics.add_def1_agent_attributable_violation(1)

@@ -332,3 +332,97 @@ def test_three_bucket_invariant_survives_response_branch():
     assert (m.violations_def1_exogenous_attributable
             == m.violations_def1_exogenous_attributable_d0
             + m.violations_def1_exogenous_attributable_dgt0)
+
+
+# ===========================================================================
+# Resume-prompt-5 STAGE 2 — predicted-encroachment memory extension
+# ===========================================================================
+#
+# These tests cover the classifier consuming the new
+# ``_predicted_encroached_this_tick`` set (populated by the γ controller
+# in stage 3) and the end-of-tick clearing contract.  They bypass the
+# controller by writing the predicted set directly.
+
+
+def test_predicted_encroached_routes_to_response(map5x5):
+    """An agent in ``_predicted_encroached_this_tick`` (but NOT in
+    ``_encroached_last_tick``) whose move would otherwise be
+    agent-attributable must route to response.  Same geometry as the
+    prompt-3 realized-takeover test, but driven through the predicted
+    memory."""
+    sim = _make_sim(map5x5, fov_radius=3, safety_radius=1,
+                    humans_block_on_agent_cells=False)
+    sim.agents = {0: AgentState(agent_id=0, pos=(2, 0))}
+    sim.humans = {0: HumanState(human_id=0, pos=(3, 0))}
+
+    prev_pos = {0: (0, 0)}
+    new_pos = {0: (2, 0)}
+    pre = {0: HumanState(human_id=0, pos=(3, 0))}
+    post = {0: HumanState(human_id=0, pos=(3, 0))}
+
+    # Predicted (not realized) encroachment on agent 0 this tick.
+    assert sim._encroached_last_tick == set()
+    sim._predicted_encroached_this_tick = {0}
+
+    sim._detect_collisions_and_near_misses(
+        prev_pos, new_pos, post, humans_pre_move=pre,
+    )
+    m = sim.metrics.finalize(total_steps=1)
+
+    assert m.violations_def1_safety_violations == 1
+    assert m.violations_def1_response_attributable == 1, (
+        "Predicted-encroached agent's violation must route to response."
+    )
+    assert m.violations_def1_agent_attributable == 0
+    assert m.violations_def1_exogenous_attributable == 0
+
+
+def test_both_memories_clear_at_end_of_tick():
+    """Populate BOTH realized-this-tick and predicted-this-tick;
+    after promotion ``_encroached_last_tick`` reflects the realized
+    set (existing behavior) and the predicted set is empty."""
+    cfg = SimConfig(
+        map_path=SMOKE_MAP, seed=0, steps=1,
+        num_agents=0, num_humans=0,
+        fov_radius=2, safety_radius=1,
+        global_solver="cbs", replan_every=1, horizon=1,
+        human_model="random_walk", mode="one_shot",
+        humans_block_on_agent_cells=False,
+    )
+    sim = Simulator(cfg)
+    sim._encroached_this_tick = {2}
+    sim._predicted_encroached_this_tick = {5}
+
+    sim._promote_encroachment_memory()
+
+    assert sim._encroached_last_tick == {2}, (
+        "Realized-this-tick must promote into last_tick."
+    )
+    assert sim._encroached_this_tick == set()
+    assert sim._predicted_encroached_this_tick == set(), (
+        "Predicted set must be cleared at end of tick."
+    )
+
+
+def test_predicted_alone_is_not_in_last_tick():
+    """The predicted set is a single-tick tag: it must NOT carry over
+    into the next tick's ``_encroached_last_tick``."""
+    cfg = SimConfig(
+        map_path=SMOKE_MAP, seed=0, steps=1,
+        num_agents=0, num_humans=0,
+        fov_radius=2, safety_radius=1,
+        global_solver="cbs", replan_every=1, horizon=1,
+        human_model="random_walk", mode="one_shot",
+        humans_block_on_agent_cells=False,
+    )
+    sim = Simulator(cfg)
+    sim._encroached_this_tick = set()
+    sim._predicted_encroached_this_tick = {3}
+
+    sim._promote_encroachment_memory()
+
+    assert 3 not in sim._encroached_last_tick, (
+        "Predicted encroachment must not carry over to next tick's "
+        "last_tick; each tick re-derives prediction."
+    )
+    assert sim._encroached_last_tick == set()
