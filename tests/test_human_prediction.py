@@ -256,3 +256,221 @@ class TestMyopicPredictorInterface:
         """Can set include_neighbors to False."""
         predictor = MyopicPredictor(include_neighbors=False)
         assert predictor.include_neighbors is False
+
+
+# ===========================================================================
+# Resume-prompt-5 STAGE 1 — HumanModel.predict_next interface
+# ===========================================================================
+#
+# These tests cover the non-mutating one-tick prediction interface added
+# to all five human models for the γ (evade) algorithm variant.  They are
+# distinct from the MyopicPredictor tests above (a different abstraction).
+
+import copy
+import numpy as np
+from scipy import stats
+
+from ha_lmapf.simulation.environment import Environment
+from ha_lmapf.humans.models import (
+    RandomWalkHumanModel,
+    AisleFollowerHumanModel,
+    AdversarialHumanModel,
+    MixedPopulationHumanModel,
+    ReplayHumanModel,
+)
+
+
+def _empty_env(n=7):
+    return Environment(width=n, height=n, blocked=set())
+
+
+def _corridor_env():
+    # 3x3 with all of human(1,1)'s neighbors blocked except (1,2),
+    # forcing a single legal non-current successor.
+    return Environment(width=3, height=3, blocked={(0, 1), (2, 1), (1, 0)})
+
+
+def _all_five_models():
+    """One warmed instance of each model (False regime so the blocking
+    branch is exercised where relevant).  Replay gets a short trajectory."""
+    return {
+        "random_walk": RandomWalkHumanModel(humans_block_on_agent_cells=False),
+        "aisle": AisleFollowerHumanModel(humans_block_on_agent_cells=False),
+        "adversarial": AdversarialHumanModel(humans_block_on_agent_cells=False),
+        "mixed": MixedPopulationHumanModel(
+            models={
+                "random_walk": RandomWalkHumanModel(humans_block_on_agent_cells=False),
+                "aisle": AisleFollowerHumanModel(humans_block_on_agent_cells=False),
+            },
+            weights={"random_walk": 0.5, "aisle": 0.5},
+            humans_block_on_agent_cells=False,
+        ),
+        "replay": ReplayHumanModel(
+            trajectories={0: [(5, 5), (5, 6), (6, 6)], 1: [(2, 2), (2, 3), (2, 4)]},
+        ),
+    }
+
+
+def _two_humans():
+    return {
+        0: HumanState(human_id=0, pos=(5, 5), velocity=(0, 1)),
+        1: HumanState(human_id=1, pos=(2, 2), velocity=(1, 0)),
+    }
+
+
+def test_predict_next_does_not_mutate_state():
+    """For each of the five models: warm any lazy caches, snapshot the
+    model state and a companion RNG, call predict_next, and assert
+    nothing changed.  This is the test that catches a predict_next
+    that secretly calls step() (which would advance _step / assignments
+    or consume the RNG)."""
+    env = _empty_env()
+    humans = _two_humans()
+    for name, model in _all_five_models().items():
+        # Warm lazy caches (phi / bottleneck) with a first call so the
+        # memoization population is not mistaken for a mutation.
+        model.predict_next(env, humans, agent_positions=None)
+
+        before = repr(model.__dict__)
+        rng = np.random.default_rng(0)
+        rng_state_before = rng.bit_generator.state
+
+        model.predict_next(env, humans, agent_positions=None)
+
+        assert repr(model.__dict__) == before, (
+            f"{name}: predict_next mutated model state."
+        )
+        # predict_next takes no rng and must not advance one.
+        assert rng.bit_generator.state == rng_state_before, (
+            f"{name}: predict_next advanced an RNG."
+        )
+
+
+def test_predict_next_probabilities_sum_to_one():
+    """Each per-human distribution sums to 1.0 within 1e-9."""
+    env = _empty_env()
+    humans = _two_humans()
+    for name, model in _all_five_models().items():
+        preds = model.predict_next(env, humans, agent_positions=None)
+        assert set(preds.keys()) == set(humans.keys()), name
+        for hid, dist in preds.items():
+            total = sum(dist.values())
+            assert abs(total - 1.0) < 1e-9, (
+                f"{name} human {hid}: probabilities sum to {total}, not 1.0"
+            )
+
+
+def test_predict_next_respects_blocking_regime():
+    """3x3 corridor: human at (1,1) has a single legal non-current
+    successor (1,2); an agent sits there.  Under True that cell has
+    probability 0; under False it has probability > 0."""
+    env = _corridor_env()
+    humans = {0: HumanState(human_id=0, pos=(1, 1), velocity=(0, 0))}
+    agent_positions = {99: (1, 2)}
+
+    blocking_models = {
+        "random_walk": RandomWalkHumanModel,
+        "aisle": AisleFollowerHumanModel,
+        "adversarial": AdversarialHumanModel,
+    }
+    for name, cls in blocking_models.items():
+        m_true = cls(humans_block_on_agent_cells=True)
+        m_false = cls(humans_block_on_agent_cells=False)
+        d_true = m_true.predict_next(env, humans, agent_positions)[0]
+        d_false = m_false.predict_next(env, humans, agent_positions)[0]
+        assert d_true.get((1, 2), 0.0) == 0.0, (
+            f"{name}: True regime gave (1,2) prob {d_true.get((1, 2))}; "
+            f"should be 0 (agent blocks it)."
+        )
+        assert d_false.get((1, 2), 0.0) > 0.0, (
+            f"{name}: False regime gave (1,2) prob 0; should be > 0."
+        )
+
+    # Mixed delegates to its sub-models; same expectation.
+    m_true = MixedPopulationHumanModel(
+        models={"random_walk": RandomWalkHumanModel(humans_block_on_agent_cells=True)},
+        weights={"random_walk": 1.0},
+        humans_block_on_agent_cells=True,
+    )
+    m_false = MixedPopulationHumanModel(
+        models={"random_walk": RandomWalkHumanModel(humans_block_on_agent_cells=False)},
+        weights={"random_walk": 1.0},
+        humans_block_on_agent_cells=False,
+    )
+    assert m_true.predict_next(env, humans, agent_positions)[0].get((1, 2), 0.0) == 0.0
+    assert m_false.predict_next(env, humans, agent_positions)[0].get((1, 2), 0.0) > 0.0
+
+
+def test_replay_predict_next_is_delta_on_next_recorded():
+    """ReplayHumanModel.predict_next returns a single-cell delta on the
+    next recorded position at each step, and a delta on the current
+    position once the trajectory is exhausted."""
+    env = _empty_env()
+    traj = {0: [(1, 1), (1, 2), (1, 3)]}
+    model = ReplayHumanModel(trajectories=traj)
+    humans = {0: HumanState(human_id=0, pos=(1, 1), velocity=(0, 0))}
+
+    # step 0 -> predict next recorded (1,2)
+    d = model.predict_next(env, humans)[0]
+    assert d == {(1, 2): 1.0}, d
+    humans = model.step(env, humans, np.random.default_rng(0))
+
+    # step 1 -> predict next recorded (1,3)
+    d = model.predict_next(env, humans)[0]
+    assert d == {(1, 3): 1.0}, d
+    humans = model.step(env, humans, np.random.default_rng(0))
+
+    # trajectory exhausted -> delta on current position
+    d = model.predict_next(env, humans)[0]
+    assert d == {humans[0].pos: 1.0}, d
+
+
+def _chisquare_predict_vs_step(model_factory, env, human, n=2000, seed0=0):
+    """Sample step() n times (fresh RNG each) and chi-square the
+    empirical distribution against predict_next's analytic one."""
+    humans = {0: human}
+    analytic = model_factory().predict_next(env, humans)[0]
+    cells = sorted(analytic.keys())
+    idx = {c: i for i, c in enumerate(cells)}
+    obs = np.zeros(len(cells))
+    for k in range(n):
+        m = model_factory()
+        rng = np.random.default_rng(seed0 + k)
+        nxt = m.step(env, humans, rng)[0].pos
+        # step may produce a cell only if it's a legal successor; the
+        # analytic dist covers exactly those, so this never KeyErrors.
+        obs[idx[nxt]] += 1
+    exp = np.array([analytic[c] * n for c in cells])
+    # Drop cells with tiny expected counts to keep the chi-square valid.
+    keep = exp >= 5
+    chi2, p = stats.chisquare(obs[keep], exp[keep])
+    return p, dict(zip(cells, obs.astype(int)))
+
+
+def test_predict_next_agrees_with_step_marginally():
+    """The analytic prediction must match the process step() samples.
+    Verified on three (model, env) fixtures; each must clear p > 0.01."""
+    fixtures = [
+        ("random_walk/empty",
+         lambda: RandomWalkHumanModel(),
+         _empty_env(),
+         HumanState(human_id=0, pos=(3, 3), velocity=(0, 1))),
+        ("aisle/empty",
+         lambda: AisleFollowerHumanModel(),
+         _empty_env(),
+         HumanState(human_id=0, pos=(3, 3), velocity=(1, 0))),
+        ("adversarial/empty",
+         lambda: AdversarialHumanModel(),
+         _empty_env(),
+         HumanState(human_id=0, pos=(3, 3), velocity=(0, 1))),
+    ]
+    results = {}
+    for name, factory, env, human in fixtures:
+        p, counts = _chisquare_predict_vs_step(factory, env, human)
+        results[name] = p
+        assert p > 0.01, (
+            f"{name}: chi-square p={p:.4f} <= 0.01; predict_next does "
+            f"not match the step() process.  counts={counts}"
+        )
+    # Surface the p-values for the commit-message record.
+    print("STAGE1 chi-square p-values:", {k: round(v, 4) for k, v in results.items()})

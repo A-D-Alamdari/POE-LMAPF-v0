@@ -62,6 +62,41 @@ class HumanModel:
         """
         raise NotImplementedError
 
+    def predict_next(
+            self,
+            env,
+            humans: Dict[int, HumanState],
+            agent_positions=None,
+    ) -> Dict[int, Dict[Cell, float]]:
+        """
+        Predict the per-human distribution over next-tick cells WITHOUT
+        mutating model state or human positions. Returns a mapping
+        ``{human_id: {cell: probability}}``. Probabilities per human
+        sum to 1.0. Caller treats any cell with probability > 0 as a
+        candidate next-tick location.
+
+        ``agent_positions`` is consulted exactly as in ``step``: under
+        ``humans_block_on_agent_cells=True`` it filters candidates;
+        under False it does not.  It may be a ``Set[Cell]`` (as
+        ``step`` receives) or a ``Dict[int, Cell]`` (as the γ
+        controller passes); both are normalized internally.
+
+        This method must be deterministic given (env, humans,
+        agent_positions, model state). It does NOT consume RNG; it
+        computes the distribution analytically from the model's
+        policy. Calling ``predict_next`` must leave the model
+        byte-identical to its pre-call state.
+
+        NOTE on the ``humans`` argument: the resume-plan prompt-5
+        sketch wrote ``predict_next(env, agent_positions)`` but the
+        models in this codebase are stateless w.r.t. human positions
+        (``step`` receives ``humans`` per-call).  Predicting per-human
+        distributions therefore requires the current human snapshot,
+        so ``humans`` is a parameter here.  The γ controller passes
+        ``sim_state.simulator.humans`` (the decision-time snapshot).
+        """
+        raise NotImplementedError
+
 
 # ============================================================================
 # Helper utilities
@@ -83,6 +118,20 @@ def _legal_successors(
     return successors
 
 
+def _softmax_probs(scores: np.ndarray) -> np.ndarray:
+    """
+    Convert a vector of Boltzmann logits to a normalized probability
+    vector (no sampling, no RNG).
+
+    Numerically stable (subtract max before exp).  This is the
+    analytic core shared by ``_softmax_sample`` (which samples from
+    it) and every model's ``predict_next`` (which returns it).
+    """
+    shifted = scores - scores.max()
+    exp_scores = np.exp(shifted)
+    return exp_scores / exp_scores.sum()
+
+
 def _softmax_sample(scores: np.ndarray, rng) -> int:
     """
     Sample from a Boltzmann (softmax) distribution.
@@ -94,11 +143,45 @@ def _softmax_sample(scores: np.ndarray, rng) -> int:
     Returns:
         Index of the sampled element.
     """
-    # Numerical stability: subtract max before exp
-    shifted = scores - scores.max()
-    exp_scores = np.exp(shifted)
-    probs = exp_scores / exp_scores.sum()
+    probs = _softmax_probs(scores)
     return int(rng.choice(len(scores), p=probs))
+
+
+def _normalize_agent_cells(agent_positions) -> Set[Cell]:
+    """
+    Resume-prompt-5: normalize the ``agent_positions`` argument to a
+    plain ``Set[Cell]``.
+
+    ``step`` historically receives a ``Set[Cell]``; the γ controller
+    calls ``predict_next`` with the simulator's ``Dict[int, Cell]``
+    (agent_id -> cell).  Both forms (plus ``None``) are accepted so
+    the prediction path and the step path consult agent positions
+    identically.
+    """
+    if agent_positions is None:
+        return set()
+    if isinstance(agent_positions, dict):
+        return set(agent_positions.values())
+    return set(agent_positions)
+
+
+def _distribution_from_scores(
+        successors: List[Cell], scores: Optional[np.ndarray],
+) -> Dict[Cell, float]:
+    """
+    Build a ``{cell: probability}`` distribution from a successor list
+    and its Boltzmann scores.
+
+    When ``scores is None`` the only legal action is WAIT
+    (``successors == [current]``), so the distribution is the
+    degenerate delta ``{current: 1.0}``.  Otherwise it is the softmax
+    over the scored successors, index-aligned with ``successors``.
+    """
+    if scores is None:
+        return {successors[0]: 1.0}
+    probs = _softmax_probs(scores)
+    return {successors[i]: float(probs[i]) for i in range(len(successors))}
+
 
 
 def _continuation_cell(
@@ -164,6 +247,33 @@ class RandomWalkHumanModel(HumanModel):
         # accounted for by the simulator).
         self._humans_block_on_agent_cells = bool(humans_block_on_agent_cells)
 
+    def _blocked_set(self, agent_positions) -> Set[Cell]:
+        cells = _normalize_agent_cells(agent_positions)
+        return cells if self._humans_block_on_agent_cells else set()
+
+    def _score_successors(
+            self, env, h: HumanState, blocked: Set[Cell],
+    ) -> Tuple[List[Cell], Optional[np.ndarray]]:
+        """Factor the Boltzmann scoring out of ``step`` so
+        ``predict_next`` reuses the identical successor set + logits.
+        Returns ``(successors, scores)`` where ``scores is None`` iff
+        only WAIT is legal."""
+        current = h.pos
+        vel = h.velocity
+        cont_cell = _continuation_cell(current, vel, env, blocked)
+        successors = _legal_successors(env, current, blocked)
+        if len(successors) == 1:
+            return successors, None
+        scores = np.empty(len(successors), dtype=np.float64)
+        for i, cell in enumerate(successors):
+            if cell == current:
+                scores[i] = self.beta_wait
+            elif cont_cell is not None and cell == cont_cell:
+                scores[i] = self.beta_go
+            else:
+                scores[i] = self.beta_turn
+        return successors, scores
+
     def step(
             self,
             env,
@@ -172,37 +282,16 @@ class RandomWalkHumanModel(HumanModel):
             agent_positions: Optional[Set[Cell]] = None,
     ) -> Dict[int, HumanState]:
         new_humans: Dict[int, HumanState] = {}
-        blocked = (
-            agent_positions
-            if (agent_positions is not None and self._humans_block_on_agent_cells)
-            else set()
-        )
+        blocked = self._blocked_set(agent_positions)
 
         for hid in sorted(humans.keys()):
             h = humans[hid]
             current = h.pos
-            vel = h.velocity
 
-            # Compute continuation cell (where same direction leads)
-            cont_cell = _continuation_cell(current, vel, env, blocked)
-
-            # Build legal action set A_h(x_h(t))
-            successors = _legal_successors(env, current, blocked)
-
-            if len(successors) == 1:
-                # Only WAIT is possible (trapped)
+            successors, scores = self._score_successors(env, h, blocked)
+            if scores is None:
                 nxt = current
             else:
-                # Assign scores per the Boltzmann model
-                scores = np.empty(len(successors), dtype=np.float64)
-                for i, cell in enumerate(successors):
-                    if cell == current:
-                        scores[i] = self.beta_wait
-                    elif cont_cell is not None and cell == cont_cell:
-                        scores[i] = self.beta_go
-                    else:
-                        scores[i] = self.beta_turn
-
                 idx = _softmax_sample(scores, rng)
                 nxt = successors[idx]
 
@@ -210,6 +299,19 @@ class RandomWalkHumanModel(HumanModel):
             new_humans[hid] = replace(h, pos=nxt, velocity=new_vel)
 
         return new_humans
+
+    def predict_next(
+            self,
+            env,
+            humans: Dict[int, HumanState],
+            agent_positions=None,
+    ) -> Dict[int, Dict[Cell, float]]:
+        blocked = self._blocked_set(agent_positions)
+        out: Dict[int, Dict[Cell, float]] = {}
+        for hid in sorted(humans.keys()):
+            successors, scores = self._score_successors(env, humans[hid], blocked)
+            out[hid] = _distribution_from_scores(successors, scores)
+        return out
 
 
 # ============================================================================
@@ -303,6 +405,30 @@ class AisleFollowerHumanModel(HumanModel):
         self._phi = {cell: -d for cell, d in dist_field.items()}
         self._env_id = env_id
 
+    def _blocked_set(self, agent_positions) -> Set[Cell]:
+        cells = _normalize_agent_cells(agent_positions)
+        return cells if self._humans_block_on_agent_cells else set()
+
+    def _score_successors(
+            self, env, h: HumanState, blocked: Set[Cell],
+    ) -> Tuple[List[Cell], Optional[np.ndarray]]:
+        """Aisle-likelihood Boltzmann scoring, factored for reuse by
+        ``predict_next``.  ``scores is None`` iff only WAIT is legal."""
+        phi = self._phi
+        current = h.pos
+        vel = h.velocity
+        cont_cell = _continuation_cell(current, vel, env, blocked)
+        successors = _legal_successors(env, current, blocked)
+        if len(successors) == 1:
+            return successors, None
+        scores = np.empty(len(successors), dtype=np.float64)
+        for i, cell in enumerate(successors):
+            phi_val = phi.get(cell, 0.0)
+            inertia_bonus = self.beta if (cont_cell is not None and cell == cont_cell) else 0.0
+            stay_penalty = self.wait_penalty if cell == current else 0.0
+            scores[i] = self.alpha * phi_val + inertia_bonus + stay_penalty
+        return successors, scores
+
     def step(
             self,
             env,
@@ -311,34 +437,18 @@ class AisleFollowerHumanModel(HumanModel):
             agent_positions: Optional[Set[Cell]] = None,
     ) -> Dict[int, HumanState]:
         self._ensure_phi(env)
-        phi = self._phi
 
         new_humans: Dict[int, HumanState] = {}
-        blocked = (
-            agent_positions
-            if (agent_positions is not None and self._humans_block_on_agent_cells)
-            else set()
-        )
+        blocked = self._blocked_set(agent_positions)
 
         for hid in sorted(humans.keys()):
             h = humans[hid]
             current = h.pos
-            vel = h.velocity
 
-            cont_cell = _continuation_cell(current, vel, env, blocked)
-            successors = _legal_successors(env, current, blocked)
-
-            if len(successors) == 1:
+            successors, scores = self._score_successors(env, h, blocked)
+            if scores is None:
                 nxt = current
             else:
-                # Boltzmann score: alpha * phi(u) + beta * 1[u in cont] + wait_penalty * 1[u == current]
-                scores = np.empty(len(successors), dtype=np.float64)
-                for i, cell in enumerate(successors):
-                    phi_val = phi.get(cell, 0.0)
-                    inertia_bonus = self.beta if (cont_cell is not None and cell == cont_cell) else 0.0
-                    stay_penalty = self.wait_penalty if cell == current else 0.0
-                    scores[i] = self.alpha * phi_val + inertia_bonus + stay_penalty
-
                 idx = _softmax_sample(scores, rng)
                 nxt = successors[idx]
 
@@ -346,6 +456,20 @@ class AisleFollowerHumanModel(HumanModel):
             new_humans[hid] = replace(h, pos=nxt, velocity=new_vel)
 
         return new_humans
+
+    def predict_next(
+            self,
+            env,
+            humans: Dict[int, HumanState],
+            agent_positions=None,
+    ) -> Dict[int, Dict[Cell, float]]:
+        self._ensure_phi(env)
+        blocked = self._blocked_set(agent_positions)
+        out: Dict[int, Dict[Cell, float]] = {}
+        for hid in sorted(humans.keys()):
+            successors, scores = self._score_successors(env, humans[hid], blocked)
+            out[hid] = _distribution_from_scores(successors, scores)
+        return out
 
 
 # ============================================================================
@@ -450,6 +574,40 @@ class AdversarialHumanModel(HumanModel):
         self._bottleneck = _compute_bottleneck_centrality(env)
         self._env_id = env_id
 
+    def _blocked_set(self, agent_positions) -> Set[Cell]:
+        cells = _normalize_agent_cells(agent_positions)
+        return cells if self._humans_block_on_agent_cells else set()
+
+    def _prepare_fields(self, env, agent_positions):
+        """Compute the (bottleneck, agent_dist, max_dist) target-field
+        inputs shared by ``step`` and ``predict_next``.  The agent-
+        distance field uses the RAW agent positions as sources (regime-
+        independent), not the blocked set -- see the step comment from
+        resume-prompt-2."""
+        self._ensure_bottleneck(env)
+        sources = _normalize_agent_cells(agent_positions)
+        agent_dist = _compute_agent_distance_field(env, sources) if sources else {}
+        max_dist = env.width + env.height
+        return self._bottleneck, agent_dist, max_dist
+
+    def _score_successors(
+            self, env, h: HumanState, blocked: Set[Cell],
+            bottleneck, agent_dist, max_dist,
+    ) -> Tuple[List[Cell], Optional[np.ndarray]]:
+        """Adversarial target-field scoring, factored for reuse by
+        ``predict_next``.  ``scores is None`` iff only WAIT is legal."""
+        current = h.pos
+        successors = _legal_successors(env, current, blocked)
+        if len(successors) == 1:
+            return successors, None
+        scores = np.empty(len(successors), dtype=np.float64)
+        for i, cell in enumerate(successors):
+            b_val = bottleneck.get(cell, 0.0)
+            d_val = -agent_dist.get(cell, max_dist)
+            g_val = self.lambda_ * b_val + (1.0 - self.lambda_) * d_val
+            scores[i] = self.gamma * g_val
+        return successors, scores
+
     def step(
             self,
             env,
@@ -457,29 +615,8 @@ class AdversarialHumanModel(HumanModel):
             rng,
             agent_positions: Optional[Set[Cell]] = None,
     ) -> Dict[int, HumanState]:
-        self._ensure_bottleneck(env)
-        bottleneck = self._bottleneck
-
-        blocked = (
-            agent_positions
-            if (agent_positions is not None and self._humans_block_on_agent_cells)
-            else set()
-        )
-        # The agent-distance field used by the target ``g_t`` is
-        # independent of the regime toggle: in the False regime
-        # humans may STEP into agent cells, but the field still
-        # measures shortest-path distance from each candidate cell
-        # to the nearest agent.  Source set is the raw
-        # ``agent_positions``, not the blocked set.
-        sources = (
-            agent_positions
-            if agent_positions is not None
-            else set()
-        )
-        agent_dist = _compute_agent_distance_field(env, sources) if sources else {}
-
-        # Maximum possible distance for cells unreachable from agents
-        max_dist = env.width + env.height
+        bottleneck, agent_dist, max_dist = self._prepare_fields(env, agent_positions)
+        blocked = self._blocked_set(agent_positions)
 
         new_humans: Dict[int, HumanState] = {}
 
@@ -487,20 +624,11 @@ class AdversarialHumanModel(HumanModel):
             h = humans[hid]
             current = h.pos
 
-            successors = _legal_successors(env, current, blocked)
-
-            if len(successors) == 1:
+            successors, scores = self._score_successors(
+                env, h, blocked, bottleneck, agent_dist, max_dist)
+            if scores is None:
                 nxt = current
             else:
-                # Compute target field g_t(u) for each successor
-                scores = np.empty(len(successors), dtype=np.float64)
-                for i, cell in enumerate(successors):
-                    b_val = bottleneck.get(cell, 0.0)
-                    # Negative distance: closer to agent = higher value
-                    d_val = -agent_dist.get(cell, max_dist)
-                    g_val = self.lambda_ * b_val + (1.0 - self.lambda_) * d_val
-                    scores[i] = self.gamma * g_val
-
                 idx = _softmax_sample(scores, rng)
                 nxt = successors[idx]
 
@@ -508,6 +636,21 @@ class AdversarialHumanModel(HumanModel):
             new_humans[hid] = replace(h, pos=nxt, velocity=new_vel)
 
         return new_humans
+
+    def predict_next(
+            self,
+            env,
+            humans: Dict[int, HumanState],
+            agent_positions=None,
+    ) -> Dict[int, Dict[Cell, float]]:
+        bottleneck, agent_dist, max_dist = self._prepare_fields(env, agent_positions)
+        blocked = self._blocked_set(agent_positions)
+        out: Dict[int, Dict[Cell, float]] = {}
+        for hid in sorted(humans.keys()):
+            successors, scores = self._score_successors(
+                env, humans[hid], blocked, bottleneck, agent_dist, max_dist)
+            out[hid] = _distribution_from_scores(successors, scores)
+        return out
 
 
 # ============================================================================
@@ -593,6 +736,46 @@ class MixedPopulationHumanModel(HumanModel):
 
         return new_humans
 
+    def _predict_assignment(self, human_ids) -> Dict[int, str]:
+        """Resolve the per-human sub-model assignment for prediction
+        WITHOUT consuming RNG or mutating ``self._assignments``.
+
+        Normal path: ``step`` has already run at least once (the
+        simulator advances humans before the controller decides), so
+        ``self._assignments`` is populated and is returned as-is.
+
+        Fallback (predict_next called before any step, e.g. an
+        isolated unit test): assign each human deterministically to
+        the highest-weight sub-model (ties broken by sorted name).
+        This is local-only and never written back, preserving the
+        no-mutation contract.  Per audit 04 §3 each human belongs to
+        exactly one sub-model, which both paths honor."""
+        if self._assigned:
+            return self._assignments
+        names = sorted(self._weights.keys())
+        best = max(names, key=lambda n: (self._weights[n], n))
+        return {hid: best for hid in human_ids}
+
+    def predict_next(
+            self,
+            env,
+            humans: Dict[int, HumanState],
+            agent_positions=None,
+    ) -> Dict[int, Dict[Cell, float]]:
+        assignment = self._predict_assignment(sorted(humans.keys()))
+        # Group humans by assigned sub-model, then merge each
+        # sub-model's prediction.  Each human appears in exactly one
+        # group so the merged dict has no key collisions.
+        groups: Dict[str, Dict[int, HumanState]] = {}
+        for hid in sorted(humans.keys()):
+            groups.setdefault(assignment[hid], {})[hid] = humans[hid]
+        out: Dict[int, Dict[Cell, float]] = {}
+        for model_name in sorted(groups.keys()):
+            sub = self._models[model_name].predict_next(
+                env, groups[model_name], agent_positions)
+            out.update(sub)
+        return out
+
 
 # ============================================================================
 # 5. Replay Humans (Deterministic Trajectory Mode)
@@ -661,6 +844,30 @@ class ReplayHumanModel(HumanModel):
 
         self._step += 1
         return new_humans
+
+    def predict_next(
+            self,
+            env,
+            humans: Dict[int, HumanState],
+            agent_positions=None,
+    ) -> Dict[int, Dict[Cell, float]]:
+        """Degenerate delta on the next recorded position.  Mirrors
+        ``step``'s lookup (``next_step = self._step + 1``) WITHOUT
+        advancing ``self._step``, so the model is byte-identical
+        afterward.  When a trajectory is exhausted the human stays
+        put: ``{current: 1.0}``.  ``agent_positions`` is ignored by
+        design (recorded trajectories are fixed; see class docstring)."""
+        next_step = self._step + 1
+        out: Dict[int, Dict[Cell, float]] = {}
+        for hid in sorted(humans.keys()):
+            h = humans[hid]
+            traj = self._trajectories.get(hid)
+            if traj is not None and next_step < len(traj):
+                nxt = tuple(traj[next_step])
+            else:
+                nxt = h.pos
+            out[hid] = {nxt: 1.0}
+        return out
 
     @classmethod
     def from_json(cls, path: str, env=None) -> "ReplayHumanModel":
