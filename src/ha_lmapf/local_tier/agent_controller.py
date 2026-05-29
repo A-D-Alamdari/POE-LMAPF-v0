@@ -45,6 +45,55 @@ class AgentController:
     fallback_wait_limit: int = 5
     _consecutive_waits: int = 0
 
+    def _predicted_forbidden(self, sim_state: SimStateView) -> set:
+        """γ (evade) predicted-forbidden cell set — resume-prompt-5.
+
+        Returns the set of cells where humans are predicted to be at
+        t+1, each inflated by ``r_safe`` into a Manhattan ball so
+        predicted humans get the SAME buffer treatment as observed
+        ones (geometric symmetry with the observation-forbidden set).
+
+        Empty set (=γ no-op) in three cases:
+          * ``algorithm_variant != "evade"`` (baseline).
+          * ``humans_block_on_agent_cells == True`` (γ defends the
+            False regime; True has nothing to defend against -- the
+            human-step physics already filters agent-occupied cells
+            out of every legal-successor set, so a predicted-
+            forbidden inflation would only deflate throughput
+            without ever preventing a real encroachment).  γ is a
+            literal no-op here, by construction; the True+evade and
+            True+baseline runs execute identical code paths.
+          * No human model is reachable on ``sim_state``.
+
+        RISK-AVERSE semantics (Decision 3, option II): in the False
+        regime a cell is forbidden iff its predicted probability is
+        > 0 -- γ would rather detour around a 1%-likely human than
+        risk a distance-0 encroachment.  The probability-weighted
+        soft-penalty alternative (option I) was explicitly rejected.
+        """
+        cfg = getattr(sim_state, "config", None)
+        if cfg is None or getattr(cfg, "algorithm_variant", "baseline") != "evade":
+            return set()
+        if bool(getattr(cfg, "humans_block_on_agent_cells", True)):
+            return set()
+        human_model = getattr(sim_state, "human_model", None)
+        if human_model is None:
+            return set()
+        predictions = human_model.predict_next(
+            sim_state.env,
+            sim_state.humans,
+            getattr(sim_state, "agent_positions", None),
+        )
+        predicted_cells: set = set()
+        for _hid, dist in predictions.items():
+            for cell, p in dist.items():
+                if p > 0:
+                    predicted_cells |= inflate_cells(
+                        {cell}, radius=int(self.safety_radius),
+                        env=sim_state.env,
+                    )
+        return predicted_cells
+
     def decide_action(self, sim_state: SimStateView, observation: Observation, rng=None) -> StepAction:
         aid = self.agent_id
         agent = sim_state.agents[aid]
@@ -74,6 +123,28 @@ class AgentController:
         human_cells = {h.pos for h in observation.visible_humans.values()}
         forbidden = inflate_cells(human_cells, radius=int(self.safety_radius), env=sim_state.env)
         blocked = set(observation.blocked) | set(forbidden)
+
+        # ---- γ (evade) variant — resume-prompt-5, stage 3 -----------
+        # When algorithm_variant == "evade", extend the forbidden set
+        # with cells where humans are PREDICTED to be at t+1 (each
+        # inflated by r_safe, see ``_predicted_forbidden``).  If the
+        # agent's CURRENT cell is in that set, the agent is
+        # predicted-encroached: it evades if it can, Safe-Waits if it
+        # cannot, and either way its action is classified
+        # response-attributable (the simulator's Def-1 classifier
+        # reads the predicted-encroached tag written here).  The
+        # branch is a no-op for baseline, leaving baseline behavior
+        # byte-identical.
+        predicted_cells = self._predicted_forbidden(sim_state)
+        if predicted_cells:
+            forbidden = forbidden | predicted_cells
+            blocked = blocked | predicted_cells
+            if cur in predicted_cells:
+                simulator = getattr(sim_state, "simulator", None)
+                pred_set = getattr(
+                    simulator, "_predicted_encroached_this_tick", None)
+                if pred_set is not None:
+                    pred_set.add(aid)
 
         # Get desired next cell from global plan
         desired_next = self._desired_from_global_plan(sim_state)

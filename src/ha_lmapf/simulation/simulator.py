@@ -2012,6 +2012,23 @@ class Simulator:
     def plans(self) -> Optional[PlanBundle]:
         return self._plans
 
+    @property
+    def agent_positions(self) -> Dict[int, Cell]:
+        """Resume-prompt-5: ``{agent_id: cell}`` snapshot the γ evade
+        controller passes to ``human_model.predict_next`` so the
+        prediction consults agent positions exactly as ``step`` does.
+        Built fresh on each access from the live agent states."""
+        return {aid: a.pos for aid, a in self.agents.items()}
+
+    @property
+    def simulator(self) -> "Simulator":
+        """Resume-prompt-5: identity hook.  ``decide_action`` receives
+        the Simulator as its ``sim_state``; this property lets the γ
+        branch write ``sim_state.simulator._predicted_encroached_this_tick``
+        without the controller hard-coding the assumption that
+        ``sim_state`` IS the simulator."""
+        return self
+
     def decided_next_positions(self) -> Dict[int, Cell]:
         """
         Return positions that agents have already decided to move to this timestep.
