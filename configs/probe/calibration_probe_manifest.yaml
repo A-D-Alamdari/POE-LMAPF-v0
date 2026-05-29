@@ -1,0 +1,13 @@
+# Validator-side manifest for the Phase 2 prompt 4 calibration probe.
+#
+# Separate file (and separate schema) from configs/probe/calibration_probe.yaml
+# (the runner config) because the validator's --manifest mode consumes
+# {sweeps: [{name, csv, max_invalid_fraction}, ...]} -- a different
+# schema than the runner's {base, groups, seeds, ...}.
+#
+# max_invalid_fraction matches the probe runner config (0.05) so the
+# audit-14 verdict reflects the same gate Phase 3 (B7) will gate against.
+sweeps:
+  - name: calibration_probe
+    csv: ../../logs/probe/calibration/results.csv
+    max_invalid_fraction: 0.05

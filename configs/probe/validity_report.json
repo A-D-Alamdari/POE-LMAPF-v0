@@ -1,0 +1,18 @@
+{
+  "n_failed_sweeps": 1,
+  "overall_passed": false,
+  "sweeps": {
+    "calibration_probe": {
+      "csv_path": "/home/user/POE-LMAPF-v0/logs/probe/calibration/results.csv",
+      "invalid_fraction": 1.0,
+      "n_invalid": 12,
+      "n_rows": 12,
+      "name": "calibration_probe",
+      "passed": false,
+      "reasons": {
+        "deadlock-fraction": 12
+      },
+      "threshold": 0.05
+    }
+  }
+}

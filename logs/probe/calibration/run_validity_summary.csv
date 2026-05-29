@@ -1,0 +1,2 @@
+global_solver,map_path,total_runs,valid_runs,invalid_runs,errored_runs,invalid_fraction,cell_fraction_limit,cell_exceeds_limit
+lacam_official,data/maps/warehouse-10-20-10-2-2.map,12,12,0,0,0.0,0.2,False

@@ -120,6 +120,55 @@ proved.  None of these needs re-litigation in the resume work.
 
 ## D. The resume sequence — ordered, with gate logic
 
+### Phase 2 calibration probe outcome (audit 14, 2026-05-29)
+
+**Phase 3 (B7 full re-run) is NOT GREENLIT.**
+
+Phase 2 prompts 1-3 landed (strong validity predicate wired into the
+validator, 30 s solver budget locked across all sweep + paper YAMLs,
+stale per-YAML calibration comment removed).  Phase 2 prompt 4 ran a
+focused 12-run calibration probe at the worst corner of
+`horizon_replan_full` (warehouse-10-20-10-2-2, 75/100 agents,
+H in {60,80}, 3 seeds, False regime, baseline variant, 30 s budget).
+
+Result split:
+
+* **Solver budget question (probe's primary question): PASS.**  Every
+  row's solver-fail-fraction is below the 0.05 gate (max 1.14 %,
+  median 0.00 %).  The 30 s budget is verified sufficient at the
+  worst-case operating point.  Step 1 lever 1 ("raise
+  solver_timeout_s") is consumed and confirmed.
+* **Strong-predicate gate: FAIL on clause 4.**  All 12 rows fail
+  deadlock-fraction at 22-43 % deadlocked fleet (2-4 x over the 0.10
+  gate).  Throughput utilization is 0.97-0.98 on every row, so
+  clause 5 (saturation-hiding-deadlock) would also apply.  This is
+  the exact "throughput masks deadlock under arrival saturation"
+  failure mode audit 09 §1 characterised, empirically reproduced.
+
+The probe does NOT recommend a budget revision.  At 30 s the solver
+is already at 0-1 % failure on every cell; raising the budget to
+60 s / 90 s would change zero of clause 3's verdicts.  Phase 2
+prompt 4's brief anticipated a budget-revision remediation, but the
+data don't fit that arm.  The bottleneck is the deadlock failure
+mode at this operating point, not the per-call solver budget.
+
+**Next action (separate prompt, NOT in the original §D below):**
+diagnose the deadlock failure mode.  Candidates: allocator
+(`congestion_avoidance`), §5.4 coordination policy at high density
+on a corridor-heavy map, the `aisle` human model, the `priority`
+(Wait-Based) resolver under saturation, the new Token-Based resolver
+at this operating point (resume-prompt-6 untested here).  Full
+picture and per-cell table: `reports/audit/14_calibration_probe.md`.
+
+The original §D resume sequence below remains the path Phase 3 will
+follow ONCE the deadlock failure mode is diagnosed and remediated.
+Steps 2-5 are blocked on the separate deadlock-diagnosis prompt;
+Step 1's solver-budget lever is already taken (Phase 2 prompt 2,
+verified by audit 14) and Step 1's `max_invalid_fraction` lever is
+already documented in every regenerated YAML (Phase 2 prompts 1-3).
+
+---
+
 Each step's gate refers to a measurable result from a prior step.
 Skipping a step or reordering them wastes compute or invalidates
 the next step's verdict.
